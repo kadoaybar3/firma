@@ -141,7 +141,7 @@ export function TermsPage() {
 
 export function NotFoundPage() {
   return (
-    <SEO title="Sayfa bulunamadı | Firma Rehberi">
+    <SEO title="Sayfa bulunamadı | Firma Rehberi" noindex>
       <div className="section container" style={{ padding: "48px 16px" }}>
         <div className="empty-state">
           <span className="empty-state__icon" aria-hidden="true">🧭</span>
@@ -171,7 +171,7 @@ export function LoginPage() {
   }
 
   return (
-    <SEO title="Giriş | Firma Rehberi Paneller">
+    <SEO title="Giriş | Firma Rehberi Paneller" noindex>
       <div className="auth-wrap">
         <div className="auth-card">
           <h1>Panellere giriş</h1>

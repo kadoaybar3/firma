@@ -10,6 +10,26 @@ import {
   listCompanies,
 } from "../lib/repo";
 
+// Sitede gerçek arama hedefi (/firmalar?q=) olduğu için SearchAction güvenli.
+// Modül ömrü boyunca sabit — her render'da yeniden üretilmez (gereksiz head yazımı olmasın).
+const HOMEPAGE_JSON_LD: Array<Record<string, unknown>> = [
+  {
+    "@context": "https://schema.org",
+    "@type": "WebSite",
+    name: "Firma Rehberi",
+    url: typeof location !== "undefined" ? location.origin : "",
+    inLanguage: "tr",
+    potentialAction: {
+      "@type": "SearchAction",
+      target: {
+        "@type": "EntryPoint",
+        urlTemplate: `${typeof location !== "undefined" ? location.origin : ""}/firmalar?q={search_term_string}`,
+      },
+      "query-input": "required name=search_term_string",
+    },
+  },
+];
+
 export default function HomePage() {
   const navigate = useNavigate();
   const [term, setTerm] = useState("");
@@ -32,6 +52,8 @@ export default function HomePage() {
     <SEO
       title="Firma Rehberi — Afyonkarahisar'daki Firmaları Kolayca Bulun"
       description="Afyonkarahisar ve ilçelerindeki güvenilir firmaları kategori, ilçe ve arama ile keşfedin."
+      canonicalPath="/"
+      jsonLd={HOMEPAGE_JSON_LD}
     >
       {/* HERO */}
       <section className="hero">

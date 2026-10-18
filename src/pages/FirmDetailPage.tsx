@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { SEO } from "../components/SEO";
 import { FirmGrid } from "../components/FirmCard";
@@ -6,6 +6,7 @@ import { Lightbox } from "../components/Lightbox";
 import { EmptyState } from "../components/ui";
 import { getCompanyBySlug, getCityById, listCategories, listCompanies } from "../lib/repo";
 import { isOpenNow, mapLink } from "../lib/hours";
+import { buildBreadcrumbJsonLd, buildLocalBusinessJsonLd, locationOriginSafe, safeExternalUrl } from "../lib/seo";
 
 /*
  * FİRMA PROFİLİ — premium vitrin (v3 tasarım)
@@ -32,9 +33,38 @@ export default function FirmDetailPage() {
   const company = slug ? getCompanyBySlug(slug) : undefined;
   const [lightbox, setLightbox] = useState<number | null>(null);
 
+  // Hooks kuralı: tüm hook'lar erken dönüşten ÖNCE çağrılır — bulundu/bulunamadı
+  // durumları arasında hook sayısı sabit kalır (rotalar arası geçişte crash olmaz).
+  const category = company ? listCategories().find((c) => c.id === company.categoryId) : undefined;
+  const city = company ? getCityById(company.cityId) : undefined;
+  const canonicalPath = company ? `/firma/${company.slug}` : "";
+  const pageUrl = canonicalPath ? `${locationOriginSafe()}${canonicalPath}` : "";
+
+  // JSON-LD düğümleri: yalnızca doğrulanmış veri; girdi değişmedikçe yeniden üretme
+  const jsonLd = useMemo(
+    () => {
+      if (!company || !company.published) return [];
+      return [
+        buildLocalBusinessJsonLd({
+          company,
+          categoryName: category?.name,
+          cityName: city?.name,
+          pageUrl,
+        }),
+        buildBreadcrumbJsonLd([
+          { name: "Ana sayfa", path: "/" },
+          ...(city ? [{ name: city.name, path: `/sehir/${city.slug}` }] : []),
+          ...(category ? [{ name: category.name, path: `/kategori/${category.slug}` }] : []),
+          { name: company.name, path: canonicalPath },
+        ]),
+      ];
+    },
+    [company, category, city, canonicalPath, pageUrl],
+  );
+
   if (!company || !company.published) {
     return (
-      <SEO title="Firma bulunamadı | Firma Rehberi">
+      <SEO title="Firma bulunamadı | Firma Rehberi" noindex>
         <div className="section container" style={{ padding: "48px 16px" }}>
           <EmptyState
             icon="🚧"
@@ -51,8 +81,6 @@ export default function FirmDetailPage() {
     );
   }
 
-  const category = listCategories().find((c) => c.id === company.categoryId);
-  const city = getCityById(company.cityId);
   const open = isOpenNow(company.hours);
   const gallery = company.images.filter(Boolean);
 
@@ -61,7 +89,7 @@ export default function FirmDetailPage() {
   const mapsHref = company.address ? mapLink({ name: company.name, address: company.address }) : null;
   const waDigits = company.socials.whatsapp?.replace(/\D/g, "") ?? "";
   const waHref = waDigits ? `https://wa.me/${waDigits}` : null;
-  const siteHref = company.website?.trim() || null;
+  const siteHref = safeExternalUrl(company.website);
   const locationText = city ? `${city.name} / ${company.district}` : company.district;
 
   const todayIndex = new Date().getDay(); // 0 = Pazar
@@ -85,6 +113,8 @@ export default function FirmDetailPage() {
       description={`${company.name} — ${category?.name ?? ""}, ${locationText}. ${open ? "Şu an açık" : "Şu an kapalı"}${
         company.phone ? `, telefon: ${company.phone}` : ""
       }`}
+      canonicalPath={canonicalPath}
+      jsonLd={jsonLd}
     >
       <div className="container vprofile">
         <nav className="vcrumb" aria-label="Sayfa konumu">
