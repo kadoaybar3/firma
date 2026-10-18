@@ -206,42 +206,49 @@ function getDistrictOf(co: { cityId: string; district: string }, cities: ReturnT
   return city ? `${city.name} / ${co.district}` : co.district;
 }
 
-/* ---------- Firma ekleme formu ---------- */
-function CompanyForm({
+/* ---------- Firma ekleme/düzenleme formu (initial verilmezse boş başlar) ---------- */
+export function CompanyForm({
   categories,
   cities,
   reps,
   onSubmit,
   onCancel,
+  initial,
+  title = "Yeni firma ekle",
 }: {
   categories: ReturnType<typeof listCategories>;
   cities: ReturnType<typeof listCities>;
   reps: ReturnType<typeof listReps>;
   onSubmit: (draft: CompanyDraft) => void;
   onCancel: () => void;
+  /** Önceden dolu taslak (firma düzenleme, aday→firma dönüşümü). Verilmezse boş başlar. */
+  initial?: CompanyDraft;
+  title?: string;
 }) {
-  const [draft, setDraft] = useState<CompanyDraft>({
-    name: "",
-    categoryId: categories[0]?.id ?? "",
-    cityId: cities[0]?.id ?? "",
-    district: "Merkez",
-    address: "",
-    phone: "",
-    email: "",
-    website: "",
-    socials: {},
-    description: "",
-    images: ["🏢"],
-    featured: false,
-    published: true,
-  });
+  const [draft, setDraft] = useState<CompanyDraft>(
+    initial ?? {
+      name: "",
+      categoryId: categories[0]?.id ?? "",
+      cityId: cities[0]?.id ?? "",
+      district: "Merkez",
+      address: "",
+      phone: "",
+      email: "",
+      website: "",
+      socials: {},
+      description: "",
+      images: ["🏢"],
+      featured: false,
+      published: true,
+    },
+  );
   const [error, setError] = useState<string | null>(null);
 
   const city = cities.find((c) => c.id === draft.cityId);
 
   return (
     <div className="card card__pad mb-14">
-      <h3 style={{ fontWeight: 800, marginBottom: 14 }}>Yeni firma ekle</h3>
+      <h3 style={{ fontWeight: 800, marginBottom: 14 }}>{title}</h3>
       <form
         onSubmit={(e) => {
           e.preventDefault();
@@ -431,6 +438,25 @@ function EditCompany({
 
   if (!company) return null;
 
+  // Mevcut firma verisinden taslak eşlemesi — admin 14 alanı baştan yazmasın
+  const draft: CompanyDraft = {
+    name: company.name,
+    categoryId: company.categoryId,
+    cityId: company.cityId,
+    district: company.district,
+    address: company.address,
+    phone: company.phone,
+    email: company.email ?? "",
+    website: company.website ?? "",
+    socials: company.socials ?? {},
+    description: company.description,
+    images: company.images,
+    hours: company.hours,
+    featured: company.featured,
+    published: company.published,
+    repId: company.repId ?? null,
+  };
+
   return (
     <div className="card card__pad mb-14" style={{ paddingLeft: 16 }}>
       <h3 style={{ fontWeight: 800, marginBottom: 14 }}>Firmayı düzenle: {company.name}</h3>
@@ -439,6 +465,8 @@ function EditCompany({
         categories={categories}
         cities={cities}
         reps={reps}
+        initial={draft}
+        title="Firma bilgileri"
         onCancel={onCancel}
         onSubmit={(draft) => {
           setError(null);

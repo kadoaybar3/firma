@@ -1,18 +1,25 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { PanelHead } from "./AdminLayout";
+import { CompanyForm } from "./Companies";
 import { Badge, EmptyState, ErrorBanner, Field, StatCard } from "../components/ui";
 import { useActor } from "../lib/auth";
 import { formatDateTime } from "../lib/format";
 import {
   addVisit,
+  convertLead,
   createLead,
   deleteLead,
+  getCompanyById,
+  listCategories,
   listCities,
   listLeads,
+  listReps,
   listVisits,
   updateLeadStatus,
 } from "../lib/repo";
-import type { LeadStatus } from "../lib/types";
+import type { CompanyDraft } from "../lib/repo";
+import type { Lead, LeadStatus } from "../lib/types";
 
 const LEAD_STATUSES: LeadStatus[] = ["yeni", "irtibat", "görüşme", "anlaşma", "iptal"];
 const STATUS_TONE: Record<LeadStatus, "blue" | "gray" | "green" | "orange" | "red"> = {
@@ -40,12 +47,14 @@ export default function AdminLeads() {
 export function LeadBoard({ actor }: { actor: ReturnType<typeof useActor> }) {
   const [expanded, setExpanded] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [, setTick] = useState(0);
   const leads = listLeads(actor);
 
   function run(fn: () => void) {
     setError(null);
     try {
       fn();
+      setTick((t) => t + 1); // Başarılı işlem sonrası satır verisini tazele (dönüşüm rozeti vb.)
     } catch (e) {
       setError(e instanceof Error ? e.message : "İşlem başarısız.");
     }
@@ -102,11 +111,22 @@ function LeadRow({
   actor: ReturnType<typeof useActor>;
 }) {
   const [note, setNote] = useState(lead.note);
+  const [converting, setConverting] = useState(false);
+  const convertedCompany = lead.convertedToCompanyId
+    ? getCompanyById(lead.convertedToCompanyId)
+    : undefined;
   return (
     <>
       <tr>
         <td>
           <strong>{lead.companyName}</strong>
+          {convertedCompany && (
+            <div>
+              <Link to={`/firma/${convertedCompany.slug}`} style={{ color: "inherit" }}>
+                <Badge tone="green">→ Firma</Badge>
+              </Link>
+            </div>
+          )}
           <div className="text-muted small">{formatDateTime(lead.createdAt)}</div>
         </td>
         <td>{actor.role === "admin" ? "—" : null}</td>
@@ -135,7 +155,15 @@ function LeadRow({
             <button className="btn btn--sm btn--ghost" onClick={onToggle}>
               {expanded ? "Kayıtları kapat" : "Ziyaret kayıtları"}
             </button>
-            {actor.role === "admin" && (
+            {actor.role === "admin" && !lead.convertedToCompanyId && (
+              <button
+                className="btn btn--sm btn--primary"
+                onClick={() => setConverting((c) => !c)}
+              >
+                {converting ? "Dönüşümü kapat" : "Firmaya dönüştür"}
+              </button>
+            )}
+            {actor.role === "admin" && !lead.convertedToCompanyId && (
               <button
                 className="btn btn--sm btn--danger"
                 onClick={() => {
@@ -149,6 +177,18 @@ function LeadRow({
           </div>
         </td>
       </tr>
+      {converting && (
+        <tr>
+          <td colSpan={6} style={{ background: "#fafbfe" }}>
+            <ConvertLeadPanel
+              lead={lead}
+              run={run}
+              actor={actor}
+              onClose={() => setConverting(false)}
+            />
+          </td>
+        </tr>
+      )}
       {expanded && (
         <tr>
           <td colSpan={6} style={{ background: "#fafbfe" }}>
@@ -194,6 +234,61 @@ function LeadRow({
         </tr>
       )}
     </>
+  );
+}
+
+/**
+ * Aday→firma dönüşüm bölmesi: CompanyForm aday verisiyle önceden dolu açılır;
+ * kaydedince firma oluşur (rep eşlemeli) ve aday dönüşüm işaretlenir.
+ */
+function ConvertLeadPanel({
+  lead,
+  run,
+  actor,
+  onClose,
+}: {
+  lead: Lead;
+  run: (fn: () => void) => void;
+  actor: ReturnType<typeof useActor>;
+  onClose: () => void;
+}) {
+  const categories = listCategories();
+  const cities = listCities();
+  const reps = listReps();
+
+  const initial: CompanyDraft = {
+    name: lead.companyName,
+    categoryId: lead.categoryId ?? categories[0]?.id ?? "",
+    cityId: lead.cityId ?? cities[0]?.id ?? "",
+    district: lead.district ?? "Merkez",
+    address: "",
+    phone: lead.phone ?? "",
+    email: "",
+    website: "",
+    socials: {},
+    description: lead.note,
+    // hours verilmez → createCompany varsayılanını kullanır
+    images: ["🏢"],
+    featured: false,
+    published: false, // admin onayı (doğrudan yayına al) olmadan yayına girmez
+    repId: lead.repId ?? null,
+  };
+
+  return (
+    <CompanyForm
+      categories={categories}
+      cities={cities}
+      reps={reps}
+      initial={initial}
+      title={`Firmaya dönüştür: ${lead.companyName}`}
+      onCancel={onClose}
+      onSubmit={(draft) =>
+        run(() => {
+          convertLead(lead.id, draft, actor);
+          onClose();
+        })
+      }
+    />
   );
 }
 

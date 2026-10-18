@@ -205,6 +205,14 @@ export function deleteCompany(id: string, actor: Actor): void {
   if (hasActive)
     throw new Error("Bu firmanın aktif bir üyeliği var. Seçili firmayı yayından kaldırabilirsiniz.");
   db.companies = db.companies.filter((c) => c.id !== id);
+  // Dönüşüm işaretçisi asılmaz (FK on delete set null ile aynı davranış):
+  // firması silinen aday yeniden dönüştürülebilir hale gelir.
+  for (const lead of db.leads) {
+    if (lead.convertedToCompanyId === id) {
+      lead.updatedAt = nowISO();
+      delete lead.convertedToCompanyId;
+    }
+  }
   log(db, actor, "firma_silindi", `Firma silindi: ${company.name}`, { companyId: id });
   persist();
 }
@@ -463,11 +471,40 @@ export function deleteLead(leadId: string, actor: Actor): void {
   const db = getDB();
   const lead = db.leads.find((l) => l.id === leadId);
   if (!lead) throw new Error("Aday bulunamadı.");
+  if (lead.convertedToCompanyId)
+    throw new Error("Firmaya dönüşmüş aday silinemez; dönüşüm geçmişini korumak için firma kaydıyla birlikte kapatın.");
   if (actor.role === "temsilci" && actor.repId !== lead.repId)
     throw new Error("Bu aday size ait değil.");
   db.leads = db.leads.filter((l) => l.id !== leadId);
   log(db, actor, "aday_silindi", `Aday silindi: ${lead.companyName}`, { leadId });
   persist();
+}
+
+/**
+ * Anlaşılan adayın firmaya dönüştürülmesi (ADMIN-only).
+ * Firma, aday verisiyle önceden doldurulmuş taslak üzerinden createCompany
+ * kurallarıyla oluşturulur; adayın sahibi temsilci firma rep eşlemesine
+ * varsayılan olur. Aday durumu DEĞİŞMEZ (rep panosu "anlaşma" sayımını bozmamak
+ * için); dönüşüm yalnızca convertedToCompanyId işaretçisiyle kayıt altına alınır.
+ */
+export function convertLead(leadId: string, draft: CompanyDraft, actor: Actor): Company {
+  if (actor.role !== "admin")
+    throw new Error("Firmaya dönüşüm yalnızca yönetici tarafından yapılır.");
+  const db = getDB();
+  const lead = db.leads.find((l) => l.id === leadId);
+  if (!lead) throw new Error("Aday bulunamadı.");
+  if (lead.convertedToCompanyId) throw new Error("Bu aday zaten firmaya dönüşmüştür.");
+  // Adayın sahibi varsayılan rep; admin taslakta geçersiz kılabilir.
+  // Aday sahibi varsayılan atamadır; admin formdaki seçimle geçersiz kılabilir.
+  const company = createCompany({ ...draft, repId: draft.repId ?? lead.repId ?? null }, actor);
+  lead.convertedToCompanyId = company.id;
+  lead.updatedAt = nowISO();
+  log(db, actor, "aday_donusum", `Firmaya dönüştürüldü: ${lead.companyName}`, {
+    leadId,
+    companyId: company.id,
+  });
+  persist();
+  return company;
 }
 
 /** Temsilci kendi adayına ziyaret/görüşme kaydı ekler. */

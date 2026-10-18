@@ -93,6 +93,8 @@ export interface Lead {
   visitCount: number;
   createdAt: string;
   updatedAt: string;
+  /** Firmaya dönüştürülmüşse hedef firma id (genel boru hattından ayrıştırma işareti) */
+  convertedToCompanyId?: string;
 }
 
 export interface LeadVisit {
