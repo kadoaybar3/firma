@@ -275,6 +275,23 @@ export function districtCount(cityId: string, district: string): number {
 
 export const districtCompanyCount = districtCount;
 
+/**
+ * Tek geçişli ilçe sayacı — listeleme sayfalarının her render'ında ilçe başına
+ * O(n) filtre koşmasını ve listCompanies'in sıralama maliyetini taşımasını önler.
+ * Salt-okunur ekleme; mevcut fonksiyonların davranışı değişmez.
+ * Anlambilim districtCompanyCount ile birebir aynıdır (published + exact-case).
+ */
+export function districtCountsByCity(cityId: string): Map<string, number> {
+  const db = getDB();
+  const counts = new Map<string, number>();
+  for (const c of db.companies) {
+    if (c.cityId === cityId && c.published) {
+      counts.set(c.district, (counts.get(c.district) ?? 0) + 1);
+    }
+  }
+  return counts;
+}
+
 export function addDistrict(cityId: string, name: string, actor: Actor): void {
   const db = getDB();
   const city = db.cities.find((c) => c.id === cityId);

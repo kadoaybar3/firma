@@ -4,7 +4,7 @@ import { SEO } from "../components/SEO";
 import { FirmGrid } from "../components/FirmCard";
 import { EmptyState } from "../components/ui";
 import {
-  districtCompanyCount,
+  districtCountsByCity,
   getCityBySlug,
   listCategories,
   listCities,
@@ -52,6 +52,19 @@ export default function FirmsPage() {
       district: canonicalDistrict ?? districtParam,
     });
   }, [queryText, selectedCategory, city, canonicalDistrict, districtParam]);
+
+  /*
+   * İlçe sayıları tek O(n) geçişte çıkar ve memo'lanır — code-reviewer bulgusu:
+   * her render'da (arama her tuşta sayfayı yeniden render ettiğinden) ilçe
+   * başına districtCompanyCount ile O(n) filtre koşuyordu. Sayaçlar
+   * districtCountsByCity üzerinden alınır; anlambilim birebir korunur
+   * (yalnızca published firmalar, ilçe adı casing'e duyarlı tam eşleşme,
+   * seçili şehirle sınırlı).
+   */
+  const districtCounts = useMemo(
+    () => (city ? districtCountsByCity(city.id) : new Map<string, number>()),
+    [city],
+  );
 
   const title = selectedCategory
     ? `${selectedCategory.name} — Firmalar`
@@ -147,7 +160,7 @@ export default function FirmsPage() {
             <option value="">Tüm ilçeler</option>
             {city?.districts.map((d) => (
               <option key={d} value={d.toLowerCase()}>
-                {d} ({districtCompanyCount(city.id, d)})
+                {d} ({districtCounts.get(d) ?? 0})
               </option>
             ))}
           </select>
