@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { getCityById, getCompanyById, listCategories } from "../lib/repo";
-import { formatDateTime, formatShortDate } from "../lib/format";
+import { telHref, formatDateTime, formatShortDate } from "../lib/format";
 import { isOpenNow } from "../lib/hours";
 
 export function FirmCard({ id }: { id: string }) {
@@ -9,6 +9,7 @@ export function FirmCard({ id }: { id: string }) {
   const category = listCategories().find((c) => c.id === company.categoryId);
   const city = getCityById(company.cityId);
   const open = isOpenNow(company.hours);
+  const phoneHref = telHref(company.phone);
 
   return (
     <article className="company-card">
@@ -40,7 +41,13 @@ export function FirmCard({ id }: { id: string }) {
             <span>📍 {city?.name} / {company.district}</span>
           </span>
           <span className="company-card__row">
-            <span>📞 {company.phone}</span>
+            {phoneHref ? (
+              <a className="company-card__phone" href={phoneHref}>
+                📞 {company.phone}
+              </a>
+            ) : (
+              <span>📞 {company.phone}</span>
+            )}
             <span className="text-muted small">Yayımda: {formatShortDate(company.createdAt)}</span>
           </span>
         </div>

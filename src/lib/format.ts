@@ -37,3 +37,15 @@ export function formatShortDate(iso: string): string {
     year: "numeric",
   }).format(new Date(iso));
 }
+
+/**
+ * Telefon numarasını tıklanabilir `tel:` bağlantısına çevirir.
+ * Yalnızca rakamlar ve en baştaki '+' korunur; boşluk, tire, parantez
+ * gibi biçim karakterleri temizlenir. Çevrilebilir karakter yoksa
+ * boş string döner (çağıran taraf metne düşebilir).
+ */
+export function telHref(phone: string): string {
+  const digits = phone.replace(/\D/g, "");
+  if (!digits) return "";
+  return phone.startsWith("+") ? `tel:+${digits}` : `tel:${digits}`;
+}
