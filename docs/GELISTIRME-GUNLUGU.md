@@ -26,6 +26,7 @@
 | Tur 2: aday→firma köprüsü | `8cf5d93` | Temsilci 'anlaşma' → admin tek harekette firma: convertLead (admin-only, çift-dönüşüm guard, durum korunur, aday_donusum denetimi), deleteLead/deleteCompany korumaları, UI prefilled CompanyForm, EditCompany boş-form defekt düzeltmesi, 0003 FK migration (additive, set null) | code-reviewer B1 (zombi aday) → deleteCompany işaretçi temizliği + FK on delete set null; repId yönü karar: form kazanır (test kalıcı sabitler) |
 | Tur 3: FirmGrid O(1) indeks | `568868a` | companyIndex() (sürüm sayacılı Map, canlı referans) → kart başına 3× O(n) find → O(1); ölçüm: n=1000 grid lookup 3.344→0.089 ms (37.6×); çağrı API değişmedi | code-reviewer testlerde B-1/B-2 (yalancı-geçen iddia) yakaladı → testler vurucu hale getirildi; review salt-okunur olmalı, test iddianın kendisini kanıtlamalı |
 | Tur 4: geçersiz slug soft-404 | `a7b5500` | slugProblem() (pure) + FirmsPage erken-dal noindex bulunamadı + SEO kuralı: noindex'te canonical basılmaz; tarayıcıda 3 yol doğrulandı | Shedehirsiz ?ilçe serbest filtre kaldı (regresyona karşı 8 test); SEO noindex-canonical kural kilidi jsdom bağımlığı ister — notlandı |
+| Tur 5: mikro bakım | `6e60d27` | ?ilçe çift-decode URIError crash kapatıldı; ölü kod; admin aday tablosunda temsilci ad sütunu | URLSearchParams.get zaten decode'lu — çift decode yasağı ilke olarak loglandı |
 
 ### Fikir bankası — değerlendirme matrisi (2026-10-20, 4 ajan paralel üretti)
 
@@ -58,11 +59,10 @@
 
 ## Sonraki turda olası adaylar (değerlendirmeye açık — bu liste reçete değil)
 
-- UI/UX: kategori gezinme akışı, arama sonuç boşluğu metinleri, ilçe keşfinin mobil davranışı
-- SEO: sitemap SITE_URL bağlantısı (domain gelince), kingsalar noindex dışı sayfalarda canonical kontrolü
-- Perf: FirmCard API dönüşümü (bkz. yukarıda bekleyen işler)
-- İş akışı: admin/temsilci panellerinde boş-durum (empty state) işlevselliği, toplu yayın kontrolü hızlandırıcısı
-- Erişilebilirlik: odak halkası denetimi, klavye ile mobil alt çubuk erişimi
+- **[BÜYÜK ADAY] "Firmanızı rehbere ekletin" kazanım formu (frontend Tur 1 öneri 1):** halka açık iletisim/karsilama yüzü firmaya başvuru formu (aday yaratmak) — B2B kazanım hunisi doğrudan; admin/rep akışına bağlanabilir. Yeni repo API + upload yok (metin/telefon/kategori)
+- **[KÜÇÜK] SEO noindex-canonical kural kilidi:** jsdom/lighter DOM env gerektiriyor — devDep değerlendirmesi
+- **[KÜÇÜK] LeadBoard rep Map memo:** rep sayısı büyüyünce (getRepById O(n) × aday) — şimdilik önemsiz, 100+ adayda yeniden bak
+- Rep kolonu yerine ConvertLeadPanel'de listReps importu olduğu için temsilci isimleşme tamamlandı; düşük öncelikli metin/canlı kontrol notları log'da
 
 ## Ortam notları
 
