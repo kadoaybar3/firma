@@ -1,10 +1,11 @@
 import { Link } from "react-router-dom";
-import { getCityById, getCompanyById, listCategories } from "../lib/repo";
+import { companyIndex, getCityById, listCategories } from "../lib/repo";
 import { telHref, formatDateTime, formatShortDate } from "../lib/format";
 import { isOpenNow } from "../lib/hours";
 
 export function FirmCard({ id }: { id: string }) {
-  const company = getCompanyById(id);
+  // O(1) indeks araması: 1000 firmada kart gridi O(n²) taramadan tek geçişi düşer.
+  const company = companyIndex().get(id);
   if (!company) return null;
   const category = listCategories().find((c) => c.id === company.categoryId);
   const city = getCityById(company.cityId);

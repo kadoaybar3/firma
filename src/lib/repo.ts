@@ -56,6 +56,7 @@ export function getDB(): DB {
 }
 
 export function persist(): void {
+  repoVersion++;
   if (!cache) return;
   if (!storageAvailable) return;
   try {
@@ -67,15 +68,34 @@ export function persist(): void {
 
 export function resetDB(): void {
   cache = seedDB();
+  companyIndexCache = null;
   persist();
 }
 
 /** Testler için */
 export function setDB(db: DB): void {
   cache = db;
+  companyIndexCache = null;
 }
 
 /* ============ FİRMALAR ============ */
+
+/* --- O(1) id-arama indeksi (FirmCard O(n²) grid taraması kapatılır) ---
+ * Salt-okunur ekleme; getCompanyById davranışı değişmez (canlı referans döner).
+ * Geçerlilik: persist() her mutasyondan sonra çağırdığından sürüm sayacı
+ * indeksi tazeler; setDB/resetDB de indeks bilinçli düşürür. */
+let repoVersion = 0;
+let companyIndexCache: { version: number; map: Map<string, Company> } | null = null;
+
+export function companyIndex(): Map<string, Company> {
+  const db = getDB();
+  if (!companyIndexCache || companyIndexCache.version !== repoVersion) {
+    const map = new Map<string, Company>();
+    for (const c of db.companies) map.set(c.id, c);
+    companyIndexCache = { version: repoVersion, map };
+  }
+  return companyIndexCache.map;
+}
 
 export interface CompanyFilter {
   q?: string;
