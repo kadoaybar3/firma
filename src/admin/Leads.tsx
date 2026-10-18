@@ -131,7 +131,7 @@ function LeadRow({
           <div className="text-muted small">{formatDateTime(lead.createdAt)}</div>
         </td>
         <td>
-          {actor.role === "admin" ? (getRepById(lead.repId)?.name ?? "—") : null}
+          {actor.role === "admin" ? (lead.repId ? (getRepById(lead.repId)?.name ?? "—") : "—") : null}
         </td>
         <td className="text-muted">{lead.district ?? "—"}</td>
         <td>

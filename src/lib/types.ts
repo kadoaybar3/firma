@@ -82,7 +82,8 @@ export type LeadStatus = "yeni" | "irtibat" | "görüşme" | "anlaşma" | "iptal
 
 export interface Lead {
   id: string;
-  repId: string;
+  /** Sahada kaydeden temsilci; web başvurularında dönüştürme sonrası atanır (optional) */
+  repId?: string;
   companyName: string;
   categoryId?: string;
   cityId?: string;
@@ -93,6 +94,8 @@ export interface Lead {
   visitCount: number;
   createdAt: string;
   updatedAt: string;
+  /** Kaynağı işaretler: temsilci sahadan ('sahada') veya web formundan ('web') */
+  source?: "sahada" | "web";
   /** Firmaya dönüştürülmüşse hedef firma id (genel boru hattından ayrıştırma işareti) */
   convertedToCompanyId?: string;
 }

@@ -1,16 +1,32 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { SEO } from "../components/SEO";
-import { ErrorBanner, InfoBanner } from "../components/ui";
+import { ErrorBanner, Field, InfoBanner } from "../components/ui";
 import { useAuth } from "../lib/auth";
+import { createPublicLead, listCategories, listCities } from "../lib/repo";
 import { isSupabaseConfigured } from "../lib/supabase";
 import { isPaymentProviderConfigured } from "../lib/payments";
 
 /* ============ İLETİŞİM ============ */
 
 export function ContactPage() {
+  const categories = listCategories();
+  const cities = listCities();
+  const [sent, setSent] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [companyName, setCompanyName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [categoryId, setCategoryId] = useState("");
+  const [cityId, setCityId] = useState(cities[0]?.id ?? "");
+  const [district, setDistrict] = useState("");
+  const [note, setNote] = useState("");
+  // Honeypot: bot doldurulursa kayıt YAPILMAZ ama başarı gibi görünür.
+  const [honeypot, setHoneypot] = useState("");
   return (
-    <SEO title="İletişim | Firma Rehberi" description="Firma Rehberi ekibiyle iletişime geçin.">
+    <SEO
+      title="İletişim | Firma Rehberi"
+      description="Firmanızı rehbere ekletmek veya destek için bize ulaşın."
+    >
       <div className="section container" style={{ maxWidth: 720 }}>
         <div className="page-head">
           <h2>İletişim</h2>
@@ -41,11 +57,130 @@ export function ContactPage() {
             <p>Merkez / Afyonkarahisar</p>
           </div>
         </div>
+
+        <div className="card card__pad mt-18">
+          <h3 style={{ fontWeight: 800, marginBottom: 6 }}>Firmanızı rehbere ekletin</h3>
+          <p className="text-muted small" style={{ marginBottom: 14 }}>
+            Temel bilgileri paylaşın; ekibimiz sizi arayıp kaydı tamamlar ve temsilci aday
+            listesine ekler.
+          </p>
+          {sent ? (
+            <div>
+              <p style={{ fontSize: "1.8rem", margin: "10px 0 6px" }} aria-hidden="true">
+                ✅
+              </p>
+              <p style={{ fontWeight: 600, marginBottom: 6 }}>Başvurunuz alındı.</p>
+              <p className="text-muted small">
+                Ekibimiz en kısa sürede sizi arayacak. Bu sayfayı kullanarak destek konularında
+                da ulaşabilirsiniz.
+              </p>
+            </div>
+          ) : (
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                setError(null);
+                if (honeypot) {
+                  // Honeypot dolduruldu → bot. Kayıt oluşturulmaz, başarı gibi görünür.
+                  setSent(true);
+                  return;
+                }
+                try {
+                  createPublicLead({
+                    companyName,
+                    categoryId: categoryId || undefined,
+                    cityId: cityId || undefined,
+                    district: district || undefined,
+                    phone,
+                    note,
+                  });
+                  setSent(true);
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : "Başvuru kaydedilemedi.");
+                }
+              }}
+            >
+              <div className="form-grid">
+                <Field label="Firma adı" required>
+                  <input
+                    value={companyName}
+                    onChange={(e) => setCompanyName(e.target.value)}
+                    required
+                    placeholder="Örn. Kadınana Pastanesi"
+                  />
+                </Field>
+                <Field label="Telefon" required>
+                  <input
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                    placeholder="0272 000 00 00"
+                    inputMode="tel"
+                  />
+                </Field>
+                <Field label="Kategori">
+                  <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
+                    <option value="">Seçin (opsiyonel)</option>
+                    {categories.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.icon} {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+                <Field label="Şehir / ilçe">
+                  <select value={cityId} onChange={(e) => setCityId(e.target.value)}>
+                    {cities.map((c) => (
+                      <option key={c.id} value={c.id}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    value={district}
+                    onChange={(e) => setDistrict(e.target.value)}
+                    style={{ marginTop: 8 }}
+                  >
+                    <option value="">Tüm ilçeler</option>
+                    {(cities.find((c) => c.id === cityId)?.districts ?? []).map((d) => (
+                      <option key={d} value={d}>
+                        {d}
+                      </option>
+                    ))}
+                  </select>
+                </Field>
+              </div>
+              <Field label="Kısa açıklama (opsiyonel)">
+                <textarea
+                  rows={3}
+                  value={note}
+                  onChange={(e) => setNote(e.target.value)}
+                  placeholder="Hizmetleriniz veya eklemek istediğiniz not…"
+                />
+              </Field>
+              {/* Honeypot — görsel olarak gizli, sekme akışı dışı */}
+              <input
+                type="text"
+                value={honeypot}
+                onChange={(e) => setHoneypot(e.target.value)}
+                aria-hidden="true"
+                tabIndex={-1}
+                autoComplete="off"
+                style={{ position: "absolute", left: -9999, width: 1, height: 1 }}
+              />
+              {error && <ErrorBanner message={error} />}
+              <button className="btn btn--primary" type="submit">
+                Başvuruyu gönder
+              </button>
+            </form>
+          )}
+        </div>
+
         <div className="card card__pad mt-18">
           <h3 style={{ fontWeight: 800, marginBottom: 6 }}>Not</h3>
           <p className="text-muted small">
-            İletişim formu kayıt altyapısı (e-posta servisi) henüz entegre edilmedi; entegrasyona
-            hazır mimaride bir sonraki sürümde devreye alınacaktır.
+            Form kayıtları platform içi aday listesinde denetimli tutulur; e-posta servisi
+            entegrasyonu sonraki sürümde devreye alınacaktır.
           </p>
         </div>
       </div>

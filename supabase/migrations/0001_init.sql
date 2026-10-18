@@ -111,9 +111,11 @@ create table if not exists companies (
 );
 
 -- Adaylar ve ziyaret günlükleri (satış kuyruğu)
+-- NOT (Tur 6): sales_rep_id NULL-able — web kaynaklı ('source = web') başvurular
+-- temsilci atanmadan gelir; rep sonra ConvertLeadPanel'de atanır.
 create table if not exists leads (
   id uuid primary key default gen_random_uuid(),
-  sales_rep_id uuid not null references sales_reps(id),
+  sales_rep_id uuid references sales_reps(id),
   company_name text not null,
   category_id uuid references categories(id),
   city_id uuid references cities(id),

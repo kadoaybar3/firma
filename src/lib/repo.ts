@@ -426,10 +426,12 @@ export function updateRep(
 
 export function listLeads(actor: Actor): Lead[] {
   const db = getDB();
-  if (actor.role === "temsilci" && actor.repId)
+  if (actor.role === "temsilci") {
+    // repId'siz temsilci hesabı hiçbir adayı GÖREMEZ (boş liste — havuza sızma olmasın)
     return db.leads
       .filter((l) => l.repId === actor.repId)
       .sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+  }
   return [...db.leads].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 }
 
@@ -449,10 +451,11 @@ export function createLead(
   const lead: Lead = {
     id: uid(),
     repId: actor.repId,
+    source: "sahada",
     companyName: data.companyName.trim(),
     categoryId: data.categoryId || undefined,
     cityId: data.cityId || undefined,
-    district: data.district,
+    district: data.district?.trim() || undefined,
     phone: data.phone?.trim(),
     note: data.note.trim(),
     status: "yeni",
@@ -463,6 +466,49 @@ export function createLead(
   if (!lead.companyName) throw new Error("Firma adı zorunludur.");
   db.leads.push(lead);
   log(db, actor, "aday_eklendi", `Aday eklendi: ${lead.companyName}`, { leadId: lead.id });
+  persist();
+  return lead;
+}
+
+/**
+ * Tur 6: Web kaynaklı aday — halka açık "Firmanızı ekletin" formundan gelir.
+ * Rep atanmaz (admin ConvertLeadPanel'de atayabilir); 'web_basvuru' denetimi
+ * yazılır. Spam karşı arayüz katmanında honeypot işler; repo yalnızca
+ * doğrulama yapar.
+ */
+export function createPublicLead(
+  data: {
+    companyName: string;
+    categoryId?: string;
+    cityId?: string;
+    district?: string;
+    phone: string;
+    note?: string;
+  },
+): Lead {
+  const companyName = data.companyName.trim();
+  const phone = data.phone.trim();
+  if (!companyName) throw new Error("Firma adı zorunlu.");
+  if (!phone) throw new Error("Telefon numarası zorunlu.");
+  const db = getDB();
+  const lead: Lead = {
+    id: uid(),
+    companyName,
+    categoryId: data.categoryId || undefined,
+    cityId: data.cityId || undefined,
+    district: data.district?.trim() || undefined,
+    phone,
+    note: data.note?.trim() ?? "",
+    status: "yeni",
+    visitCount: 0,
+    source: "web",
+    createdAt: nowISO(),
+    updatedAt: nowISO(),
+  };
+  db.leads.push(lead);
+  log(db, { role: "sistem" }, "web_basvuru", `Web başvurusu: ${lead.companyName}`, {
+    leadId: lead.id,
+  });
   persist();
   return lead;
 }
