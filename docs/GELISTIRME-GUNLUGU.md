@@ -5,7 +5,7 @@
 
 ---
 
-## Sokt durum özeti (2026-10-20 itibarıyla)
+## Mevcut durum özeti (2026-10-20 itibarıyla)
 
 - Demo mod aktif: veri localStorage (`firma-rehberi.db.v2`), Supabase `.env` girilmedi
 - Temel mü: ana chunk 283,06 kB / 89,05 kB gzip; 6 test dosyası / 36 test; build temiz
@@ -22,10 +22,23 @@
 | ErrorBoundary + HomePage perf | `7afa56d` | Hata sınırı (chunk/render ayrımı, data-seo benzeri sınıf), HomePage tek-geçişli derive memo. Ölçüm: 1000 firmada tuş vuruşı başına 1,72 ms → ≈0 | React.lazy reddedilen promise'i önbellekler → chunk hatasında tek kurtarma reload; "tekrar dene" remount'u import yenilemez |
 | FirmsPage perf | `2ea6c89` | İlçe sayaçları tek geçişli `districtCountsByCity` (sıralama maliyeti yok) → 1000 firmada 0,0332 → 0,0135 ms ilk derive, tuş vuruşu ≈0 | `listCompanies()` sıralama (localeCompare) maliyetlidir — sayaç için kullanma; ölçüm yapmadan memo'ya alma (listCategories/listCities O(1) kaldı — gereksiz memoization istenmedi) |
 | Güvenlik şema paketi | `38656eb` | K1: current_role → current_app_role (CURRENT_ROLE RESERVED — dosya sözdizimsel geçersizdi); **K2 (yeni kritik): profiles RLS yoktu→ self-escalation boşluğu**, kapatıldı; H1: log_audit RPC yüzeyi kapalı; H2: sales_open_renewal_unique (potansiyel predikatlı); H3: verify_payment_manual tutar çapraz doğrulama; 6 statik invariant testi | RLS policy'ler her rol için değerlendirilir → policy helper'ları anon'dan çekilemez (B1). 0002 herhangi bir canlı veriye dokunmaz, rollback yönlü |
+| Tur 1: kart tel: linki | `9ea242f` | FirmCard telefonu tek dokunuşla aranabilir (telHref yardımcısı + boşnumara fallback + hover stil); 3 kenar durumu testi. Mobil dönüşüm: arama 2 adım → 1 dokunuş | code-reviewer çift-çağrı notunu uyguladı (phoneHref tek hesaplama); aria-label gereksiz (metin numara içeriyor) |
+| Tur 2: aday→firma köprüsü | `8cf5d93` | Temsilci 'anlaşma' → admin tek harekette firma: convertLead (admin-only, çift-dönüşüm guard, durum korunur, aday_donusum denetimi), deleteLead/deleteCompany korumaları, UI prefilled CompanyForm, EditCompany boş-form defekt düzeltmesi, 0003 FK migration (additive, set null) | code-reviewer B1 (zombi aday) → deleteCompany işaretçi temizliği + FK on delete set null; repId yönü karar: form kazanır (test kalıcı sabitler) |
+
+### Fikir bankası — değerlendirme matrisi (2026-10-20, 4 ajan paralel üretti)
+
+| Fikir | Fayda | Ticari değer | Maliyet | Risk | Karar |
+|---|---|---|---|---|---|
+| Kartta tel: linki (UI) | Yüksek | Yüksek | Çok düşük | Yok | ✓ TUR 1 |
+| Aday→Firma köprüsü (frontend) | Yüksek | En yüksek (iş modeli) | Orta | Orta | ✓ TUR 2 |
+| FirmGrid O(n²) lookup (perf, ölçümlü: n=500→387ms, n=1000→1531ms) | Ölçekte yüksek | Orta | Orta (FirmCard API) | Orta | TUR 3 adayı |
+| Geçersiz slug soft-404/noindex (seo) | Orta | Orta (domain erteli) | Düşük-orta | Düşük | TUR 4 adayı |
+| Temsilci kolonu "—" görünür (mevcut) | Düşük | Düşük | Düşük | — | temizlik turu |
+| dead code: listCitiesInventory/void categories (mevcut) | — | — | Düşük | — | temizlik turu |
 
 ## Bekleyen/bloklu işler
 
-1. **[ORTAM ENGELİ] Supabase yerel doğrulaması:** Docker kapalı (2026-10-20 itibarıyla 2 kez kontrol edildi). Gerekli adım: Docker'ı aç → `supabase start` → `supabase db reset` → 0002 header'ındaki doğrulama sorguları (has_function_privilege vs.). Migration dosyaları push edilmemiş durumda — DNS'siz de çalışır yeniden üretilmeli. Kullanıcı Docker'ı açtığında derhal doğrula.
+1. **[ORTAM ENGELİ] Supabase yerel doğrulaması:** Docker kapalı (2026-10-20 itibarıyla 3 kez kontrol edildi). Gerekli adım: Docker'ı aç → `supabase start` → `supabase db reset` → 0002/0003 header'ındaki doğrulama sorguları (has_function_privilege vs.). Migration dosyaları (0001-0003) hazır, [push edilmemiş]; kullanıcı Docker'ı açtığında derhal doğrula.
 2. **[KULLANICI GİRDİSİ] Üretim domaini:** sitemap için `SITE_URL` gerekli; robots.txt'e `Sitemap:` satırı domain bilinene kadar eklenmedi.
 3. **[İLERİ TUR] FirmCard ölçek riski:** `getCompanyById` id-bazlı O(n) arama → 1000 firmanın grid'inde O(n²). Firma düzeyinde kalıcı çözüm: FirmCard'a id yerine önceden çözülmüş veri aktarmak (FirmGrid API değişikliği — çok sayfalı etki, dikkatli tasarım gerekli).
 
@@ -54,4 +67,4 @@
 
 ---
 
-_En son güncellenme: 2026-10-20 — TEAM-LEAD tur sıfır (günlük oluşturma + durum incelemesi)_
+_En son güncellenme: 2026-10-20 — Tur 1 (`9ea242f`, tel-link) ve Tur 2 (`8cf5d93`, köprü) tamamlandı — TEAM-LEAD sürekli döngü_
