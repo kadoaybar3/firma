@@ -1,14 +1,8 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { SEO } from "../components/SEO";
 import { FirmGrid } from "../components/FirmCard";
-import {
-  categoryCompanyCount,
-  districtCompanyCount,
-  listCategories,
-  listCities,
-  listCompanies,
-} from "../lib/repo";
+import { listCategories, listCities, listCompanies } from "../lib/repo";
 
 // Sitede gerçek arama hedefi (/firmalar?q=) olduğu için SearchAction güvenli.
 // Modül ömrü boyunca sabit — her render'da yeniden üretilmez (gereksiz head yazımı olmasın).
@@ -34,14 +28,59 @@ export default function HomePage() {
   const navigate = useNavigate();
   const [term, setTerm] = useState("");
 
-  const categories = listCategories();
-  const companies = listCompanies();
-  const featured = listCompanies({ featuredOnly: true }).slice(0, 6);
-  const city = listCities()[0];
-  const popularCats = [...categories]
-    .map((c) => ({ cat: c, count: categoryCompanyCount(c.id) }))
-    .sort((a, b) => b.count - a.count)
-    .slice(0, 5);
+  /*
+   * Türetilmiş veriler tek seferde, tek geçişte üretilir ve useMemo ile sabitlenir.
+   * Hero arama her tuş vuruşunda rerender üretir; bu memo olmadan her tuşta
+   * listCompanies ×2 + kategori başına 2 sayaç + ilçe başına 1 sayaç olmak
+   * üzere 30+ O(n) dizi geçişi yeniden koşardı. Memo ile yalnızca ilk
+   * render'da hesaplanır (sayfa yeniden mount edilene kadar).
+   */
+  const data = useMemo(() => {
+    const categories = listCategories();
+    const companies = listCompanies();
+    const featured = listCompanies({ featuredOnly: true }).slice(0, 6);
+    const city = listCities()[0];
+
+    // Kategori + ilçe sayaçları — tüm sayılar tek O(n) geçişte çıkar
+    const categoryCounts = new Map<string, number>();
+    const districtCounts = new Map<string, number>();
+    for (const co of companies) {
+      categoryCounts.set(co.categoryId, (categoryCounts.get(co.categoryId) ?? 0) + 1);
+      if (city && co.cityId === city.id) {
+        districtCounts.set(co.district, (districtCounts.get(co.district) ?? 0) + 1);
+      }
+    }
+
+    const popularCats = [...categories]
+      .map((c) => ({ cat: c, count: categoryCounts.get(c.id) ?? 0 }))
+      .sort((a, b) => b.count - a.count)
+      .slice(0, 5);
+
+    return {
+      categories,
+      companies,
+      featured,
+      city,
+      categoryCounts,
+      districtCounts,
+      popularCats,
+    };
+  }, []);
+
+  const { categories, companies, featured, city, categoryCounts, districtCounts, popularCats } = data;
+
+  // FirmGrid id listesi de her keystroke'ta yeniden kurulmasın. Set ile
+  // çift-key önlemi: featured < 3 olduğunda ilk 3 firma featured kaydı
+  // tekrar içerebilir.
+  const featuredIds = useMemo(
+    () =>
+      [
+        ...new Set(
+          [...featured, ...(featured.length < 3 ? companies.slice(0, 3) : [])].map((c) => c.id),
+        ),
+      ],
+    [featured, companies],
+  );
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -102,7 +141,7 @@ export default function HomePage() {
               <span className="category-card__icon" aria-hidden="true">{c.icon}</span>
               {c.name}
               <span className="category-card__count">
-                {categoryCompanyCount(c.id)} firma
+                {categoryCounts.get(c.id) ?? 0} firma
               </span>
             </Link>
           ))}
@@ -117,7 +156,7 @@ export default function HomePage() {
             <p className="section__desc">Bölge sakinlerinin yoğun ilgi gösterdiği kayıtlar.</p>
           </div>
         </div>
-        <FirmGrid ids={[...featured, ...(featured.length < 3 ? companies.slice(0, 3) : [])].map((c) => c.id)} />
+        <FirmGrid ids={featuredIds} />
       </section>
 
       {/* POPÜLER KATEGORİLER */}
@@ -157,7 +196,7 @@ export default function HomePage() {
                 to={`/sehir/${city.slug}/${encodeURIComponent(d.toLowerCase())}`}
               >
                 {d}
-                <span className="text-muted small">({districtCompanyCount(city.id, d)})</span>
+                <span className="text-muted small">({districtCounts.get(d) ?? 0})</span>
               </Link>
             ))}
           </div>

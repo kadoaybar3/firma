@@ -2,6 +2,7 @@ import { lazy, Suspense } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider } from "./lib/auth";
 import { SiteLayout } from "./components/SiteLayout";
+import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ErrorBanner } from "./components/ui";
 
 /*
@@ -73,55 +74,59 @@ export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
-        <Suspense fallback={<PageFallback />}>
-          <Routes>
-            {/* ===== Halke açık site ===== */}
-            <Route element={<SiteLayout />}>
-              <Route index element={<HomePage />} />
-              <Route path="firmalar" element={<FirmsPage />} />
-              <Route path="firma/:slug" element={<FirmDetailPage />} />
-              <Route path="kategori/:catSlug" element={<FirmsPage />} />
-              <Route path="sehir/:citySlug" element={<FirmsPage />} />
-              <Route path="sehir/:citySlug/:district" element={<FirmsPage />} />
-              <Route path="iletisim" element={<ContactPage />} />
-              <Route path="hakkimizda" element={<HakkindaPage />} />
-              <Route path="kvkk" element={<KvkkPage />} />
-              <Route path="kullanim-kosullari" element={<TermsPage />} />
+        {/* Hata sınırı Suspense'i dışında olmalı: chunk çözümlemesi sırasında
+            firlayan hata Suspense'ten yukarı akar ve burada yakalanır. */}
+        <ErrorBoundary>
+          <Suspense fallback={<PageFallback />}>
+            <Routes>
+              {/* ===== Halke açık site ===== */}
+              <Route element={<SiteLayout />}>
+                <Route index element={<HomePage />} />
+                <Route path="firmalar" element={<FirmsPage />} />
+                <Route path="firma/:slug" element={<FirmDetailPage />} />
+                <Route path="kategori/:catSlug" element={<FirmsPage />} />
+                <Route path="sehir/:citySlug" element={<FirmsPage />} />
+                <Route path="sehir/:citySlug/:district" element={<FirmsPage />} />
+                <Route path="iletisim" element={<ContactPage />} />
+                <Route path="hakkimizda" element={<HakkindaPage />} />
+                <Route path="kvkk" element={<KvkkPage />} />
+                <Route path="kullanim-kosullari" element={<TermsPage />} />
+                <Route path="*" element={<NotFoundPage />} />
+              </Route>
+
+              {/* ===== Ortak giriş ===== */}
+              <Route path="giris" element={<LoginPage />} />
+
+              {/* ===== Yönetim paneli (yalnızca admin rolü) ===== */}
+              <Route path="yonetim" element={<AdminLayout />}>
+                <Route index element={<AdminDashboard />} />
+                <Route path="firmalar" element={<AdminCompanies />} />
+                <Route path="kategoriler" element={<AdminCategories />} />
+                <Route path="sehirler" element={<AdminCities />} />
+                <Route path="temsilciler" element={<AdminReps />} />
+                <Route path="adaylar" element={<AdminLeads />} />
+                <Route path="satislar" element={<AdminSales />} />
+                <Route path="odemeler" element={<AdminPayments />} />
+                <Route path="uyelikler" element={<AdminMemberships />} />
+                <Route path="komisyonlar" element={<AdminCommissions />} />
+                <Route path="referanslar" element={<AdminReferrals />} />
+                <Route path="raporlar" element={<AdminReports />} />
+                <Route path="ayarlar" element={<AdminSettings />} />
+                <Route path="denetim" element={<AdminAudit />} />
+              </Route>
+
+              {/* ===== Satış temsilcisi paneli (yalnızca temsilci rolü) ===== */}
+              <Route path="temsilci" element={<RepLayout />}>
+                <Route index element={<RepDashboard />} />
+                <Route path="adaylar" element={<RepLeads />} />
+                <Route path="satislar" element={<RepSales />} />
+                <Route path="*" element={<Navigate to="/temsilci" replace />} />
+              </Route>
+
               <Route path="*" element={<NotFoundPage />} />
-            </Route>
-
-            {/* ===== Ortak giriş ===== */}
-            <Route path="giris" element={<LoginPage />} />
-
-            {/* ===== Yönetim paneli (yalnızca admin rolü) ===== */}
-            <Route path="yonetim" element={<AdminLayout />}>
-              <Route index element={<AdminDashboard />} />
-              <Route path="firmalar" element={<AdminCompanies />} />
-              <Route path="kategoriler" element={<AdminCategories />} />
-              <Route path="sehirler" element={<AdminCities />} />
-              <Route path="temsilciler" element={<AdminReps />} />
-              <Route path="adaylar" element={<AdminLeads />} />
-              <Route path="satislar" element={<AdminSales />} />
-              <Route path="odemeler" element={<AdminPayments />} />
-              <Route path="uyelikler" element={<AdminMemberships />} />
-              <Route path="komisyonlar" element={<AdminCommissions />} />
-              <Route path="referanslar" element={<AdminReferrals />} />
-              <Route path="raporlar" element={<AdminReports />} />
-              <Route path="ayarlar" element={<AdminSettings />} />
-              <Route path="denetim" element={<AdminAudit />} />
-            </Route>
-
-            {/* ===== Satış temsilcisi paneli (yalnızca temsilci rolü) ===== */}
-            <Route path="temsilci" element={<RepLayout />}>
-              <Route index element={<RepDashboard />} />
-              <Route path="adaylar" element={<RepLeads />} />
-              <Route path="satislar" element={<RepSales />} />
-              <Route path="*" element={<Navigate to="/temsilci" replace />} />
-            </Route>
-
-            <Route path="*" element={<NotFoundPage />} />
-          </Routes>
-        </Suspense>
+            </Routes>
+          </Suspense>
+        </ErrorBoundary>
       </BrowserRouter>
     </AuthProvider>
   );
