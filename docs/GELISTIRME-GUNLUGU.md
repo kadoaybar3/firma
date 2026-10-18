@@ -27,6 +27,7 @@
 | Tur 3: FirmGrid O(1) indeks | `568868a` | companyIndex() (sürüm sayacılı Map, canlı referans) → kart başına 3× O(n) find → O(1); ölçüm: n=1000 grid lookup 3.344→0.089 ms (37.6×); çağrı API değişmedi | code-reviewer testlerde B-1/B-2 (yalancı-geçen iddia) yakaladı → testler vurucu hale getirildi; review salt-okunur olmalı, test iddianın kendisini kanıtlamalı |
 | Tur 4: geçersiz slug soft-404 | `a7b5500` | slugProblem() (pure) + FirmsPage erken-dal noindex bulunamadı + SEO kuralı: noindex'te canonical basılmaz; tarayıcıda 3 yol doğrulandı | Shedehirsiz ?ilçe serbest filtre kaldı (regresyona karşı 8 test); SEO noindex-canonical kural kilidi jsdom bağımlığı ister — notlandı |
 | Tur 5: mikro bakım | `6e60d27` | ?ilçe çift-decode URIError crash kapatıldı; ölü kod; admin aday tablosunda temsilci ad sütunu | URLSearchParams.get zaten decode'lu — çift decode yasağı ilke olarak loglandı |
+| Tur 6: web başvuru formu | `9eaa018` | ContactPage çalışan form (+honeypot) → createPublicLead (rep'siz 'web' lead) → admin panosu; 0004 source kolonu; 0001 leads.sales_rep_id NOT NULL kaldırıldı (E1) | Anonim INSERT RLS politikası bilinçli koymadı: canlıya geçişte + rate limit ayrı güvenlik kararı; listLeads repId'siz-temsilci açığı erken kapandı |
 
 ### Fikir bankası — değerlendirme matrisi (2026-10-20, 4 ajan paralel üretti)
 
@@ -59,10 +60,11 @@
 
 ## Sonraki turda olası adaylar (değerlendirmeye açık — bu liste reçete değil)
 
-- **[BÜYÜK ADAY] "Firmanızı rehbere ekletin" kazanım formu (frontend Tur 1 öneri 1):** halka açık iletisim/karsilama yüzü firmaya başvuru formu (aday yaratmak) — B2B kazanım hunisi doğrudan; admin/rep akışına bağlanabilir. Yeni repo API + upload yok (metin/telefon/kategori)
+- **[TAKİP] Web form dönüşüm turu kapandı ama SendMessage:** ConvertLeadPanel'de lead.source 'web' rozet işaretleme + admin adayları 'kaynak' sütunu (görselleştirme yok — creates tracks but no visible source column)
 - **[KÜÇÜK] SEO noindex-canonical kural kilidi:** jsdom/lighter DOM env gerektiriyor — devDep değerlendirmesi
 - **[KÜÇÜK] LeadBoard rep Map memo:** rep sayısı büyüyünce (getRepById O(n) × aday) — şimdilik önemsiz, 100+ adayda yeniden bak
-- Rep kolonu yerine ConvertLeadPanel'de listReps importu olduğu için temsilci isimleşme tamamlandı; düşük öncelikli metin/canlı kontrol notları log'da
+- **[SECURITE turu] Yazımdaki open questions:** anonime INSERT policy (0004 notunda), RLS rate limit RPC tasarımı — canlıya taşınmadan önce ayrı inceleme paketi
+- [SITE CTA] HomePage'e 'Firmanızı ekletin' bağlantısı (/iletisim #form) — Tur 6 form artık var
 
 ## Ortam notları
 
@@ -72,4 +74,4 @@
 
 ---
 
-_En son güncellenme: 2026-10-20 — Turlar 1 (`9ea242f`), 2 (`8cf5d93`), 3 (`568868a`), 4 (`a7b5500`) tamamlandı — TEAM-LEAD sürekli döngü_
+_En son güncellenme: 2026-10-20 — Turlar 1–6 tamamlandı (son: `9eaa018`, web başvuru formu) — TEAM-LEAD sürekli döngü_
