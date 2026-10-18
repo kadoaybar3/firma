@@ -25,6 +25,7 @@
 | Tur 1: kart tel: linki | `9ea242f` | FirmCard telefonu tek dokunuşla aranabilir (telHref yardımcısı + boşnumara fallback + hover stil); 3 kenar durumu testi. Mobil dönüşüm: arama 2 adım → 1 dokunuş | code-reviewer çift-çağrı notunu uyguladı (phoneHref tek hesaplama); aria-label gereksiz (metin numara içeriyor) |
 | Tur 2: aday→firma köprüsü | `8cf5d93` | Temsilci 'anlaşma' → admin tek harekette firma: convertLead (admin-only, çift-dönüşüm guard, durum korunur, aday_donusum denetimi), deleteLead/deleteCompany korumaları, UI prefilled CompanyForm, EditCompany boş-form defekt düzeltmesi, 0003 FK migration (additive, set null) | code-reviewer B1 (zombi aday) → deleteCompany işaretçi temizliği + FK on delete set null; repId yönü karar: form kazanır (test kalıcı sabitler) |
 | Tur 3: FirmGrid O(1) indeks | `568868a` | companyIndex() (sürüm sayacılı Map, canlı referans) → kart başına 3× O(n) find → O(1); ölçüm: n=1000 grid lookup 3.344→0.089 ms (37.6×); çağrı API değişmedi | code-reviewer testlerde B-1/B-2 (yalancı-geçen iddia) yakaladı → testler vurucu hale getirildi; review salt-okunur olmalı, test iddianın kendisini kanıtlamalı |
+| Tur 4: geçersiz slug soft-404 | `a7b5500` | slugProblem() (pure) + FirmsPage erken-dal noindex bulunamadı + SEO kuralı: noindex'te canonical basılmaz; tarayıcıda 3 yol doğrulandı | Shedehirsiz ?ilçe serbest filtre kaldı (regresyona karşı 8 test); SEO noindex-canonical kural kilidi jsdom bağımlığı ister — notlandı |
 
 ### Fikir bankası — değerlendirme matrisi (2026-10-20, 4 ajan paralel üretti)
 
@@ -39,9 +40,12 @@
 
 ## Bekleyen/bloklu işler
 
-1. **[ORTAM ENGELİ] Supabase yerel doğrulaması:** Docker kapalı (2026-10-20 itibarıyla 3 kez kontrol edildi). Gerekli adım: Docker'ı aç → `supabase start` → `supabase db reset` → 0002/0003 header'ındaki doğrulama sorguları (has_function_privilege vs.). Migration dosyaları (0001-0003) hazır, [push edilmemiş]; kullanıcı Docker'ı açtığında derhal doğrula.
+1. **[ORTAM ENGELİ] Supabase yerel doğrulaması:** Docker kapalı (2026-10-20 itibarıyla 3 kez kontrol edildi). Gerekli adım: Docker'ı aç → `supabase start` → `supabase db reset` → 0002/0003 header'ındaki doğrulama sorguları (has_function_privilege vs.). Migration dosyaları (0001-0003) hazır, push edilmemiş; kullanıcı Docker'ı açtığında derhal doğrula.
 2. **[KULLANICI GİRDİSİ] Üretim domaini:** sitemap için `SITE_URL` gerekli; robots.txt'e `Sitemap:` satırı domain bilinene kadar eklenmedi.
-3. **[İLERİ TUR] FirmCard ölçek riski:** `getCompanyById` id-bazlı O(n) arama → 1000 firmanın grid'inde O(n²). Firma düzeyinde kalıcı çözüm: FirmCard'a id yerine önceden çözülmüş veri aktarmak (FirmGrid API değişikliği — çok sayfalı etki, dikkatli tasarım gerekli).
+3. **[KÜÇÜK TUR] FirmsPage ?ilçe çift-decode:** `searchParams.get("ilce")` zaten decode'lu; üstüne `decodeURIComponent` uygulandığından `?ilce=100%` gibi değerlerin içinde bare `%` URIError ile sayfayı düşürür (code-reviewer Tur 4 bulgusu; tek satır).
+4. **[KÜÇÜK TUR] SEO noindex-canonical kural kilidi:** SEO.tsx'te noindex→canonical baskısı kuralı DOM-testi jsdom gerektiriyor; yeni devDep (jsdom) veya vitest environmentMatchGlobs değerlendirmesi gerekiyor.
+5. **[TEMİZLİK] Ölü kod:** Leads.tsx `listCitiesInventory` + `void categories`; temsilci kolonu admin görünümünde hep "—" (rep adı basılmıyor).
+6. **"Firmanızı ekletin" kazanım CTA'sı:** halka açık iletisim sayfasında işletme başvuru formu yok (frontend tur 1 önerisi) — sonraki büyük aday.
 
 ## Reddedilen/ertelenen fikirler (tekrar üretme!)
 
@@ -68,4 +72,4 @@
 
 ---
 
-_En son güncellenme: 2026-10-20 — Turlar 1 (`9ea242f`), 2 (`8cf5d93`), 3 (`568868a`) tamamlandı — TEAM-LEAD sürekli döngü_
+_En son güncellenme: 2026-10-20 — Turlar 1 (`9ea242f`), 2 (`8cf5d93`), 3 (`568868a`), 4 (`a7b5500`) tamamlandı — TEAM-LEAD sürekli döngü_

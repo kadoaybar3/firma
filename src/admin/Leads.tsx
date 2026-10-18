@@ -11,6 +11,7 @@ import {
   createLead,
   deleteLead,
   getCompanyById,
+  getRepById,
   listCategories,
   listCities,
   listLeads,
@@ -129,7 +130,9 @@ function LeadRow({
           )}
           <div className="text-muted small">{formatDateTime(lead.createdAt)}</div>
         </td>
-        <td>{actor.role === "admin" ? "—" : null}</td>
+        <td>
+          {actor.role === "admin" ? (getRepById(lead.repId)?.name ?? "—") : null}
+        </td>
         <td className="text-muted">{lead.district ?? "—"}</td>
         <td>
           <select
@@ -354,8 +357,6 @@ function VisitForm({
 
 /** Temsilci aday formu (rep paneli de kullanır) */
 export function NewLeadForm({ actor, onDone }: { actor: ReturnType<typeof useActor>; onDone?: () => void }) {
-  const categories = listCitiesInventory();
-  void categories;
   const [companyName, setCompanyName] = useState("");
   const [district, setDistrict] = useState("Merkez");
   const [phone, setPhone] = useState("");
@@ -413,6 +414,3 @@ export function NewLeadForm({ actor, onDone }: { actor: ReturnType<typeof useAct
   );
 }
 
-function listCitiesInventory() {
-  return listCities().flatMap((c) => c.districts);
-}

@@ -29,10 +29,11 @@ export default function FirmsPage() {
   // Şehir / ilçe çözümü — yol parametresi yoksa tüm şehirler gösterilir
   const cityParam = params.citySlug ?? searchParams.get("sehir") ?? undefined;
   const city = cityParam ? getCityBySlug(cityParam) : undefined;
+  // URL'deki küçük harfli ilçe adını kanonik forma çevir (başlıkta doğru görünsün).
+  // NOT: URLSearchParams.get zaten decode'lu değer döndürür; ek decodeURIComponent
+  // yapılmaz — bare '%' içeren değerler (örn. ?ilce=100%) URIError'unu düşürürdü.
   const districtParam =
-    params.district ??
-    (searchParams.get("ilce") ? decodeURIComponent(searchParams.get("ilce")!) : undefined);
-  // URL'deki küçük harfli ilçe adını kanonik forma çevir (başlıkta doğru görünsün)
+    params.district ?? searchParams.get("ilce") ?? undefined;
   const canonicalDistrict = city?.districts.find(
     (d) => d.toLocaleLowerCase("tr") === districtParam,
   );

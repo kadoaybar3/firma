@@ -514,7 +514,6 @@ export function convertLead(leadId: string, draft: CompanyDraft, actor: Actor): 
   const lead = db.leads.find((l) => l.id === leadId);
   if (!lead) throw new Error("Aday bulunamadı.");
   if (lead.convertedToCompanyId) throw new Error("Bu aday zaten firmaya dönüşmüştür.");
-  // Adayın sahibi varsayılan rep; admin taslakta geçersiz kılabilir.
   // Aday sahibi varsayılan atamadır; admin formdaki seçimle geçersiz kılabilir.
   const company = createCompany({ ...draft, repId: draft.repId ?? lead.repId ?? null }, actor);
   lead.convertedToCompanyId = company.id;
