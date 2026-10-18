@@ -3,13 +3,8 @@ import { Link, useParams, useSearchParams } from "react-router-dom";
 import { SEO } from "../components/SEO";
 import { FirmGrid } from "../components/FirmCard";
 import { EmptyState } from "../components/ui";
-import {
-  districtCountsByCity,
-  getCityBySlug,
-  listCategories,
-  listCities,
-  listCompanies,
-} from "../lib/repo";
+import { districtCountsByCity, getCityBySlug, listCategories, listCities, listCompanies } from "../lib/repo";
+import { slugProblem, slugProblemMessage } from "../lib/slugProblem";
 import type { Category } from "../lib/types";
 
 /**
@@ -61,10 +56,46 @@ export default function FirmsPage() {
    * (yalnızca published firmalar, ilçe adı casing'e duyarlı tam eşleşme,
    * seçili şehirle sınırlı).
    */
+  /*
+   * Tur 4: geçersiz slug → soft-404 noindex durumu. Geçerli yollarda
+   * sorun null; davranış birebir korunur. Önceki davranışta geçersiz
+   * slug sessizce filtresiz "Tüm Firmalar" render ediyordu.
+   */
+  const problem = slugProblem({
+    catSlug: params.catSlug ?? searchParams.get("kategori") ?? undefined,
+    citySlug: cityParam,
+    district: districtParam,
+    hasCategory: !!selectedCategory,
+    hasCity: !!city,
+    hasDistrict: !!canonicalDistrict,
+  });
+
   const districtCounts = useMemo(
     () => (city ? districtCountsByCity(city.id) : new Map<string, number>()),
     [city],
   );
+
+  /* Tur 4: geçersiz slug → noindex "bulunamadı" (soft-404 engeli). */
+  if (problem) {
+    return (
+      <SEO title={`Sayfa bulunamadı | ${problem.value}`} noindex>
+        <section className="container" style={{ textAlign: "center", padding: "64px 0 88px" }}>
+          <p style={{ fontSize: "3rem", margin: 0 }} aria-hidden="true">
+            🕵️
+          </p>
+          <h1 className="section__title" style={{ margin: "10px 0 6px" }}>
+            Sayfa bulunamadı
+          </h1>
+          <p className="section__desc" style={{ marginBottom: 22 }}>
+            {slugProblemMessage(problem)} Filtreleri temizleyip firmaları listeleyin.
+          </p>
+          <Link className="btn btn--primary" to="/firmalar">
+            Tüm firmalara dön
+          </Link>
+        </section>
+      </SEO>
+    );
+  }
 
   const title = selectedCategory
     ? `${selectedCategory.name} — Firmalar`

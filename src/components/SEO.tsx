@@ -63,8 +63,10 @@ export function useSEO(options: SeoOptions): void {
     const descriptionMeta = document.querySelector<HTMLMetaElement>('meta[name="description"]');
     descriptionMeta?.setAttribute("content", description ?? fallbackDescription);
 
-    // 3) Canonical
-    const canonical = absoluteUrl(canonicalPath ?? location.pathname);
+    // 3) Canonical — noindex istenmişse canonical/og:url BASILMAZ:
+    //    noindex + canonical çelişkili indeksleme sinyalidir (Tur 4 kuralı:
+    //    noindex sayfalarda Google canonical görmemeli).
+    const canonical = noindex ? null : absoluteUrl(canonicalPath ?? location.pathname);
     if (canonical) {
       const link = document.createElement("link");
       link.rel = "canonical";

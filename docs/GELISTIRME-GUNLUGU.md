@@ -24,6 +24,7 @@
 | Güvenlik şema paketi | `38656eb` | K1: current_role → current_app_role (CURRENT_ROLE RESERVED — dosya sözdizimsel geçersizdi); **K2 (yeni kritik): profiles RLS yoktu→ self-escalation boşluğu**, kapatıldı; H1: log_audit RPC yüzeyi kapalı; H2: sales_open_renewal_unique (potansiyel predikatlı); H3: verify_payment_manual tutar çapraz doğrulama; 6 statik invariant testi | RLS policy'ler her rol için değerlendirilir → policy helper'ları anon'dan çekilemez (B1). 0002 herhangi bir canlı veriye dokunmaz, rollback yönlü |
 | Tur 1: kart tel: linki | `9ea242f` | FirmCard telefonu tek dokunuşla aranabilir (telHref yardımcısı + boşnumara fallback + hover stil); 3 kenar durumu testi. Mobil dönüşüm: arama 2 adım → 1 dokunuş | code-reviewer çift-çağrı notunu uyguladı (phoneHref tek hesaplama); aria-label gereksiz (metin numara içeriyor) |
 | Tur 2: aday→firma köprüsü | `8cf5d93` | Temsilci 'anlaşma' → admin tek harekette firma: convertLead (admin-only, çift-dönüşüm guard, durum korunur, aday_donusum denetimi), deleteLead/deleteCompany korumaları, UI prefilled CompanyForm, EditCompany boş-form defekt düzeltmesi, 0003 FK migration (additive, set null) | code-reviewer B1 (zombi aday) → deleteCompany işaretçi temizliği + FK on delete set null; repId yönü karar: form kazanır (test kalıcı sabitler) |
+| Tur 3: FirmGrid O(1) indeks | `568868a` | companyIndex() (sürüm sayacılı Map, canlı referans) → kart başına 3× O(n) find → O(1); ölçüm: n=1000 grid lookup 3.344→0.089 ms (37.6×); çağrı API değişmedi | code-reviewer testlerde B-1/B-2 (yalancı-geçen iddia) yakaladı → testler vurucu hale getirildi; review salt-okunur olmalı, test iddianın kendisini kanıtlamalı |
 
 ### Fikir bankası — değerlendirme matrisi (2026-10-20, 4 ajan paralel üretti)
 
@@ -31,7 +32,7 @@
 |---|---|---|---|---|---|
 | Kartta tel: linki (UI) | Yüksek | Yüksek | Çok düşük | Yok | ✓ TUR 1 |
 | Aday→Firma köprüsü (frontend) | Yüksek | En yüksek (iş modeli) | Orta | Orta | ✓ TUR 2 |
-| FirmGrid O(n²) lookup (perf, ölçümlü: n=500→387ms, n=1000→1531ms) | Ölçekte yüksek | Orta | Orta (FirmCard API) | Orta | TUR 3 adayı |
+| FirmGrid O(n²) lookup (perf, ölçümlü: n=500→387ms, n=1000→1531ms) | Ölçekte yüksek | Orta | Orta (FirmCard API) | Orta | ✓ TUR 3 |
 | Geçersiz slug soft-404/noindex (seo) | Orta | Orta (domain erteli) | Düşük-orta | Düşük | TUR 4 adayı |
 | Temsilci kolonu "—" görünür (mevcut) | Düşük | Düşük | Düşük | — | temizlik turu |
 | dead code: listCitiesInventory/void categories (mevcut) | — | — | Düşük | — | temizlik turu |
@@ -67,4 +68,4 @@
 
 ---
 
-_En son güncellenme: 2026-10-20 — Tur 1 (`9ea242f`, tel-link) ve Tur 2 (`8cf5d93`, köprü) tamamlandı — TEAM-LEAD sürekli döngü_
+_En son güncellenme: 2026-10-20 — Turlar 1 (`9ea242f`), 2 (`8cf5d93`), 3 (`568868a`) tamamlandı — TEAM-LEAD sürekli döngü_
