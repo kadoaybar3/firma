@@ -1,0 +1,6 @@
+User-agent: *
+Allow: /
+Disallow: /yonetim
+Disallow: /temsilci
+
+# Site haritası eklenebilir: /sitemap.xml

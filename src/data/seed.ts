@@ -20,8 +20,6 @@ import { slugify, uniqueSlug } from "../lib/slug";
  * Gerçek işletme verisi değildir; tel ve adresler örnek amaçlıdır.
  */
 
-const vatandaşKategoriler: Category[] = [];
-
 const DEMO_USER_PASSWORD = "demo"; // Yalnızca demo oturumu için; gerçek kimlik doğrulama Supabase ile yapılır.
 
 export const DEMO_PASSWORD = DEMO_USER_PASSWORD;
@@ -61,12 +59,13 @@ const districts = [
 ];
 
 const companySeed: Array<
-  Omit<Company, "id" | "slug" | "createdAt" | "updatedAt">
+  Omit<Company, "id" | "slug" | "categoryId" | "cityId" | "createdAt" | "updatedAt" | "repId"> & {
+    category: string;
+  }
 > = [
   {
     name: "Afyon Sucuk Sarayı",
-    categoryId: "",
-    cityId: "",
+    category: "Yemek & İçecek",
     district: "Merkez",
     address: " Cumhuriyet Cad. No:41 Merkez, Afyonkarahisar",
     phone: "0272 213 41 21",
@@ -82,8 +81,7 @@ const companySeed: Array<
   },
   {
     name: "Öz Miras Kuyumculuk",
-    categoryId: "",
-    cityId: "",
+    category: "Kuyumculuk",
     district: "Merkez",
     address: "Zafer Cad. No:12 Merkez, Afyonkarahisar",
     phone: "0272 212 88 03",
@@ -99,8 +97,7 @@ const companySeed: Array<
   },
   {
     name: "Kadınana Pastane ve Fırını",
-    categoryId: "",
-    cityId: "",
+    category: "Yemek & İçecek",
     district: "Merkez",
     address: "Atatürk Bul. No:104 Merkez, Afyonkarahisar",
     phone: "0272 217 65 40",
@@ -116,8 +113,7 @@ const companySeed: Array<
   },
   {
     name: "Sandıklı Termal Otel",
-    categoryId: "",
-    cityId: "",
+    category: "Konaklama",
     district: "Sandıklı",
     address: "Termal Yolu No:5 Sandıklı, Afyonkarahisar",
     phone: "0272 616 04 40",
@@ -133,8 +129,7 @@ const companySeed: Array<
   },
   {
     name: "Ecdat Bal ve Kaymacılık",
-    categoryId: "",
-    cityId: "",
+    category: "Tarım & Hayvancılık",
     district: "Bolvadin",
     address: "Hükümet Cad. No:7 Bolvadin, Afyonkarahisar",
     phone: "0272 412 30 15",
@@ -150,8 +145,7 @@ const companySeed: Array<
   },
   {
     name: "Aygın Otomotiv Servis",
-    categoryId: "",
-    cityId: "",
+    category: "Otomotiv",
     district: "Merkez",
     address: "Sanayi Sitesi 4. Blok No:18 Merkez, Afyonkarahisar",
     phone: "0272 226 71 90",
@@ -167,8 +161,7 @@ const companySeed: Array<
   },
   {
     name: "Çay Pazar Eczanesi",
-    categoryId: "",
-    cityId: "",
+    category: "Sağlık & Eczane",
     district: "Çay",
     address: "Kaymakam Ekrem Bey Cad. No:29 Çay, Afyonkarahisar",
     phone: "0272 641 20 11",
@@ -184,8 +177,7 @@ const companySeed: Array<
   },
   {
     name: "İscehisar Doğal Taş Mermer",
-    categoryId: "",
-    cityId: "",
+    category: "Yapı & İnşaat",
     district: "İscehisar",
     address: "Ocgelik Yolu 3. Km İscehisar, Afyonkarahisar",
     phone: "0272 655 10 24",
@@ -201,8 +193,7 @@ const companySeed: Array<
   },
   {
     name: "Emirdağ Nakliyat Hizmetleri",
-    categoryId: "",
-    cityId: "",
+    category: "Nakliyat",
     district: "Emirdağ",
     address: "Ankara Yolu Üzeri No:3 Emirdağ, Afyonkarahisar",
     phone: "0272 571 40 33",
@@ -218,8 +209,7 @@ const companySeed: Array<
   },
   {
     name: "Sinanpaşa Yapı Market",
-    categoryId: "",
-    cityId: "",
+    category: "Yapı & İnşaat",
     district: "Sinanpaşa",
     address: "Dinar Yolu No:91 Sinanpaşa, Afyonkarahisar",
     phone: "0272 253 11 06",
@@ -235,8 +225,7 @@ const companySeed: Array<
   },
   {
     name: "Akademi Dershanesi",
-    categoryId: "",
-    cityId: "",
+    category: "Eğitim",
     district: "Merkez",
     address: "Kurtuluş Yolu No:2 Merkez, Afyonkarahisar",
     phone: "0272 228 55 77",
@@ -252,8 +241,7 @@ const companySeed: Array<
   },
   {
     name: "Şuhut Kiraz Pazarlama Kooperatifi",
-    categoryId: "",
-    cityId: "",
+    category: "Tarım & Hayvancılık",
     district: "Şuhut",
     address: "Merkez Mah. Pazar Yeri No:1 Şuhut, Afyonkarahisar",
     phone: "0272 681 30 50",
@@ -278,8 +266,6 @@ export function seedDB(): DB {
     slug: slugify(name),
     icon,
   }));
-  void vatandaşKategoriler;
-
   const city: City = {
     id: "city-afyon",
     name: "Afyonkarahisar",
@@ -308,9 +294,11 @@ export function seedDB(): DB {
 
   const existingSlugs = companySeed.map((c) => slugify(c.name));
   const companies: Company[] = companySeed.map((c, i) => {
-    const cat = cats[i % cats.length];
+    // Anlamsal kategori eşlemesi
+    const { category, ...rest } = c;
+    const cat = cats.find((x) => x.name === category) ?? cats[0];
     return {
-      ...c,
+      ...rest,
       id: `co-${i + 1}`,
       slug: uniqueSlug(c.name, existingSlugs.slice(0, i)),
       categoryId: cat.id,

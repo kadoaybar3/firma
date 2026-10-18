@@ -1,13 +1,37 @@
+import { useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import { SEO } from "../components/SEO";
 import { FirmGrid } from "../components/FirmCard";
+import { Lightbox } from "../components/Lightbox";
 import { EmptyState } from "../components/ui";
 import { getCompanyBySlug, getCityById, listCategories, listCompanies } from "../lib/repo";
 import { isOpenNow, mapLink } from "../lib/hours";
 
+/* Premium firma vitrin sayfası.
+   Tasarım ilkeleri: sade katmanlar, güçlü tipografi, veri istikrarına saygı —
+   eksik veri olduğunda sahte içerik üretilmez, ilgili alan gizlenir. */
+
+/** Metin → sabit renk tonu (sırası değişmeyen, firma-bazlı pastel ton) */
+function hashHue(text: string): number {
+  let h = 0;
+  for (const ch of text) h = (h * 31 + ch.charCodeAt(0)) % 360;
+  return h;
+}
+
+const dayNames = [
+  "Pazar",
+  "Pazartesi",
+  "Salı",
+  "Çarşamba",
+  "Perşembe",
+  "Cuma",
+  "Cumartesi",
+] as const;
+
 export default function FirmDetailPage() {
   const { slug } = useParams();
   const company = slug ? getCompanyBySlug(slug) : undefined;
+  const [lightbox, setLightbox] = useState<number | null>(null);
 
   if (!company || !company.published) {
     return (
@@ -31,23 +55,41 @@ export default function FirmDetailPage() {
   const category = listCategories().find((c) => c.id === company.categoryId);
   const city = getCityById(company.cityId);
   const open = isOpenNow(company.hours);
+  const hue = hashHue(company.slug);
+  const gallery = company.images.filter(Boolean);
+
+  // Veri koşulları — olmayan bilgi için buton/bağlantı üretilmez
+  const telHref = company.phone ? `tel:${company.phone.replace(/\s/g, "")}` : null;
+  const mapsHref = company.address
+    ? mapLink({ name: company.name, address: company.address })
+    : null;
+  const waDigits = company.socials.whatsapp?.replace(/\D/g, "") ?? "";
+  const waHref = waDigits ? `https://wa.me/${waDigits}` : null;
+  const siteHref = company.website?.trim() || null;
+
+  const todayIndex = new Date().getDay(); // 0=Pazar
+  const hoursRows: Array<[string, string, boolean]> = [
+    ["Hafta içi (Pzt–Cum)", company.hours.weekday, todayIndex >= 1 && todayIndex <= 5],
+    ["Cumartesi", company.hours.saturday, todayIndex === 6],
+    ["Pazar", company.hours.sunday, todayIndex === 0],
+  ];
+
   const related = listCompanies({ categoryId: company.categoryId })
     .filter((c) => c.id !== company.id)
     .slice(0, 3);
 
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-  const waPhone = company.socials.whatsapp?.replace(/\D/g, "") ?? "";
 
   return (
     <SEO
       title={`${company.name} | Firma Rehberi`}
-      description={`${company.name} — ${category?.name}, ${city?.name} / ${company.district}. ${
-        open ? "Şu an açık" : "Şu an kapalı"
-      }, telefon: ${company.phone}`}
+      description={`${company.name} — ${category?.name ?? ""}, ${
+        city?.name ? `${city.name} / ${company.district}` : company.district
+      }. ${open ? "Şu an açık" : "Şu an kapalı"}${company.phone ? `, telefon: ${company.phone}` : ""}`}
     >
-      <div className="container" style={{ paddingTop: 16, paddingBottom: 36 }}>
+      <div className="container profile">
         {/* Yol kırıntısı */}
-        <nav className="breadcrumb" aria-label="Konum">
+        <nav className="profile-crumb breadcrumb" aria-label="Konum">
           <Link to="/">Ana sayfa</Link>
           <span>›</span>
           {city && <Link to={`/sehir/${city.slug}`}>{city.name}</Link>}
@@ -57,201 +99,275 @@ export default function FirmDetailPage() {
           <span>{company.name}</span>
         </nav>
 
-        <div className="detail-grid">
-          {/* SOL — ana içerik */}
-          <div>
-            <div className="detail-banner" role="img" aria-label={`${company.name} görseli`}>
-              {company.images.map((img) => (
+        {/* 1 — ÜST BÖLÜM: kapak + kimlik */}
+        <section
+          className="profile-hero"
+          aria-label={`${company.name} vitrin başlığı`}
+          style={{
+            backgroundImage: `linear-gradient(135deg, hsl(${hue} 48% 20%) 0%, hsl(${(hue + 28) % 360} 55% 38%) 100%)`,
+          }}
+        >
+          <span className="profile-hero__watermark" aria-hidden="true">
+            {category?.icon ?? "🏢"}
+          </span>
+          <div className="profile-hero__inner">
+            <span className="profile-avatar" aria-hidden="true">
+              {gallery[0] ?? category?.icon ?? "🏢"}
+            </span>
+            <div className="profile-identity">
+              <div className="profile-chiprow">
+                {category && (
+                  <span className="profile-chip">
+                    {category.icon} {category.name}
+                  </span>
+                )}
                 <span
-                  key={img}
-                  style={{
-                    width: 72,
-                    height: 72,
-                    background: "#fff",
-                    borderRadius: 18,
-                    display: "grid",
-                    placeItems: "center",
-                    boxShadow: "var(--shadow-sm)",
-                  }}
+                  className={`profile-chip ${open ? "profile-chip--solid-green" : "profile-chip--solid-gray"}`}
+                  style={{ fontWeight: 800 }}
                 >
-                  {img}
+                  {open ? "● Şu an açık" : "○ Şu an kapalı"}
                 </span>
-              ))}
-            </div>
-
-            <div className="flex-between mt-14">
-              <span className="company-card__cat" style={{ alignSelf: "auto" }}>
-                {category?.icon} {category?.name}
-              </span>
-              <span className={`badge ${open ? "badge-green" : "badge-gray"}`}>
-                {open ? "Şu an açık" : "Şu an kapalı"}
-              </span>
-            </div>
-
-            <h1 style={{ fontSize: "1.65rem", margin: "10px 0 6px" }}>{company.name}</h1>
-            <p className="text-muted small">
-              {city?.name} / {company.district} • Kayıt tarihi:{" "}
-              {new Date(company.createdAt).toLocaleDateString("tr-TR")}
-            </p>
-
-            <div className="card card__pad mt-14">
-              <h2 style={{ fontSize: "1.05rem", fontWeight: 800, marginBottom: 8 }}>
-                İşletme hakkında
-              </h2>
-              <p className="text-muted" style={{ lineHeight: 1.65 }}>
-                {company.description}
+              </div>
+              <h1>{company.name}</h1>
+              {company.description && (
+                <p className="profile-tagline">{firstSentence(company.description)}</p>
+              )}
+              <p className="profile-loc">
+                📍 {city?.name ?? ""}{city ? " / " : ""}{company.district}
               </p>
             </div>
+          </div>
+        </section>
 
-            <div className="card card__pad mt-14">
-              <h2 style={{ fontSize: "1.05rem", fontWeight: 800, marginBottom: 8 }}>
-                Firma fotoğrafları <span className="text-muted small">(örnek görsel rozetleri)</span>
-              </h2>
-              <div className="detail-images">
-                {company.images.map((img, i) => (
-                  <div key={`${img}-${i}`} className="detail-images__item" aria-hidden="true">
-                    {img}
+        {/* 2 — İLETİŞİM EYLEMLERİ (yalnızca mevcut veriler) */}
+        <section className="profile-actions" aria-label="İletişim eylemleri">
+          {telHref && (
+            <a className="btn btn--primary profile-cta" href={telHref}>
+              📞 Telefonla ara
+            </a>
+          )}
+          {mapsHref && (
+            <a className="btn profile-cta profile-cta--ghost" href={mapsHref} target="_blank" rel="noopener noreferrer">
+              🧭 Yol tarifi al
+            </a>
+          )}
+          {waHref && (
+            <a className="btn profile-cta profile-cta--wa" href={waHref} target="_blank" rel="noopener noreferrer">
+              💬 WhatsApp
+            </a>
+          )}
+          {siteHref && (
+            <a className="btn profile-cta profile-cta--ghost" href={siteHref} target="_blank" rel="noopener noreferrer">
+              🌐 Web sitesi
+            </a>
+          )}
+        </section>
+
+        {/* MOBİL — sabit alt eylem çubuğu (iPhone safe-area uyumlu) */}
+        {(telHref || mapsHref) && (
+          <div className="profile-mbar" role="navigation" aria-label="Hızlı iletişim">
+            {telHref && (
+              <a className="btn btn--primary" href={telHref}>
+                📞 Ara
+              </a>
+            )}
+            {mapsHref && (
+              <a className="btn btn--ghost" href={mapsHref} target="_blank" rel="noopener noreferrer">
+                🧭 Yol tarifi
+              </a>
+            )}
+          </div>
+        )}
+
+        {/* 3 — FOTOĞRAF GALERİSİ */}
+        {gallery.length > 0 && (
+          <section className="psection" aria-label="Firma fotoğrafları">
+            <h2>Fotoğraflar</h2>
+            <div className="pgallery">
+              <button
+                type="button"
+                className="pgallery__main"
+                style={{
+                  backgroundImage: `linear-gradient(135deg, hsl(${hue} 62% 94%) 0%, hsl(${(hue + 30) % 360} 60% 87%) 100%)`,
+                }}
+                onClick={() => setLightbox(0)}
+                aria-label="Fotoğrafı büyüt"
+              >
+                {gallery[0]}
+              </button>
+              {gallery.length > 1 && (
+                <div className="pgallery__thumbs">
+                  {gallery.map((g, i) => (
+                    <button
+                      type="button"
+                      key={`${g}-${i}`}
+                      className={`pgallery__thumb ${i === 0 ? "is-current" : ""}`}
+                      style={{
+                        backgroundImage: `linear-gradient(135deg, hsl(${(hue + i * 24) % 360} 55% 95%) 0%, hsl(${(hue + 30 + i * 24) % 360} 52% 88%) 100%)`,
+                      }}
+                      onClick={() => setLightbox(i)}
+                      aria-label={`${i + 1}. fotoğrafı büyüt`}
+                    >
+                      {g}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+          </section>
+        )}
+
+        {/* 4 — FİRMA HAKKINDA */}
+        {company.description && (
+          <section className="psection" aria-label="Firma hakkında">
+            <h2>Hakkında</h2>
+            <div className="psection__card">
+              <p className="profile-about">{company.description}</p>
+            </div>
+          </section>
+        )}
+
+        {/* 6 — ADRES VE ÇALIŞMA SAATLERİ */}
+        <section className="psection" aria-label="Adres ve çalışma saatleri">
+          <h2>Adres ve çalışma saatleri</h2>
+          <div className="profile-two-col">
+            {company.address && (
+              <div className="psection__card">
+                <h3 className="psubtitle">Adres</h3>
+                <p className="profile-about profile-about--tight">{company.address}</p>
+                {mapsHref && (
+                  <a className="plink mt-14" href={mapsHref} target="_blank" rel="noopener noreferrer">
+                    🧭 Haritada aç
+                  </a>
+                )}
+              </div>
+            )}
+            <div className="psection__card">
+              <h3 className="psubtitle">
+                Çalışma saatleri
+                <span className={`badge ${open ? "badge-green" : "badge-gray"}`}>
+                  {open ? "şu an açık" : "şu an kapalı"}
+                </span>
+              </h3>
+              <div className="phours">
+                {hoursRows.map(([label, value, isToday]) => (
+                  <div key={label} className={`phours__row ${isToday ? "is-today" : ""}`}>
+                    <span className="phours__day">
+                      {isToday && <span aria-hidden="true">🗓</span>} {label}
+                      {isToday && (
+                        <span className="text-muted" style={{ fontSize: ".78rem" }}>
+                          (bugün — {dayNames[todayIndex]})
+                        </span>
+                      )}
+                    </span>
+                    <span>{value}</span>
                   </div>
                 ))}
               </div>
             </div>
-
-            <div className="card card__pad mt-14">
-              <h2 style={{ fontSize: "1.05rem", fontWeight: 800, marginBottom: 10 }}>
-                Çalışma saatleri
-              </h2>
-              <table className="table" style={{ minWidth: 380 }}>
-                <tbody>
-                  <tr>
-                    <td>Hafta içi</td>
-                    <td style={{ fontWeight: 700 }}>{company.hours.weekday}</td>
-                  </tr>
-                  <tr>
-                    <td>Cumartesi</td>
-                    <td style={{ fontWeight: 700 }}>{company.hours.saturday}</td>
-                  </tr>
-                  <tr>
-                    <td>Pazar</td>
-                    <td style={{ fontWeight: 700 }}>{company.hours.sunday}</td>
-                  </tr>
-                </tbody>
-              </table>
-            </div>
           </div>
+        </section>
 
-          {/* SAĞ — iletişim kartı */}
-          <aside>
-            <div className="card card__pad" style={{ position: "sticky", top: 88 }}>
-              <h2 style={{ fontSize: "1.05rem", fontWeight: 800, marginBottom: 12 }}>
-                İletişim bilgileri
-              </h2>
-              <div className="kv-list">
-                <div className="kv-list__row">
-                  <span className="kv-list__label">Telefon</span>
-                  <a href={`tel:${company.phone.replace(/\s/g, "")}`}>{company.phone}</a>
-                </div>
-                <div className="kv-list__row">
-                  <span className="kv-list__label">Adres</span>
-                  <span>{company.address}</span>
-                </div>
-                <div className="kv-list__row">
-                  <span className="kv-list__label">E-posta</span>
-                  <span>
-                    {company.email ? (
-                      <a href={`mailto:${company.email}`}>{company.email}</a>
-                    ) : (
-                      "—"
-                    )}
-                  </span>
-                </div>
-                <div className="kv-list__row">
-                  <span className="kv-list__label">Web sitesi</span>
-                  <span>
-                    {company.website ? (
-                      <a href={company.website} target="_blank" rel="noopener noreferrer">
-                        {company.website.replace(/^https?:\/\//, "")}
-                      </a>
-                    ) : (
-                      "—"
-                    )}
-                  </span>
-                </div>
-                <div className="kv-list__row">
-                  <span className="kv-list__label">Sosyal</span>
-                  <span className="form-row" style={{ gap: 6 }}>
-                    {company.socials.instagram && (
-                      <a className="chip" href={`https://instagram.com/${company.socials.instagram}`} target="_blank" rel="noopener noreferrer">
-                        Instagram
-                      </a>
-                    )}
-                    {company.socials.facebook && (
-                      <a className="chip" href={`https://facebook.com/${company.socials.facebook}`} target="_blank" rel="noopener noreferrer">
-                        Facebook
-                      </a>
-                    )}
-                    {waPhone && (
-                      <a className="chip" href={`https://wa.me/${waPhone}`} target="_blank" rel="noopener noreferrer">
-                        WhatsApp
-                      </a>
-                    )}
-                    {!company.socials.instagram && !company.socials.facebook && !waPhone && "—"}
-                  </span>
-                </div>
-              </div>
-
-              <div className="map-cta mt-14">
-                <a
-                  className="btn btn--primary btn--block"
-                  href={`tel:${company.phone.replace(/\s/g, "")}`}
-                >
-                  📞 Şimdi ara
-                </a>
-                <a
-                  className="btn btn--ghost btn--block"
-                  href={mapLink({ name: company.name, address: company.address })}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  🗺️ Yol tarifi al
-                </a>
+        {/* 5+7 — KATEGORİ ve DİJİTAL BAĞLANTILAR */}
+        {(category || siteHref || waHref || company.socials.instagram || company.socials.facebook) && (
+          <section className="psection" aria-label="Kategori ve dijital bağlantılar">
+            <h2>Hizmet alanı ve dijital bağlantılar</h2>
+            <div className="psection__card">
+              <div className="plinks">
+                {category && (
+                  <Link className="plink" to={`/kategori/${category.slug}`}>
+                    {category.icon} {category.name}
+                  </Link>
+                )}
+                {siteHref && (
+                  <a className="plink" href={siteHref} target="_blank" rel="noopener noreferrer">
+                    🌐 {siteHref.replace(/^https?:\/\//, "").replace(/\/$/, "")}
+                  </a>
+                )}
+                {company.socials.instagram && (
+                  <a className="plink" href={`https://instagram.com/${company.socials.instagram}`} target="_blank" rel="noopener noreferrer">
+                    📷 Instagram
+                  </a>
+                )}
+                {company.socials.facebook && (
+                  <a className="plink" href={`https://facebook.com/${company.socials.facebook}`} target="_blank" rel="noopener noreferrer">
+                    📘 Facebook
+                  </a>
+                )}
+                {waHref && (
+                  <a className="plink" href={waHref} target="_blank" rel="noopener noreferrer">
+                    💬 WhatsApp
+                  </a>
+                )}
               </div>
             </div>
+          </section>
+        )}
 
-            <div className="card card__pad mt-14">
-              <h2 style={{ fontSize: "0.98rem", fontWeight: 800, marginBottom: 8 }}>
-                Bu sayfayı paylaşın
-              </h2>
-              <div className="form-row">
-                <a
-                  className="btn btn--sm"
-                  href={`https://wa.me/?text=${encodeURIComponent(`${company.name} — ${shareUrl}`)}`}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  WhatsApp
-                </a>
-                <button
-                  className="btn btn--sm"
-                  onClick={() => navigator.clipboard?.writeText(shareUrl).catch(() => undefined)}
-                  type="button"
-                >
-                  Bağlantıyı kopyala
-                </button>
-              </div>
-            </div>
-          </aside>
-        </div>
+        {/* PAYLAŞIM */}
+        <section className="psection" aria-label="Bu sayfayı paylaş" style={{ marginTop: 18 }}>
+          <div className="psection__card" style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <span className="text-muted small">Bu dijital vitrini paylaş:</span>
+            {waHref && (
+              <a
+                className="btn btn--sm"
+                href={`https://wa.me/?text=${encodeURIComponent(`${company.name} — ${shareUrl}`)}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                WhatsApp
+              </a>
+            )}
+            <button
+              type="button"
+              className="btn btn--sm"
+              onClick={() => navigator.clipboard?.writeText(shareUrl).catch(() => undefined)}
+            >
+              Bağlantıyı kopyala
+            </button>
+            {(typeof navigator.share === "function" ? (
+              <button
+                type="button"
+                className="btn btn--sm"
+                onClick={() =>
+                  navigator
+                    .share({ title: company.name, url: shareUrl })
+                    .catch(() => undefined)
+                }
+              >
+                ⤴ Paylaş
+              </button>
+            ) : null)}
+          </div>
+        </section>
 
-        {/* Benzer firmalar */}
+        {/* BENZER FİRMALAR */}
         {related.length > 0 && (
-          <section className="mt-18" aria-labelledby="benzer">
-            <h2 className="section__title" id="benzer">
-              {category?.name} kategorisindeki diğer firmalar
-            </h2>
+          <section className="psection" aria-labelledby="benzer">
+            <h2 id="benzer">{category?.name} kategorisindeki diğer vitrinler</h2>
             <FirmGrid ids={related.map((c) => c.id)} />
           </section>
         )}
       </div>
+
+      {/* GALE Rİ LIGHTBOX */}
+      {lightbox !== null && (
+        <Lightbox
+          items={gallery}
+          index={lightbox}
+          onClose={() => setLightbox(null)}
+          onNavigate={setLightbox}
+        />
+      )}
     </SEO>
   );
+}
+
+/** Açıklamanın ilk cümlesi — vitrin başlığında kısa tanıtım olarak kullanılır */
+function firstSentence(text: string): string {
+  const s = text.trim();
+  const idx = s.search(/[.!؟?]/);
+  if (idx < 0) return s;
+  const sentence = s.slice(0, idx + 1);
+  return sentence.length >= 8 ? sentence : s.slice(0, 90);
 }

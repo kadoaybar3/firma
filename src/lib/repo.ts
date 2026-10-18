@@ -31,7 +31,7 @@ import * as engine from "./engine";
  * sunucu taraflı koruma (RLS) Supabase migration'ında hazırdır.
  */
 
-const STORAGE_KEY = "firma-rehberi.db.v1";
+const STORAGE_KEY = "firma-rehberi.db.v2"; // v2: anlamsal kategori eşlemeli tohum veri
 
 let cache: DB | null = null;
 let storageAvailable = true;
