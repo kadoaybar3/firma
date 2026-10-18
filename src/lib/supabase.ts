@@ -8,7 +8,8 @@ import { createClient, type SupabaseClient } from "@supabase/supabase-js";
  * tutulur ve gerçek bir veritabanına yazar gibi DAVRANMAZ.
  *
  * Gerçek ortam için:
- *  1. supabase/migrations/0001_init.sql dosyasını Supabase projesine uygulayın.
+ *  1. supabase/migrations/0001_init.sql dosyasını Supabase projesine uygulayın
+ *     (önce 0001, ardından 0002_security_hardening.sql — 0002 önkoşullu).
  *  2. .env dosyasına VITE_SUPABASE_URL ve VITE_SUPABASE_ANON_KEY girin.
  *  3. src/lib/dataSource.ts içindeki Supabase deposunu devreye alın.
  */

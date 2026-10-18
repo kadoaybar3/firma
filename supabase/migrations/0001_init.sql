@@ -23,6 +23,11 @@ do $$ begin
   create type app_role as enum ('admin', 'temsilci');
 exception when duplicate_object then null; end $$;
 
+-- NOT (2026-10 güvenlik incelemesi): fonksiyon adı "current_role" yerine
+-- "current_app_role" kullanılır. PostgreSQL'de CURRENT_ROLE katı RESERVED
+-- keyword'dür; o adla fonksiyon tanımlanamaz ve policy'lerde builtin
+-- keyword'e çözülme riski vardır. Ayrıntı: 0002 notları.
+
 -- Kullanıcı profilleri: auth.users'a 1-1; rol buradan okunur
 create table if not exists profiles (
   id uuid primary key references auth.users(id) on delete cascade,
@@ -32,7 +37,7 @@ create table if not exists profiles (
   created_at timestamptz not null default now()
 );
 
-create or replace function current_role() returns app_role
+create or replace function current_app_role() returns app_role
 language sql stable security definer set search_path = public as $$
   select p.role from profiles p where p.id = auth.uid()
 $$;
@@ -218,6 +223,10 @@ alter table commissions enable row level security;
 alter table referrals enable row level security;
 alter table audit_log enable row level security;
 alter table app_settings enable row level security;
+-- K2 (güvenlik incelemesi 2026-10): profiles RLS'siz bırakılırsa herkes her
+-- profili okuyup yazabilir; bir kullanıcı kendi role sütununu 'admin'e
+-- çekince definer fonksiyon guard'ları (current_app_role) bypass edilir.
+alter table profiles enable row level security;
 
 -- Halka açık okuma
 create policy "anon company read (published)" on companies
@@ -228,55 +237,67 @@ create policy "anon city read" on cities for select using (true);
 create policy "anon district read" on city_districts for select using (true);
 create policy "rep basic read" on sales_reps for select using (true);
 
+-- profiles (K2): kullanıcı yalnız kendi profilini okur; admin hepsini okur ve yazar.
+-- Yeni kullanıcı kendi profilini yalnız temsilci rolü ve rep eşlemesi olmadan
+-- oluşturabilir (self-escalation kapanır). Satırların asıl yazıcıları
+-- admin akışlarıdır (service_role RLS'i doğal bypass eder).
+create policy "profiles self read" on profiles
+  for select using (id = auth.uid() or current_app_role() = 'admin');
+create policy "profiles admin write" on profiles
+  for update using (current_app_role() = 'admin')
+  with check (current_app_role() = 'admin');
+create policy "profiles self insert" on profiles
+  for insert with check (id = auth.uid() and role = 'temsilci' and sales_rep_id is null);
+
 -- Yönetici tam yetki (tablo tablo)
 do $$
 declare t text;
 begin
   foreach t in array array['companies','categories','cities','city_districts','sales_reps','leads','lead_visits','sales','payments','memberships','commissions','referrals'] loop
-    execute format('create policy "admin full %1$s" on %1$s for all using (current_role() = ''admin'') with check (current_role() = ''admin'');', t);
+    execute format('create policy "admin full %1$s" on %1$s for all using (current_app_role() = ''admin'') with check (current_app_role() = ''admin'');', t);
   end loop;
 end $$;
 
 -- Temsilci: yalnız KENDİ kayıtları (oku + kendi ekle)
 create policy "rep own leads" on leads for select
-  using (current_role() = 'temsilci' and sales_rep_id = current_sales_rep_id());
+  using (current_app_role() = 'temsilci' and sales_rep_id = current_sales_rep_id());
 create policy "rep insert own lead" on leads for insert
-  with check (current_role() = 'temsilci' and sales_rep_id = current_sales_rep_id());
+  with check (current_app_role() = 'temsilci' and sales_rep_id = current_sales_rep_id());
 create policy "rep update own lead" on leads for update
-  using (current_role() = 'temsilci' and sales_rep_id = current_sales_rep_id())
-  with check (current_role() = 'temsilci' and sales_rep_id = current_sales_rep_id());
+  using (current_app_role() = 'temsilci' and sales_rep_id = current_sales_rep_id())
+  with check (current_app_role() = 'temsilci' and sales_rep_id = current_sales_rep_id());
 
 create policy "rep own visits" on lead_visits for all
-  using (current_role() = 'temsilci' and sales_rep_id = current_sales_rep_id())
-  with check (current_role() = 'temsilci' and sales_rep_id = current_sales_rep_id());
+  using (current_app_role() = 'temsilci' and sales_rep_id = current_sales_rep_id())
+  with check (current_app_role() = 'temsilci' and sales_rep_id = current_sales_rep_id());
 
 create policy "rep own sales read" on sales for select
-  using (current_role() = 'temsilci' and sales_rep_id = current_sales_rep_id());
+  using (current_app_role() = 'temsilci' and sales_rep_id = current_sales_rep_id());
 create policy "rep insert own sale" on sales for insert
-  with check (current_role() = 'temsilci' and sales_rep_id = current_sales_rep_id());
+  with check (current_app_role() = 'temsilci' and sales_rep_id = current_sales_rep_id());
 -- NOT: temsilci satış DURUMUNU update EDEMEZ (ödeme/komisyon doğrulaması admin'e aittir)
 
 create policy "rep own payments read" on payments for select
-  using (current_role() = 'temsilci' and exists (
+  using (current_app_role() = 'temsilci' and exists (
     select 1 from sales s where s.id = payments.sale_id and s.sales_rep_id = current_sales_rep_id()));
 
 create policy "rep own memberships read" on memberships for select
-  using (current_role() = 'temsilci' and exists (
+  using (current_app_role() = 'temsilci' and exists (
     select 1 from sales s where s.id = memberships.sale_id and s.sales_rep_id = current_sales_rep_id()));
 
 create policy "rep own commissions read" on commissions for select
-  using (current_role() = 'temsilci' and sales_rep_id = current_sales_rep_id());
+  using (current_app_role() = 'temsilci' and sales_rep_id = current_sales_rep_id());
 -- temsilci komisyon tutarını/durumunu update edemez
 
 create policy "rep own referrals" on referrals for select
-  using (current_role() = 'temsilci' and sales_rep_id = current_sales_rep_id());
+  using (current_app_role() = 'temsilci' and sales_rep_id = current_sales_rep_id());
 
 -- Ayarlar: herkes okur, sadece admin yazar
 create policy "settings read" on app_settings for select using (true);
 drop policy if exists "settings admin write" on app_settings;
 
 -- Denetim kaydı: okuma admin; yazma yalnız SECURITY DEFINER fonksiyonlar üzerinden
-create policy "audit admin read" on audit_log for select using (current_role() = 'admin');
+create policy "audit admin read" on audit_log for select using (current_app_role() = 'admin');
 
 -- ---------- KRİTİK İŞLEMLER (SECURITY DEFINER) ----------
 
@@ -291,7 +312,7 @@ declare
   ref referrals;
   new_commission_id uuid;
 begin
-  if current_role() <> 'admin' then
+  if current_app_role() <> 'admin' then
     raise exception 'yetkisiz';
   end if;
 
@@ -348,7 +369,7 @@ declare
   st app_settings;
   orig_rep uuid;
 begin
-  if current_role() <> 'admin' then raise exception 'yetkisiz'; end if;
+  if current_app_role() <> 'admin' then raise exception 'yetkisiz'; end if;
 
   select * into s from sales where id = p_sale_id;
   if not found then raise exception 'satış yok'; end if;
@@ -384,14 +405,14 @@ create or replace function log_audit(p_action text, p_summary text, p_detail jso
 returns void language plpgsql security definer set search_path = public as $$
 begin
   insert into audit_log (actor_id, actor_role, action, summary, detail)
-  values (auth.uid(), current_role()::text, p_action, p_summary, p_detail);
+  values (auth.uid(), current_app_role()::text, p_action, p_summary, p_detail);
 end $$;
 
 -- Manuel ödeme doğrulama (sağlayıcı entegrasyonu yokken). Webhook'a geçişte bu fonksiyon kapanır.
 create or replace function verify_payment_manual(p_payment_id uuid) returns void
 language plpgsql security definer set search_path = public as $$
 begin
-  if current_role() <> 'admin' then raise exception 'yetkisiz'; end if;
+  if current_app_role() <> 'admin' then raise exception 'yetkisiz'; end if;
   update payments set status = 'onaylandi', updated_at = now()
   where id = p_payment_id and status = 'beklemede';
   perform log_audit('odeme_dogrulandi', 'Ödeme manuel doğrulandı', jsonb_build_object('payment_id', p_payment_id));
