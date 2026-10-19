@@ -1,0 +1,26 @@
+# Netlify dağıtım yapılandırması — Firma Rehberi
+#
+# ORTAM DEĞİŞKENLERİ (Netlify arayüzünde Site settings → Environment variables):
+#   VITE_SUPABASE_URL       → Supabase proje URL'si (.env'dekiyle aynı; Değer ekrana yazılmaz)
+#   VITE_SUPABASE_ANON_KEY  → Supabase publishable (anon) key — service_role DEĞİL
+#   SITE_URL                → Üretim adresi (ör. https://firma-rehberi.netlify.app);
+#                             sitemap üretimi ve canonical URL buna bağlı
+# (opsiyonel, daha ileri ödeme entegrasyonu için)
+#   VITE_PAYMENT_PROVIDER
+#   VITE_PAYMENT_CHECKOUT_URL
+#
+# NOT: service_role/secret anahtar NETLIFY'a da GİRMEZ; istemci kişiler yalnız
+# publishable key kullanır ve tüm erişim RLS arkasındadır.
+
+[build]
+  command = "npm run build"
+  publish = "dist"
+
+# SPA: tüm derin bağlantılar (/firma/x, /yonetim, /temsilci …) index.html'e düşer
+[[redirects]]
+  from = "/*"
+  to = "/index.html"
+  status = 200
+
+[build.environment]
+  NODE_VERSION = "20"

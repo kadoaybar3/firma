@@ -6,6 +6,7 @@ import { useAuth } from "../lib/auth";
 import { createPublicLead, listCategories, listCities } from "../lib/repo";
 import { isSupabaseConfigured } from "../lib/supabase";
 import { isPaymentProviderConfigured } from "../lib/payments";
+import { submitWebLead } from "../lib/dataSource";
 
 /* ============ İLETİŞİM ============ */
 
@@ -13,6 +14,7 @@ export function ContactPage() {
   const categories = listCategories();
   const cities = listCities();
   const [sent, setSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [companyName, setCompanyName] = useState("");
   const [phone, setPhone] = useState("");
@@ -77,26 +79,37 @@ export function ContactPage() {
             </div>
           ) : (
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 setError(null);
                 if (honeypot) {
-                  // Honeypot dolduruldu → bot. Kayıt oluşturulmaz, başarı gibi görünür.
+                  // Honeypot doldurdu → bot. Kayıt oluşturulmaz, başarı gibi görünür.
                   setSent(true);
                   return;
                 }
+                setSubmitting(true);
                 try {
-                  createPublicLead({
+                  const data = {
                     companyName,
                     categoryId: categoryId || undefined,
                     cityId: cityId || undefined,
                     district: district || undefined,
                     phone,
                     note,
-                  });
+                  };
+                  if (isSupabaseConfigured) {
+                    // Canlı mod: yazma yalnız 0006 submit_web_lead RPC'siyle —
+                    // şema anonime AÇILMADI, sunucu doğrulama + rate limit + honeypot uygular.
+                    await submitWebLead(data);
+                  } else {
+                    // Demo mod: aynı yerel rep akışı
+                    createPublicLead(data);
+                  }
                   setSent(true);
                 } catch (err) {
                   setError(err instanceof Error ? err.message : "Başvuru kaydedilemedi.");
+                } finally {
+                  setSubmitting(false);
                 }
               }}
             >
@@ -169,8 +182,8 @@ export function ContactPage() {
                 style={{ position: "absolute", left: -9999, width: 1, height: 1 }}
               />
               {error && <ErrorBanner message={error} />}
-              <button className="btn btn--primary" type="submit">
-                Başvuruyu gönder
+              <button className="btn btn--primary" type="submit" disabled={submitting}>
+                {submitting ? "Gönderiliyor…" : "Başvuruyu gönder"}
               </button>
             </form>
           )}

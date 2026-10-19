@@ -30,6 +30,7 @@
 | Tur 5: mikro bakım | `6e60d27` | ?ilçe çift-decode URIError crash kapatıldı; ölü kod; admin aday tablosunda temsilci ad sütunu | URLSearchParams.get zaten decode'lu — çift decode yasağı ilke olarak loglandı |
 | Tur 6: web başvuru formu | `9eaa018` | ContactPage çalışan form (+honeypot) → createPublicLead (rep'siz 'web' lead) → admin panosu; 0004 source kolonu; 0001 leads.sales_rep_id NOT NULL kaldırıldı (E1) | Anonim INSERT RLS politikası bilinçli koymadı: canlıya geçişte + rate limit ayrı güvenlik kararı; listLeads repId'siz-temsilci açığı erken kapandı |
 | Tur P-1: canlı bağlantı katmanı | `—`(bu commit) | dataSource.ts: 13 tablo okuma (loadSnapshot) + camel/snake mappers + fark-tabanlı `syncSnapshot` (FK sıralı upsert/delete; audit_log bilinçli dışarıda — 0002 execute yalnız service_role); repo mod-çatallı (Supabase modda localStorage/seed yok); auth gerçek `signInWithPassword` + profiles haritası (yoksa self-insert temsilci) + giriş/çıkışta rehydrate; App BootGate fazları; LoginPage async+pending; supabase.ts vitest guard; 0005 öneri (app_settings admin yazma politikası eksikti — 0001'de drop edilip yeniden yaratılmamış bulgu) | vitest `.env`'i yükler → testler canlı modda koşturabilecekti; `MODE="test"` guard'ı ile istemci testte hiç yaratılmaz (75 test demo ciğeriyle geçer). HMR değil taze sunucu: doğrulama "eski modül" çeldiricisi yaratabiliyor — sunucuyu yeniden başlat |
+| Tur P-2: yayına hazırlık | `—` | Son güvenlik incelemesi düzeltmeleri dosyada: 0001 (sales_reps anon kapandı, begin/commit atomiklik, audit FK set-null, RPC satır kilitleri, fiyat ≥0 check); 0005 for-update daraltması; **0006 submit_web_lead RPC** (sunucu doğrulama + IP-hash rate limit 10dk/5 + honeypot; anonime leads INSERT YOK — bilinçli); ContactPage canlıda RPC'ye bağlandı (async+pending); SyncBanner (yazım hatası sessizce yutulmaz — admin+temsilci panel tepesi); netlify.toml (SPA redirect, env adları); docs/SUPABASE-KURULUM.md (migration sırası + ilk admin + sorun giderme); README dağıtım bölümü; .env.example SITE_URL; origin → github.com/kadoaybar3/firma.git bağlandı (push YOK — kullanıcı talimatı bekler) | on Semantic: 0006 anon yazma yüzeyini "tek RPC"ye daraltır; form spam riski şema açmaktan ileri gelmez (rate tablosu RLS'siz politikasız → istemci hiç okuyamaz/yazamaz) |
 
 ### Fikir bankası — değerlendirme matrisi (2026-10-20, 4 ajan paralel üretti)
 
@@ -79,4 +80,4 @@
 
 ---
 
-_En son güncellenme: 2026-10-20 — Turlar 1–6 + P-1 canlı bağlantı katmanı (migration uygulaması kullanıcı aksiyonu bekliyor) — TEAM-LEAD sürekli döngü_
+_En son güncellenme: 2026-10-20 — Turlar 1–6 + P-1 canlı bağlantı + P-2 yayına hazırlık (migration uygulaması ve push kullanıcı aksiyonu bekliyor) — TEAM-LEAD sürekli döngü_

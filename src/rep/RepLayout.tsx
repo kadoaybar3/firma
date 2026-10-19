@@ -1,6 +1,7 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useActor, useAuth } from "../lib/auth";
 import { InfoBanner } from "../components/ui";
+import { SyncBanner } from "../components/SyncBanner";
 
 const NAV: Array<[string, string, string]> = [
   ["/temsilci", "📊", "Özetim"],
@@ -83,6 +84,7 @@ export function RepLayout() {
         </div>
       </aside>
       <div className="panel-main">
+        <SyncBanner />
         <div className="panel-content">
           <InfoBanner>
             Yetkileriniz: yalnızca kendi aday ve ziyaret kayıtlarınızı görebilir, kendi

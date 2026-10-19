@@ -2,7 +2,10 @@
 
 Afyonkarahisar'da faaliyete başlayıp Türkiye geneline yayılacak, profesyonel bir yerel **firma rehberi** platformu. React + TypeScript + Vite ile yazılmıştır.
 
-> ⚠️ **Bu sürüm DEMO MOD'da çalışır.** Supabase erişim bilgileri (.env) sağlanmadığı için tüm veriler yalnızca bu tarayıcının `localStorage`'ında tutulur. Uygulama hiçbir yerde "veritabanına bağlandı" gibi davranmaz; gerçek veritabanına geçiş için aşağıdaki adımlar hazırdır.
+> 📡 **Çalışma modu:** `.env` doluysa uygulama canlı Supabase veritabanına bağlanır (RLS arkası;
+> ayrıntılı kurulum: [`docs/SUPABASE-KURULUM.md`](docs/SUPABASE-KURULUM.md)). `.env` boşsa DEMO MOD:
+> tüm veriler yalnızca tarayıcının `localStorage`'ında tutulur. Uygulama hiçbir yerde "veritabanına
+> bağlandı" gibi davranmaz; gerçek veritabanına geçiş için aşağıdaki adımlar hazırdır.
 
 ---
 
@@ -101,8 +104,20 @@ npm test
 
 ## ❗ Yapılmadı / yapılandırılmasını bekleyenler
 
-1. **Supabase bağlantısı** — `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY` (şema ve RLS hazır).
+1. **Migration'ların canlıya uygulanması** — supabase/migrations 0001–0006 hazır; SQL Editor sırası: [`docs/SUPABASE-KURULUM.md`](docs/SUPABASE-KURULUM.md).
 2. **Gerçek ödeme sağlayıcısı** — iyzico/PayTR hesabı; `VITE_PAYMENT_*` ortam değişkenleri ve sunucu tarafındaki webhook doğrulama servisi (bu depo içinde edge function şablonu eklenmelidir).
-3. **Gerçek kimlik doğrulama** — Supabase Auth aktive edildiğinde demo giriş devre dışı bırakılacak.
-4. **SSR/prerender** — halka açık sayfaların arama motoru tarafından tam taranabilirliği için opsiyonel prerender önerilir (ör. `vite-ssg` veya host tarafında statik snapshot); bu sürümde başlık/meta per-route yönetiliyor.
-5. **İletişim formu arka ucu** — e-posta servisi entegrasyonu.
+3. **SSR/prerender** — halka açık sayfaların arama motoru tarafından tam taranabilirliği için opsiyonel prerender önerilir (ör. `vite-ssg` veya host tarafında statik snapshot); bu sürümde başlık/meta per-route yönetiliyor.
+4. **İletişim formu e-posta servisi** — web başvuruları yalnızca panolle tutulur; e-posta bildirim entegrasyonu ileri adımdır.
+
+---
+
+## 🚀 Yayına alma (GitHub + Netlify + Supabase) — kısa talimat
+
+Ayrıntılı adım adım rehber: [`docs/SUPABASE-KURULUM.md`](docs/SUPABASE-KURULUM.md)
+
+1. Migration'ları Supabase Dashboard'da sırayla uygula: **0001 → 0002 → 0003 → 0004 → 0005 → 0006** (her dosyanın tamamı tek seferde).
+2. Authentication'da ilk kullanıcıyı yarat; SQL ile `profiles.role = 'admin'` yap.
+3. Netlify'a GitHub deposunu bağla: build `npm run build`, publish `dist` (`netlify.toml` hazır), env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SITE_URL`.
+4. Girilen üretim adresini `SITE_URL` olarak kullan; sitemap otomatik üretilir.
+
+> **Supabase notu:** hiçbir yerde `service_role` anahtarı gerekmez; istemci yalnız publishable (anon) key + RLS kullanır.

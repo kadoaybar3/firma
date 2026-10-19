@@ -614,6 +614,53 @@ export async function syncSnapshot(local: DB, base: DB | null): Promise<DB> {
 }
 
 /* =========================================================
+   WEB BAŞVURU RPC (0006 submit_web_lead)
+   ========================================================= */
+
+/** PostgREST/model seviyesindeki hatayı kullanıcıya anlaşılır Türkçe'ye çevirir. */
+function friendlyRpcError(message: string): string {
+  const m = message.toLowerCase();
+  if (m.includes("çok fazla deneme")) return "Çok fazla deneme yaptınız; lütfen bir süre bekleyin.";
+  if (m.includes("firma adı")) return "Firma adı zorunludur.";
+  if (m.includes("telefon")) return "Telefon numarası zorunludur.";
+  if (m.includes("kategori bulunamadı")) return "Seçilen kategori bulunamadı.";
+  if (m.includes("şehir bulunamadı")) return "Seçilen şehir bulunamadı.";
+  if (m.includes("network") || m.includes("fetch")) return "Ağ hatası; bağlantınızı kontrol edin.";
+  return message;
+}
+
+/**
+ * Halka açık "Firmanızı ekletin" formu — canlı modda 0006 RPC'si üzerinden.
+ * Doğrudan leads INSERT YAPMAZ (2001 anonim INSERT politikası yok; bilinçli
+ * tasarım). Honeypot doluysa sunucu null döner; istemci başarı gibi davranır.
+ * Dönüş: oluşan kaydın id'si (honeypot yutulduysa null).
+ */
+export async function submitWebLead(input: {
+  companyName: string;
+  phone: string;
+  categoryId?: string;
+  cityId?: string;
+  district?: string;
+  note?: string;
+  honeypot?: string;
+}): Promise<string | null> {
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error("Supabase yapılandırılmadı; web başvurusu gönderilemedi.");
+  }
+  const { data, error } = await supabase.rpc("submit_web_lead", {
+    p_company_name: input.companyName,
+    p_phone: input.phone,
+    p_category_id: input.categoryId ?? null,
+    p_city_id: input.cityId ?? null,
+    p_district: input.district ?? null,
+    p_note: input.note ?? null,
+    p_honeypot: input.honeypot ?? "",
+  });
+  if (error) throw new Error(friendlyRpcError(error.message));
+  return typeof data === "string" ? data : null;
+}
+
+/* =========================================================
    SENKRON KUYRUĞU (repo.ts persist() çağrılarından beslenir)
    ========================================================= */
 
@@ -655,8 +702,11 @@ async function doFlush(): Promise<void> {
     bridge.setBaseline(nextBase);
     emitSync(null);
   } catch (err) {
-    // base değişmedi; bir sonraki persist/flush aynı fark tekrar denenir
-    emitSync(err instanceof Error ? err.message : String(err));
+    // Hata sessizce YUTULMAZ: base değişmedi; bir sonraki persist/flush aynı
+    // farkı tekrar dener ve hata dinleyicilere/UI'e duyurulur.
+    const message = err instanceof Error ? err.message : String(err);
+    console.warn("[sync] kayıt sunucuya yazılamadı:", message);
+    emitSync(message);
   }
 }
 

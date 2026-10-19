@@ -2,6 +2,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "../lib/auth";
 import { RoleError } from "../App";
 import { listCompanies } from "../lib/repo";
+import { SyncBanner } from "../components/SyncBanner";
 
 const NAV_GROUPS: Array<{ label: string; items: Array<[string, string, string]> }> = [
   {
@@ -110,6 +111,7 @@ export function AdminLayout() {
         </div>
       </aside>
       <div className="panel-main">
+        <SyncBanner />
         <Outlet />
       </div>
     </div>

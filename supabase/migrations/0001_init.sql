@@ -13,7 +13,15 @@
 --   * Komisyon üretimi mükerrere kapalı (UNIQUE endeks + fonksiyon).
 --   * Kart verisi hiçbir tabloda TUTULMAZ; ödemelerde yalnız sağlayıcı referansı.
 --   * Komisyon oranları/tutarlar `app_settings` tablosunda; source koda sabit değildir.
+--
+-- ATOMİKLİK: Dosya begin/commit ile sarılıdır — SQL Editor'de TÜM dosyayı
+--   tek seferde koşun. Arada hata olursa her şey geri alınır ve dosyayı
+--   sıfırdan yeniden koşturmak güvenlidir (create if not exists + duplicate_
+--   exception guard'lı do bloğu idempotenttir; create policy'ler YENİ
+--   projede bir kez koşum için tasarlandı).
 -- =========================================================
+
+begin;
 
 create extension if not exists "pgcrypto";
 create extension if not exists "pg_trgm";
@@ -50,10 +58,10 @@ $$;
 -- ---------- YÖNETİLMESİNE AYAR OLACAK DEĞERLER ----------
 create table if not exists app_settings (
   id int primary key default 1 check (id = 1),
-  membership_price numeric not null default 1000,
-  rep_commission numeric not null default 600,
-  referral_reward numeric not null default 100,
-  renewal_commission numeric not null default 600,
+  membership_price numeric not null default 1000 check (membership_price >= 0),
+  rep_commission numeric not null default 600 check (rep_commission >= 0),
+  referral_reward numeric not null default 100 check (referral_reward >= 0),
+  renewal_commission numeric not null default 600 check (renewal_commission >= 0),
   updated_at timestamptz not null default now()
 );
 insert into app_settings (id) values (1) on conflict do nothing;
@@ -203,7 +211,7 @@ create table if not exists referrals (
 create table if not exists audit_log (
   id uuid primary key default gen_random_uuid(),
   at timestamptz not null default now(),
-  actor_id uuid references auth.users(id),
+  actor_id uuid references auth.users(id) on delete set null,
   actor_role text,
   action text not null,
   summary text not null,
@@ -237,7 +245,13 @@ create policy "anon company read (published)" on companies
 create policy "anon category read" on categories for select using (true);
 create policy "anon city read" on cities for select using (true);
 create policy "anon district read" on city_districts for select using (true);
-create policy "rep basic read" on sales_reps for select using (true);
+-- B-1 daraltma (2026-10 son güvenlik incelemesi): sales_reps anonime KAPALI.
+-- Daha önce "using (true)" idi; bu, temsilci telefonunu (PII), code değerini
+-- (sıralanabilir kimlik) ve custom_commission_rate'i (iç finansal veri)
+-- anonim anahtarla döndürüyordu. Halka açık arayüz sales_reps okumaz
+-- (kaynak taramasıyla doğrulandı); temsilci kendi satırını, admin hepsini görür.
+create policy "rep self and admin read" on sales_reps for select
+  using (id = current_sales_rep_id() or current_app_role() = 'admin');
 
 -- profiles (K2): kullanıcı yalnız kendi profilini okur; admin hepsini okur ve yazar.
 -- Yeni kullanıcı kendi profilini yalnız temsilci rolü ve rep eşlemesi olmadan
@@ -318,7 +332,7 @@ begin
     raise exception 'yetkisiz';
   end if;
 
-  select * into s from sales where id = p_sale_id;
+  select * into s from sales where id = p_sale_id for update;
   if not found then raise exception 'satış yok'; end if;
   if s.status <> 'potansiyel' then raise exception 'satış kesinleşemez/iyilemiş'; end if;
   if not exists (select 1 from payments where sale_id = s.id and status = 'onaylandi') then
@@ -373,7 +387,7 @@ declare
 begin
   if current_app_role() <> 'admin' then raise exception 'yetkisiz'; end if;
 
-  select * into s from sales where id = p_sale_id;
+  select * into s from sales where id = p_sale_id for update;
   if not found then raise exception 'satış yok'; end if;
   if s.renewal_for_membership_id is null then raise exception 'yenileme satışı değil'; end if;
   if s.status <> 'potansiyel' then raise exception 'yenileme kesinleşmiş'; end if;
@@ -426,3 +440,5 @@ create index if not exists companies_category_idx on companies (category_id);
 create index if not exists leads_rep_idx on leads (sales_rep_id);
 create index if not exists sales_rep_idx on sales (sales_rep_id);
 create index if not exists commissions_rep_idx on commissions (sales_rep_id);
+
+commit;
