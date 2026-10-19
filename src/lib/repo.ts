@@ -19,14 +19,21 @@ import { seedDB } from "../data/seed";
 import { normalizeSearch, slugify, uniqueSlug } from "./slug";
 import { uid, nowISO, log } from "./engine";
 import * as engine from "./engine";
+import { isSupabaseConfigured } from "./supabase";
+import { bindSyncBridge, emptyDB, scheduleSync } from "./dataSource";
 
 /**
  * VERİ KAYNAĞI KATMANI
  *
- * Gerçek Supabase bilgileri henüz sağlanmadığından bu uygulama DEMO MODDA çalışır:
- * tüm veriler tarayıcının localStorage'ında tutulur. Bu katman, Production'da
- * Supabase deposuyla değiştirilebilecek tutarlı bir fonksiyon arayüzü sunar.
+ * DEMO MOD (Supabase yapılandırılmamış): tüm veriler tarayıcının
+ * localStorage'ında tutulur. Bu katman, Production'da Supabase deposuyla
+ * değiştirilebilecek tutarlı bir fonksiyon arayüzü sunar.
  *
+ * SUPABASE MOD (.env dolu): getDB() localStorage'a ASLA yazmaz ve tohum
+ * VERİ ÜRETMEZ — App bootstrap dataSource.loadSnapshot() ile anlık görüntü
+ * yükler; mutasyonlar bellekte uygulanır ve persist() fark-tabanlı
+ * senkron yazımı (dataSource.syncSnapshot) sıraya alır. Denetim kayıtları
+ * istemciden yazılmaz (0002: log_audit yalnız service_role).
  * BU DEMO MOD GERÇEK BIR VERITABANI DEĞILDIR; Roller arayüzde korunur,
  * sunucu taraflı koruma (RLS) Supabase migration'ında hazırdır.
  */
@@ -36,8 +43,28 @@ const STORAGE_KEY = "firma-rehberi.db.v2"; // v2: anlamsal kategori eşlemeli to
 let cache: DB | null = null;
 let storageAvailable = true;
 
+/* Senkron köprüsü: persist()'ten gelen sinyali veri kaynağına iletir.
+   Fark (diff) tabanı: sunucuda son bilinen durum; hydrate sonrasında
+   setBaseline ile güncellenir (auth/App akışları dataSource.setSnapshotThrough). */
+let lastSyncBaseline: DB | null = null;
+
+bindSyncBridge({
+  isConfigured: () => isSupabaseConfigured,
+  getCurrent: () => cache,
+  getBaseline: () => lastSyncBaseline,
+  setBaseline: (db) => {
+    lastSyncBaseline = db;
+  },
+});
+
 export function getDB(): DB {
   if (cache) return cache;
+  if (isSupabaseConfigured) {
+    // Uretim: tohumlama/localStorage yok; bootstrap hydrate tasle anlık gorunumu doldurur.
+    const empty = emptyDB();
+    cache = empty;
+    return empty;
+  }
   if (storageAvailable && typeof localStorage !== "undefined") {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
@@ -58,6 +85,10 @@ export function getDB(): DB {
 export function persist(): void {
   repoVersion++;
   if (!cache) return;
+  if (isSupabaseConfigured) {
+    scheduleSync();
+    return;
+  }
   if (!storageAvailable) return;
   try {
     localStorage.setItem(STORAGE_KEY, JSON.stringify(cache));
@@ -67,6 +98,11 @@ export function persist(): void {
 }
 
 export function resetDB(): void {
+  if (isSupabaseConfigured) {
+    // Gerçek veritabanına karşı demo tohumu ASLA yazılırımaz; yalnız demo modda geçerli.
+    console.warn("resetDB demo modda geçerlidir; Supabase modunda yok sayıldı.");
+    return;
+  }
   cache = seedDB();
   companyIndexCache = null;
   persist();
@@ -76,6 +112,18 @@ export function resetDB(): void {
 export function setDB(db: DB): void {
   cache = db;
   companyIndexCache = null;
+}
+
+/**
+ * Supabase anlık görüntüsünü devreye alır (App/auth hydrate akışı kullanır):
+ * cache'i değiştirir VE fark-senkronun taban (baseline) durumunu günceller —
+ * aksi halde ilk flush tüm tabloları yeniden upsert etmeye kalkardı.
+ */
+export function applySnapshot(db: DB): void {
+  cache = db;
+  companyIndexCache = null;
+  lastSyncBaseline = JSON.parse(JSON.stringify(db)) as DB;
+  lastSyncBaseline.audit = [];
 }
 
 /* ============ FİRMALAR ============ */

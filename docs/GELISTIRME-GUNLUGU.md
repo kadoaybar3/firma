@@ -7,10 +7,11 @@
 
 ## Mevcut durum özeti (2026-10-20 itibarıyla)
 
-- Demo mod aktif: veri localStorage (`firma-rehberi.db.v2`), Supabase `.env` girilmedi
-- Temel mü: ana chunk 283,06 kB / 89,05 kB gzip; 6 test dosyası / 36 test; build temiz
+- **Canlı bağlantı kurulumu tamamlandı (tur P-1):** `.env` dolu (değerler commit edilmez), `isSupabaseConfigured=true`; uygulama açılışta Supabase'den anlık görüntü yükler (BootGate: "Veri bağlantısı kuruluyor…" → hata/ready). Migration'lar canlıda **henüz uygulanmadı** (PGRST205; tablolar yok) → uygulama dürüst hata kartı gösterir, sessiz demo'da kalma YOK. Migration'lar uygulanınca kapı kendiliğinden açılır.
+- `.env` değerleri tarayıcıya dev'de inlinelenir; vitest'te istemci **oluşturulmaz** (`MODE === "test"` guard) → birim testleri canlıya asla dokunamaz
+- Temel mü: ana chunk 269,25 kB / 85,48 gzip (supabase-js dahil); 12 test dosyası / **75 test**; `tsc + build` temiz
 - Dev server: `nohup npm run dev > …/devserver.log 2>&1 &` (5173)
-- HEAD: `38656eb` (güvenlik paketi). Son 5 commit: güvenlik şema paketi, FirmsPage perf, ErrorBoundary + HomePage perf, SEO paketi, agent kadrosu
+- HEAD: `9eaa018…` sonrası; son 6 commit: tur 1–6 (tel linki, convertLead, companyIndex, soft-404, mikro bakım, web formu)
 
 ## Tamamlanan turlar
 
@@ -28,6 +29,7 @@
 | Tur 4: geçersiz slug soft-404 | `a7b5500` | slugProblem() (pure) + FirmsPage erken-dal noindex bulunamadı + SEO kuralı: noindex'te canonical basılmaz; tarayıcıda 3 yol doğrulandı | Shedehirsiz ?ilçe serbest filtre kaldı (regresyona karşı 8 test); SEO noindex-canonical kural kilidi jsdom bağımlığı ister — notlandı |
 | Tur 5: mikro bakım | `6e60d27` | ?ilçe çift-decode URIError crash kapatıldı; ölü kod; admin aday tablosunda temsilci ad sütunu | URLSearchParams.get zaten decode'lu — çift decode yasağı ilke olarak loglandı |
 | Tur 6: web başvuru formu | `9eaa018` | ContactPage çalışan form (+honeypot) → createPublicLead (rep'siz 'web' lead) → admin panosu; 0004 source kolonu; 0001 leads.sales_rep_id NOT NULL kaldırıldı (E1) | Anonim INSERT RLS politikası bilinçli koymadı: canlıya geçişte + rate limit ayrı güvenlik kararı; listLeads repId'siz-temsilci açığı erken kapandı |
+| Tur P-1: canlı bağlantı katmanı | `—`(bu commit) | dataSource.ts: 13 tablo okuma (loadSnapshot) + camel/snake mappers + fark-tabanlı `syncSnapshot` (FK sıralı upsert/delete; audit_log bilinçli dışarıda — 0002 execute yalnız service_role); repo mod-çatallı (Supabase modda localStorage/seed yok); auth gerçek `signInWithPassword` + profiles haritası (yoksa self-insert temsilci) + giriş/çıkışta rehydrate; App BootGate fazları; LoginPage async+pending; supabase.ts vitest guard; 0005 öneri (app_settings admin yazma politikası eksikti — 0001'de drop edilip yeniden yaratılmamış bulgu) | vitest `.env`'i yükler → testler canlı modda koşturabilecekti; `MODE="test"` guard'ı ile istemci testte hiç yaratılmaz (75 test demo ciğeriyle geçer). HMR değil taze sunucu: doğrulama "eski modül" çeldiricisi yaratabiliyor — sunucuyu yeniden başlat |
 
 ### Fikir bankası — değerlendirme matrisi (2026-10-20, 4 ajan paralel üretti)
 
@@ -42,12 +44,15 @@
 
 ## Bekleyen/bloklu işler
 
-1. **[ORTAM ENGELİ] Supabase yerel doğrulaması:** Docker kapalı (2026-10-20 itibarıyla 3 kez kontrol edildi). Gerekli adım: Docker'ı aç → `supabase start` → `supabase db reset` → 0002/0003 header'ındaki doğrulama sorguları (has_function_privilege vs.). Migration dosyaları (0001-0003) hazır, push edilmemiş; kullanıcı Docker'ı açtığında derhal doğrula.
-2. **[KULLANICI GİRDİSİ] Üretim domaini:** sitemap için `SITE_URL` gerekli; robots.txt'e `Sitemap:` satırı domain bilinene kadar eklenmedi.
-3. **[KÜÇÜK TUR] FirmsPage ?ilçe çift-decode:** `searchParams.get("ilce")` zaten decode'lu; üstüne `decodeURIComponent` uygulandığından `?ilce=100%` gibi değerlerin içinde bare `%` URIError ile sayfayı düşürür (code-reviewer Tur 4 bulgusu; tek satır).
-4. **[KÜÇÜK TUR] SEO noindex-canonical kural kilidi:** SEO.tsx'te noindex→canonical baskısı kuralı DOM-testi jsdom gerektiriyor; yeni devDep (jsdom) veya vitest environmentMatchGlobs değerlendirmesi gerekiyor.
-5. **[TEMİZLİK] Ölü kod:** Leads.tsx `listCitiesInventory` + `void categories`; temsilci kolonu admin görünümünde hep "—" (rep adı basılmıyor).
-6. **"Firmanızı ekletin" kazanım CTA'sı:** halka açık iletisim sayfasında işletme başvuru formu yok (frontend tur 1 önerisi) — sonraki büyük aday.
+1. **[KULLANICI AKSİYONU] Migration'ları canlıya uygula (SIRAYLA):** 0001 → 0002 → 0003 → 0004, akabinde **0005 (öneri; app_settings yazma politikası)**. Yol A: Supabase Dashboard → SQL Editor → dosyaları tek tek, TÜM dosyayı tek seferde koş. Yol B: `supabase db push` (CLI ile bağlantı gerekir). **Bu adım bize değil kullanıcıya ait — uygulama kodudur, otomatik koşulmaz.**
+2. **[KULLANICI AKSİYONU] İlk kullanıcı + admin yükseltme:** Authentication → Users → Add user (e-posta + şifre). Sonra SQL: `update public.profiles set role='admin' where id='<user-uuid>';` (profiles satırı ilk girişte kendiliğinden 'temsilci' olarak doğar). Temsilci profilini bir sales_reps kaydına bağlama: `update public.profiles set sales_rep_id='<rep-uuid>' where id='<user-uuid>';` — rep kaydı panelden oluşturulabilir.
+3. **[DOĞRULAMA] Canlı dolu akış smoke testi:** migration uygulanınca (a) anonim ana sayfa canlı boş veriye hazır olmalı (Boş durum görünümü), (b) admin girişinde tam panel görüntüsü, (c) Ayarlar kaydetme 0005'siz 42501/RLS hatası verir — 0005 uygulanınca geçer.
+4. **[ORTAM ENGELİ] Supabase yerel doğrulaması:** Docker kapalı (2026-10-20 itibarıyla 3 kez kontrol edildi). Migration'lar canlıya elle uygulanacak; yerel ön-doğrulama (0002/0003 header'daki has_function_privilege sorguları) Docker açılınca yapılabilir.
+5. **[KULLANICI GİRDİSİ] Üretim domaini:** sitemap için `SITE_URL` gerekli; robots.txt'e `Sitemap:` satırı domain bilinene kadar eklenmedi.
+6. **[KÜÇÜK TUR] FirmsPage ?ilçe çift-decode:** `searchParams.get("ilce")` zaten decode'lu; üstüne `decodeURIComponent` uygulandığından `?ilce=100%` gibi değerlerin içinde bare `%` URIError ile sayfayı düşürür (code-reviewer Tur 4 bulgusu; tek satır).
+7. **[KÜÇÜK TUR] SEO noindex-canonical kural kilidi:** SEO.tsx'te noindex→canonical baskısı kuralı DOM-testi jsdom gerektiriyor; yeni devDep (jsdom) veya vitest environmentMatchGlobs değerlendirmesi gerekiyor.
+8. **[TEMİZLİK] Ölü kod:** Leads.tsx `listCitiesInventory` + `void categories`; temsilci kolonu admin görünümünde hep "—" (rep adı basılmıyor).
+9. **[TASARIM TURU] Faz A/B devamı:** index.css v2 token uygulaması kısmi; Faz B TSX düzeltmeleri (Settings table-wrap, company-card--featured, Admin/RepLayout display:block) planlanmış, başlanmadı.
 
 ## Reddedilen/ertelenen fikirler (tekrar üretme!)
 
@@ -74,4 +79,4 @@
 
 ---
 
-_En son güncellenme: 2026-10-20 — Turlar 1–6 tamamlandı (son: `9eaa018`, web başvuru formu) — TEAM-LEAD sürekli döngü_
+_En son güncellenme: 2026-10-20 — Turlar 1–6 + P-1 canlı bağlantı katmanı (migration uygulaması kullanıcı aksiyonu bekliyor) — TEAM-LEAD sürekli döngü_

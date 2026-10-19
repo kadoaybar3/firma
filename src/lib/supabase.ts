@@ -20,7 +20,11 @@ export const SUPABASE_ANON_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY as
 
 export let supabase: SupabaseClient | null = null;
 
-if (SUPABASE_URL && SUPABASE_ANON_KEY) {
+// Test ortamında istemci OLUŞTURULMAZ: birim testleri asla canlı veritabanına
+// dokunamaz (vitest MODE="test"). Doğrulama betikleri ayrı koşulur.
+const IS_TEST = import.meta.env.MODE === "test";
+
+if (!IS_TEST && SUPABASE_URL && SUPABASE_ANON_KEY) {
   try {
     supabase = createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
   } catch (err) {

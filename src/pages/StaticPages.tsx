@@ -299,6 +299,7 @@ export function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [pending, setPending] = useState(false);
 
   if (user) {
     // Zaten giriş yapılmışsa rol sayfasına yönlendir
@@ -329,11 +330,14 @@ export function LoginPage() {
           {error && <ErrorBanner message={error} />}
 
           <form
-            onSubmit={(e) => {
+            onSubmit={async (e) => {
               e.preventDefault();
-              const res = login(email, password);
+              setPending(true);
+              setError(null);
+              const res = await login(email, password);
+              setPending(false);
               if (res.ok) {
-                navigate(resolveRolePath(email), { replace: true });
+                navigate(res.role === "admin" ? "/yonetim" : "/temsilci", { replace: true });
               } else {
                 setError(res.error ?? "Giriş başarısız.");
               }
@@ -361,8 +365,8 @@ export function LoginPage() {
                 placeholder="demo"
               />
             </label>
-            <button className="btn btn--primary btn--block" type="submit">
-              Giriş yap
+            <button className="btn btn--primary btn--block" type="submit" disabled={pending}>
+              {pending ? "Giriş yapılıyor…" : "Giriş yap"}
             </button>
           </form>
           <p className="text-muted small mt-14">
@@ -372,12 +376,6 @@ export function LoginPage() {
       </div>
     </SEO>
   );
-}
-
-function resolveRolePath(email: string): string {
-  const normalized = email.trim().toLowerCase();
-  if (normalized === "admin@demo.com") return "/yonetim";
-  return "/temsilci";
 }
 
 function RoleRedirect({ role }: { role: string }) {

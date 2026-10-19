@@ -8,6 +8,7 @@ import type {
   Sale,
   Settings,
 } from "./types";
+import { isSupabaseConfigured } from "./supabase";
 
 /**
  * Saf iş kuralları motoru. Veritabanına bağımlı DEĞİL; db nesnesi üzerinde çalışan
@@ -34,6 +35,11 @@ export function log(
   summary: string,
   detail: unknown,
 ): void {
+  // Supabase modunda denetim kaydı istemciden YAZILMAZ: 0002, log_audit
+  // EXECUTE hakkını yalnızca service_role'a bıraktı ve audit_log tablosunda
+  // istemciye INSERT izni vermez. Denetim kayıtları sunucu tarafındaki
+  // SECURITY DEFINER işlem zincirinden doğar (confirm_sale vb.).
+  if (isSupabaseConfigured) return;
   const entry: AuditEntry = {
     id: uid(),
     at: nowISO(),

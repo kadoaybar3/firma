@@ -1,6 +1,7 @@
 import { lazy, Suspense } from "react";
+import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
-import { AuthProvider } from "./lib/auth";
+import { AuthProvider, useAuth } from "./lib/auth";
 import { SiteLayout } from "./components/SiteLayout";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ErrorBanner } from "./components/ui";
@@ -70,6 +71,51 @@ function PageFallback() {
   );
 }
 
+/**
+ * Supabase modunda açılış kapısı: oturum + anlık görüntü yüklemesi bitmeden
+ * hiçbir rota çizilmez (boş liste parlaması / kısmi veri önlenir).
+ * Demo modda phase zaten "ready" olduğundan kapı etkisizdir.
+ */
+function BootGate({ children }: { children: ReactNode }) {
+  const { phase, bootError } = useAuth();
+  if (phase === "booting") {
+    return (
+      <div
+        style={{
+          minHeight: "100vh",
+          display: "grid",
+          placeItems: "center",
+          color: "var(--text-2)",
+        }}
+      >
+        Veri bağlantısı kuruluyor…
+      </div>
+    );
+  }
+  if (phase === "error") {
+    return (
+      <div style={{ minHeight: "100vh", display: "grid", placeItems: "center", padding: "var(--space-5, 24px)" }}>
+        <div className="auth-card" style={{ maxWidth: 520 }}>
+          <h1>Veri bağlantısı kurulamadı</h1>
+          <p className="mb-14">
+            Uygulama canlı veritabanına bağlanamadı. Migration'ların uygulandığından ve
+            bağlantı bilgilerinin doğru olduğundan emin olun; internet bağlantınızı kontrol edin.
+          </p>
+          <ErrorBanner message={bootError ?? "Bilinmeyen hata"} />
+          <button
+            type="button"
+            className="btn btn--primary btn--block"
+            onClick={() => window.location.reload()}
+          >
+            Yeniden dene
+          </button>
+        </div>
+      </div>
+    );
+  }
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <AuthProvider>
@@ -77,7 +123,8 @@ export default function App() {
         {/* Hata sınırı Suspense'i dışında olmalı: chunk çözümlemesi sırasında
             firlayan hata Suspense'ten yukarı akar ve burada yakalanır. */}
         <ErrorBoundary>
-          <Suspense fallback={<PageFallback />}>
+          <BootGate>
+            <Suspense fallback={<PageFallback />}>
             <Routes>
               {/* ===== Halke açık site ===== */}
               <Route element={<SiteLayout />}>
@@ -126,6 +173,7 @@ export default function App() {
               <Route path="*" element={<NotFoundPage />} />
             </Routes>
           </Suspense>
+          </BootGate>
         </ErrorBoundary>
       </BrowserRouter>
     </AuthProvider>
