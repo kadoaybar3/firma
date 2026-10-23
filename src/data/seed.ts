@@ -74,7 +74,7 @@ const companySeed: Array<
     socials: { instagram: "afyonsucuksarayi", facebook: "afyonsucuksarayi" },
     description:
       "1923 yılından bu yana geleneksel yatırımlarıyla üretilen Afyon sucuğu, pastırma ve kaymak ürünlerinde uzman aile işletmesi.",
-    images: ["🥓", "🍖", "🛒"],
+    images: [],
     hours: { weekday: "08:00 - 19:00", saturday: "08:00 - 19:00", sunday: "09:00 - 14:00" },
     featured: true,
     published: true,
@@ -90,7 +90,7 @@ const companySeed: Array<
     socials: { instagram: "ozmiraskuyum" },
     description:
       "Afyon kaymağı desenli takılardan sertifikalı altın bileziklere; hayali ürünlerde uzman kuyumcu.",
-    images: ["💍", "💎", "🪙"],
+    images: [],
     hours: { weekday: "09:00 - 18:30", saturday: "09:00 - 18:30", sunday: "Kapalı" },
     featured: true,
     published: true,
@@ -106,7 +106,7 @@ const companySeed: Array<
     socials: { instagram: "kadiranapastane" },
     description:
       "1908 yılından kalma şarbon fırını ile her taze ekmek, kremalı yağ çiksi ve Afyon usulü pastalarıyla tanınan köklü pastane.",
-    images: ["🥐", "🎂", "🥖"],
+    images: [],
     hours: { weekday: "06:30 - 22:00", saturday: "06:30 - 22:00", sunday: "07:00 - 21:00" },
     featured: true,
     published: true,
@@ -122,7 +122,7 @@ const companySeed: Array<
     socials: {},
     description:
       "Hüda hamamları ve kaplıca suyuyla şifa amaçlı vadetilen termal otel; 46 derece su sıcaklığındaki havuzlarla serhaletme hizmeti.",
-    images: ["🏨", "♨️", "🏊"],
+    images: [],
     hours: { weekday: "07:00 - 23:00", saturday: "07:00 - 23:00", sunday: "07:00 - 23:00" },
     featured: true,
     published: true,
@@ -138,7 +138,7 @@ const companySeed: Array<
     socials: { whatsapp: "905551230022" },
     description:
       "Bolvadin kırlarından kendi kovanlarından doğal petek bal ve Afyon kaymağı üretimi yapan tarım işletmesi.",
-    images: ["🍯", "🐝", "🧴"],
+    images: [],
     hours: { weekday: "08:00 - 18:00", saturday: "08:00 - 16:00", sunday: "Kapalı" },
     featured: false,
     published: true,
@@ -154,7 +154,7 @@ const companySeed: Array<
     socials: {},
     description:
       "Tüm marka araçlarda yağ-periyot bakımı, mekanik tamir ve yedek parça satışı yapan yetkili teknisyenli servis.",
-    images: ["🛠️", "🚗", "🔩"],
+    images: [],
     hours: { weekday: "08:30 - 18:00", saturday: "08:30 - 14:00", sunday: "Kapalı" },
     featured: false,
     published: true,
@@ -170,7 +170,7 @@ const companySeed: Array<
     socials: {},
     description:
       "Reçeteli ilaç, dermokozmetik ve bebek ürünleri satışı yapan köy aile sağlığına yakın hizmet verilen mahalle eczanesi.",
-    images: ["💊", "🩹", "🧪"],
+    images: [],
     hours: { weekday: "08:30 - 18:30", saturday: "08:30 - 14:00", sunday: "Kapalı" },
     featured: false,
     published: true,
@@ -186,7 +186,7 @@ const companySeed: Array<
     socials: { instagram: "iscehisartas" },
     description:
       "Afyon beyaz mermer, bej traverten ve alter taş ürünlerinde ocaktan çıkarma ve kesme hizmetleri veren mermer atölyesi.",
-    images: ["🪨", "🏗️", "⚖️"],
+    images: [],
     hours: { weekday: "08:00 - 17:30", saturday: "08:00 - 14:00", sunday: "Kapalı" },
     featured: true,
     published: true,
@@ -202,7 +202,7 @@ const companySeed: Array<
     socials: { whatsapp: "905551230044" },
     description:
       "Yurt içi evden eve nakliyat, ofis taşımacılığı ve sigortalı parsiyel yük hizmetleri sunan nakliye firması.",
-    images: ["🚚", "📦", "🗺️"],
+    images: [],
     hours: { weekday: "08:00 - 20:00", saturday: "08:00 - 20:00", sunday: "09:00 - 18:00" },
     featured: false,
     published: true,
@@ -218,7 +218,7 @@ const companySeed: Array<
     socials: {},
     description:
       "Boya, demir, ısıtma-soğutma ve inşaat malzemeleri satışı yapan bölge sakinlerine güvenilir tedarik sağlayan yapı marketi.",
-    images: ["🔨", "🪣", "🧱"],
+    images: [],
     hours: { weekday: "08:00 - 19:00", saturday: "08:00 - 17:00", sunday: "Kapalı" },
     featured: false,
     published: true,
@@ -234,7 +234,7 @@ const companySeed: Array<
     socials: { instagram: "akademiders" },
     description:
       "LGS, YKS ve KPSS hazırlık kursları; 12 kişilik sınıflar ve ücretsiz deneme sınavlarıyla eğitim kurumu.",
-    images: ["🎓", "📖", "🧮"],
+    images: [],
     hours: { weekday: "16:00 - 21:00", saturday: "09:00 - 19:00", sunday: "09:00 - 17:00" },
     featured: false,
     published: true,
@@ -250,7 +250,7 @@ const companySeed: Array<
     socials: {},
     description:
       "Şuhut kirazını dış pazarlara taşıyan üretici kooperatifi; lalehnin sonlanma döneminde gün kurulu suanlar düzenlenir.",
-    images: ["🍒", "🌾", "🧺"],
+    images: [],
     hours: { weekday: "07:00 - 17:00", saturday: "07:00 - 15:00", sunday: "Kapalı" },
     featured: false,
     published: true,

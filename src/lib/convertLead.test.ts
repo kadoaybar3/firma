@@ -39,7 +39,6 @@ function draftFrom(lead: Lead, seed: ReturnType<typeof seedDB>): CompanyDraft {
     website: "",
     socials: {},
     description: lead.note,
-    images: ["🏢"],
     featured: false,
     published: false,
     repId: lead.repId ?? null,

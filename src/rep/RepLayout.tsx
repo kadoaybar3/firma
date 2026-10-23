@@ -1,17 +1,39 @@
-import { NavLink, Outlet, useNavigate } from "react-router-dom";
-import { useActor, useAuth } from "../lib/auth";
-import { InfoBanner } from "../components/ui";
+import { useEffect, useState } from "react";
+import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import {
+  Building2,
+  ExternalLink,
+  LayoutDashboard,
+  MapPin,
+  Menu,
+  Receipt,
+  Target,
+  type LucideIcon,
+  X,
+} from "lucide-react";
+import { useAuth } from "../lib/auth";
 import { SyncBanner } from "../components/SyncBanner";
 
-const NAV: Array<[string, string, string]> = [
-  ["/temsilci", "📊", "Özetim"],
-  ["/temsilci/adaylar", "🎯", "Firma adayları"],
-  ["/temsilci/satislar", "💰", "Satış ve kazanç"],
+/**
+ * Çalışan menüsü — yönetici menüsünün küçültülmüş kopyası DEĞİL:
+ * yalnızca sahadaki iş akışı (firma bul/ekle → üyelik sat → satışları izle).
+ */
+const NAV: Array<{ to: string; icon: LucideIcon; label: string; hint: string }> = [
+  { to: "/temsilci", icon: LayoutDashboard, label: "Ana Sayfa", hint: "Kendi özetiniz" },
+  { to: "/temsilci/firmalar", icon: Target, label: "Firma Bul / Ekle", hint: "Ara, mükerrer kontrol et, aday ekle" },
+  { to: "/temsilci/uyelik", icon: Building2, label: "Üyelik Satışı", hint: "Firma seç, satış aç" },
+  { to: "/temsilci/satislarim", icon: Receipt, label: "Satışlarım", hint: "Satış ve komisyon durumu" },
 ];
 
 export function RepLayout() {
   const { user, logout } = useAuth();
   const navigate = useNavigate();
+  const { pathname } = useLocation();
+  const [drawer, setDrawer] = useState(false);
+
+  useEffect(() => {
+    setDrawer(false);
+  }, [pathname]);
 
   if (!user) {
     return (
@@ -41,39 +63,81 @@ export function RepLayout() {
     );
   }
 
+  const active = [...NAV]
+    .sort((a, b) => b.to.length - a.to.length)
+    .find((item) => pathname === item.to || pathname.startsWith(`${item.to}/`));
+
   return (
-    <div className="panel-shell">
-      <aside className="panel-sidebar">
-        <div className="panel-sidebar__brand">
-          <span aria-hidden="true">💼</span> Temsilci Paneli
+    <div className={`panel-shell panel-shell--rep ${drawer ? "is-drawer-open" : ""}`}>
+      <button
+        type="button"
+        className="panel-backdrop"
+        aria-label="Menüyü kapat"
+        tabIndex={drawer ? 0 : -1}
+        onClick={() => setDrawer(false)}
+      />
+
+      <aside className="panel-sidebar panel-sidebar--light" aria-label="Temsilci menüsü">
+        <div className="panel-sidebar__brandrow">
+          <Link className="panel-sidebar__brand" to="/temsilci">
+            <span className="panel-sidebar__mark" aria-hidden="true">
+              <MapPin size={16} strokeWidth={2.1} />
+            </span>
+            <span className="panel-sidebar__brandtext">
+              <span className="panel-sidebar__title">Firma Rehberi</span>
+              <span className="panel-sidebar__subtitle">Temsilci paneli</span>
+            </span>
+          </Link>
+          <button
+            type="button"
+            className="panel-iconbtn panel-sidebar__close"
+            aria-label="Menüyü kapat"
+            onClick={() => setDrawer(false)}
+          >
+            <X size={18} strokeWidth={2} aria-hidden="true" />
+          </button>
         </div>
-        <div className="panel-sidebar__scroll" style={{ display: "block" }}>
-          <nav aria-label="Temsilci menüsü">
-            {NAV.map(([to, icon, label]) => (
+
+        <div className="panel-sidebar__scroll">
+          <nav>
+            {NAV.map(({ to, icon: Icon, label, hint }) => (
               <NavLink
                 key={to}
                 to={to}
                 end={to === "/temsilci"}
+                title={label}
                 className={({ isActive }) => `panel-sidebar__link ${isActive ? "is-active" : ""}`}
               >
-                <span aria-hidden="true">{icon}</span> {label}
+                <Icon size={17} strokeWidth={1.9} aria-hidden="true" />
+                <span className="panel-sidebar__label">
+                  {label}
+                  <span className="panel-sidebar__hint">{hint}</span>
+                </span>
               </NavLink>
             ))}
           </nav>
+
+          <div className="panel-sidebar__note">
+            <strong>Saha akışı</strong>
+            <p>
+              Rehberde arayın → mükerrer kaydı kontrol edin → aday oluşturun. Firma kaydı
+              yönetici onayıyla yayına alınır.
+            </p>
+          </div>
         </div>
+
         <div className="panel-sidebar__foot">
           <div className="panel-sidebar__user">
             <span className="panel-sidebar__avatar" aria-hidden="true">
-              {user.name.slice(0, 1)}
+              {user.name.slice(0, 1).toUpperCase()}
             </span>
-            <div>
+            <div className="panel-sidebar__usertext">
               <div className="panel-sidebar__name">{user.name}</div>
-              <div className="panel-sidebar__role">Satış Temsilcisi</div>
+              <div className="panel-sidebar__role">Satış temsilcisi</div>
             </div>
           </div>
           <button
-            className="btn btn--sm btn--block"
-            style={{ background: "rgba(255,255,255,.1)", color: "#fff" }}
+            className="btn btn--sm btn--block panel-sidebar__logout"
             onClick={() => {
               logout();
               navigate("/", { replace: true });
@@ -83,20 +147,32 @@ export function RepLayout() {
           </button>
         </div>
       </aside>
+
       <div className="panel-main">
+        <header className="panel-topbar">
+          <div className="panel-topbar__left">
+            <button
+              type="button"
+              className="panel-iconbtn panel-topbar__menu"
+              aria-label="Menüyü aç"
+              aria-expanded={drawer}
+              onClick={() => setDrawer(true)}
+            >
+              <Menu size={19} strokeWidth={2} aria-hidden="true" />
+            </button>
+            <div className="panel-topbar__title">
+              <span className="panel-topbar__eyebrow">Temsilci</span>
+              <span className="panel-topbar__current">{active?.label ?? "Panel"}</span>
+            </div>
+          </div>
+          <Link className="btn btn--ghost btn--sm panel-topbar__site" to="/">
+            <ExternalLink size={15} strokeWidth={2} aria-hidden="true" />
+            Siteyi gör
+          </Link>
+        </header>
         <SyncBanner />
-        <div className="panel-content">
-          <InfoBanner>
-            Yetkileriniz: yalnızca kendi aday ve ziyaret kayıtlarınızı görebilir, kendi
-            satışlarınızı açabilirsiniz. Ödeme durumu veya komisyon oranlarını değiştiremezsiniz.
-          </InfoBanner>
-          <Outlet />
-        </div>
+        <Outlet />
       </div>
     </div>
   );
-}
-
-export function RepHeader({ title, actor }: { title: string; actor: ReturnType<typeof useActor> }) {
-  return <div className="page-head"><h2>{title}</h2><p className="small">Yetkiniz: kendi kayıtlarınız</p>{actor.repId ? null : null}</div>;
 }

@@ -1,4 +1,11 @@
+/**
+ * DEVRE DIŞI (RD-6): Bu sayfa artık rotaya bağlı değil. Çalışan panelinde yeri
+ * `src/rep/MembershipSale.tsx` (satış kaydı açma) ve `src/rep/MySales.tsx`
+ * (satışlarım/ödeme/komisyon görünümü) tarafından alındı. Silinmedi; referans
+ * için duruyor. Bir daha rotaya bağlanmayacaksa kaldırılabilir.
+ */
 import { useState } from "react";
+import { Banknote, Receipt, Wallet } from "lucide-react";
 import { Badge, EmptyState, ErrorBanner, Field, StatCard } from "../components/ui";
 import { useActor } from "../lib/auth";
 import { formatTRY, formatDateTime } from "../lib/format";
@@ -10,6 +17,7 @@ import {
   listMemberships,
   listPayments,
   listSales,
+  getSettings,
 } from "../lib/repo";
 
 export default function RepSalesPage() {
@@ -18,7 +26,7 @@ export default function RepSalesPage() {
   return (
     <div>
       <div className="page-head">
-        <h2>Satış ve kazanç</h2>
+        <h2>Üyelik Satışı ve Satışlarım</h2>
         <p>
           Kendi satışlarınızı açarsınız; ödeme durumu ve komisyon yönetimi yalnızca yöneticidedir
           (yetki arayüzde ve veritabanı seviyesinde korunur).
@@ -43,6 +51,7 @@ function RepSales({ actor }: { actor: ReturnType<typeof useActor> }) {
     memberships.filter((m) => m.status === "aktif").map((m) => m.companyId),
   );
   const companies = listCompanies().filter((c) => !activeCompanyIds.has(c.id));
+  const membershipPrice = getSettings().membershipPrice;
 
   function run(fn: () => void) {
     setError(null);
@@ -61,7 +70,7 @@ function RepSales({ actor }: { actor: ReturnType<typeof useActor> }) {
 
       <div className="stats-grid mb-14">
         <StatCard
-          icon="🧾"
+          icon={<Receipt size={20} strokeWidth={1.9} />}
           label="Bekleyen kazanç"
           value={formatTRY(
             commissions.filter((c) => c.com.status !== "odendi").reduce((s, c) => s + c.com.amount, 0),
@@ -69,7 +78,7 @@ function RepSales({ actor }: { actor: ReturnType<typeof useActor> }) {
           tone="warning"
         />
         <StatCard
-          icon="🏦"
+          icon={<Banknote size={20} strokeWidth={1.9} />}
           label="Ödenmiş kazanç"
           value={formatTRY(
             commissions.filter((c) => c.com.status === "odendi").reduce((s, c) => s + c.com.amount, 0),
@@ -79,15 +88,12 @@ function RepSales({ actor }: { actor: ReturnType<typeof useActor> }) {
       </div>
 
       <div className="card card__pad mb-14">
-        <h3 style={{ fontWeight: 800 }}>Satış türleri</h3>
+        <h3 style={{ fontWeight: 800 }}>Yeni üyelik satışı</h3>
         <p className="text-muted small">
-          <strong>Gerçek satış:</strong> firmanın üyeliğini bizzat sattınız; komisyon sizin için doğar.
-          <br />
-          <strong>Doğrudan satış:</strong> işletme, size özel referans koduyla kendi başına üye oldu;
-          ödül kazanırsınız.
+          Üyelik fiyatı: <strong>{formatTRY(membershipPrice)}</strong>. Satış açıldıktan sonra ödeme doğrulamasını yönetici yapar; durum ve komisyonu siz değiştiremezsiniz.
         </p>
-        <button className="btn btn--primary mt-8" onClick={() => setShowForm((s) => !s)}>
-          {showForm ? "Formu kapat" : "+ Yeni satış kaydı"}
+        <button className="btn btn--primary mt-8" disabled={!companies.length} onClick={() => setShowForm((s) => !s)}>
+          {showForm ? "Formu kapat" : "+ Üyelik satışı aç"}
         </button>
       </div>
 
@@ -121,23 +127,28 @@ function RepSales({ actor }: { actor: ReturnType<typeof useActor> }) {
               </Field>
               <Field label="Satış türü" required>
                 <select name="channel" defaultValue="temsilci">
-                  <option value="temsilci">Gerçek satış (temsilci)</option>
-                  <option value="dogrudan">Doğrudan satış (referans kodu)</option>
+                  <option value="temsilci">Temsilci tarafından satıldı</option>
+                  <option value="dogrudan">Doğrudan / referanslı satış</option>
                 </select>
               </Field>
               <Field label="Referans kodu" hint="Satış türü 'dogrudan' ise">
                 <input name="referralCode" placeholder="Örn: KADINANA-1001" />
               </Field>
             </div>
-            <button className="btn btn--primary" type="submit">
-              Satışı kaydet
+            {!companies.length && <p className="text-muted small">Satış açmak için önce bir firma kaydı ve aktif olmayan üyelik gerekir.</p>}
+            <button className="btn btn--primary" type="submit" disabled={!companies.length}>
+              Üyelik satışını aç
             </button>
           </form>
         </div>
       )}
 
       {sales.length === 0 ? (
-        <EmptyState icon="💰" title="Satış kaydı yok" description="Yukarıdaki formdan ilk satış kaydınızı açın." />
+        <EmptyState
+          icon={<Wallet size={30} strokeWidth={1.5} aria-hidden="true" />}
+          title="Satış kaydı yok"
+          description="Yukarıdaki formdan ilk satış kaydınızı açın."
+        />
       ) : (
         <div className="table-wrap">
           <table className="table">

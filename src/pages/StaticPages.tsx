@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { CheckCircle2, Compass, Mail, MapPin, Phone } from "lucide-react";
 import { SEO } from "../components/SEO";
 import { ErrorBanner, Field, InfoBanner } from "../components/ui";
 import { useAuth } from "../lib/auth";
@@ -38,14 +39,18 @@ export function ContactPage() {
         </div>
         <div className="how-grid">
           <div className="how-card">
-            <span style={{ fontSize: "1.6rem" }}>📧</span>
+            <span className="how-card__icon" aria-hidden="true">
+              <Mail size={18} strokeWidth={1.9} />
+            </span>
             <h3>E-posta</h3>
             <p>
               <a href="mailto:info@firmarehberi.example.com">info@firmarehberi.example.com</a>
             </p>
           </div>
           <div className="how-card">
-            <span style={{ fontSize: "1.6rem" }}>📞</span>
+            <span className="how-card__icon" aria-hidden="true">
+              <Phone size={18} strokeWidth={1.9} />
+            </span>
             <h3>Telefon</h3>
             <p>
               <a href="tel:08501234567">0850 123 45 67</a>
@@ -54,7 +59,9 @@ export function ContactPage() {
             </p>
           </div>
           <div className="how-card">
-            <span style={{ fontSize: "1.6rem" }}>📍</span>
+            <span className="how-card__icon" aria-hidden="true">
+              <MapPin size={18} strokeWidth={1.9} />
+            </span>
             <h3>Adres</h3>
             <p>Merkez / Afyonkarahisar</p>
           </div>
@@ -68,8 +75,8 @@ export function ContactPage() {
           </p>
           {sent ? (
             <div>
-              <p style={{ fontSize: "1.8rem", margin: "10px 0 6px" }} aria-hidden="true">
-                ✅
+              <p style={{ color: "var(--success)", margin: "10px 0 6px" }} aria-hidden="true">
+                <CheckCircle2 size={30} strokeWidth={1.8} />
               </p>
               <p style={{ fontWeight: 600, marginBottom: 6 }}>Başvurunuz alındı.</p>
               <p className="text-muted small">
@@ -292,7 +299,9 @@ export function NotFoundPage() {
     <SEO title="Sayfa bulunamadı | Firma Rehberi" noindex>
       <div className="section container" style={{ padding: "48px 16px" }}>
         <div className="empty-state">
-          <span className="empty-state__icon" aria-hidden="true">🧭</span>
+          <span className="empty-state__icon" aria-hidden="true">
+            <Compass size={34} strokeWidth={1.5} />
+          </span>
           <h3>Sayfa bulunamadı</h3>
           <p>Aradığınız sayfa taşınmış ya da hiç var olmamış olabilir.</p>
           <Link className="btn btn--primary" to="/">
@@ -322,6 +331,15 @@ export function LoginPage() {
   return (
     <SEO title="Giriş | Firma Rehberi Paneller" noindex>
       <div className="auth-wrap">
+        <div className="auth-brand">
+          <span className="auth-brand__mark" aria-hidden="true">
+            <MapPin size={18} strokeWidth={2.1} />
+          </span>
+          <span className="auth-brand__text">
+            <strong>Firma Rehberi</strong>
+            <span className="text-muted small">Afyonkarahisar işletme rehberi</span>
+          </span>
+        </div>
         <div className="auth-card">
           <h1>Panellere giriş</h1>
           <p>Yönetim ve satış temsilcisi girişi buradan yapılır.</p>

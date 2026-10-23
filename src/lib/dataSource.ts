@@ -115,6 +115,13 @@ export function citiesFromRows(
 }
 
 export function companyToRow(c: Company): Record<string, unknown> {
+  /**
+   * Koordinatlar yalnız `Company` üzerinde TANIMLI ise satıra girer.
+   * `companies` tablosunda latitude/longitude kolonları henüz yok (0001):
+   * createCompany/createCompanyUpdate akışları bu alanları doldurmadığından
+   * canlıya asla yazılımaz — kolonlar future migration (0007 öneri) ile
+   * eklendiğinde sıfır kod değişikliğiyle kalıcı olur.
+   */
   return {
     id: c.id,
     name: c.name,
@@ -128,11 +135,12 @@ export function companyToRow(c: Company): Record<string, unknown> {
     website: c.website ?? null,
     socials: c.socials ?? {},
     description: c.description ?? "",
-    images: c.images?.length ? c.images : ["🏢"],
+    images: c.images?.length ? c.images : [],
     hours: c.hours ?? {},
     featured: Boolean(c.featured),
     published: Boolean(c.published),
     sales_rep_id: c.repId ?? null,
+    ...(c.latitude !== undefined && c.longitude !== undefined ? { latitude: c.latitude, longitude: c.longitude } : {}),
     created_at: c.createdAt ?? nowISO(),
     updated_at: c.updatedAt ?? nowISO(),
   };
@@ -152,11 +160,14 @@ export function companyFromRow(row: Record<string, unknown>): Company {
     website: sopt(row, "website"),
     socials: (row["socials"] as Company["socials"]) ?? {},
     description: sv(row, "description"),
-    images: (row["images"] as string[]) ?? ["🏢"],
+    images: (row["images"] as string[]) ?? [],
     hours: (row["hours"] as Company["hours"]) ?? { weekday: "", saturday: "", sunday: "" },
     featured: Boolean(row["featured"]),
     published: Boolean(row["published"]),
     repId: sopt(row, "sales_rep_id"),
+    // Koordinatlar yalnız kolonlar mevcutsa dolu gelir (migration sonrası)
+    latitude: typeof row["latitude"] === "number" ? (row["latitude"] as number) : undefined,
+    longitude: typeof row["longitude"] === "number" ? (row["longitude"] as number) : undefined,
     createdAt: sv(row, "created_at"),
     updatedAt: sv(row, "updated_at"),
   };
@@ -507,13 +518,28 @@ function diffFor(
 
 async function writeChunk(table: string, op: "upsert" | "delete", payload: Record<string, unknown>[] | string[]): Promise<void> {
   if (!supabase) throw new Error("Supabase istemcisi yok.");
-  if (op === "upsert" && payload.length) {
-    const { error } = await supabase.from(table).upsert(payload as never);
-    if (error) throw new Error(`${table} upsert: ${error.message}`);
+  /**
+   * Toplu içe aktarma, tek persist'te yüzlerce satır üretebilir; PostgREST istek
+   * boyutu/TLS yüklemesi bu yüzden dilimlenir (100 satır/cağrı) — parçalar
+   * sıralı yazılır, hata tek parçada fark edilebilir.
+   */
+  const SLICE = 100;
+  if (op === "upsert") {
+    for (let i = 0; i < payload.length; i += SLICE) {
+      const slice = payload.slice(i, i + SLICE);
+      if (!slice.length) continue;
+      const { error } = await supabase.from(table).upsert(slice as never);
+      if (error) throw new Error(`${table} upsert: ${error.message}`);
+    }
   }
-  if (op === "delete" && (payload as string[]).length) {
-    const { error } = await supabase.from(table).delete().in("id", payload as string[]);
-    if (error) throw new Error(`${table} delete: ${error.message}`);
+  if (op === "delete") {
+    const ids = payload as string[];
+    for (let i = 0; i < ids.length; i += SLICE) {
+      const slice = ids.slice(i, i + SLICE);
+      if (!slice.length) continue;
+      const { error } = await supabase.from(table).delete().in("id", slice);
+      if (error) throw new Error(`${table} delete: ${error.message}`);
+    }
   }
 }
 

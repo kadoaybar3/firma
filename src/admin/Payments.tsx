@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BadgeCheck, Clock, CreditCard } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
 import { Badge, EmptyState, ErrorBanner, InfoBanner, StatCard } from "../components/ui";
 import { useActor } from "../lib/auth";
@@ -41,24 +42,28 @@ export default function AdminPayments() {
 
       <div className="stats-grid mb-14">
         <StatCard
-          icon="💳"
+          icon={<CreditCard size={20} strokeWidth={1.9} />}
           label="Ödeme sağlayıcısı"
           value="Yapılandırılmadı"
           tone="warning"
           hint=".env içinden VITE_PAYMENT_* değerleriyle etkinleşir"
         />
         <StatCard
-          icon="✅"
+          icon={<BadgeCheck size={20} strokeWidth={1.9} />}
           label="Doğrulanmış ödeme"
           value={payments.filter((p) => p.status === "onaylandi").length}
           tone="success"
         />
-        <StatCard icon="⏳" label="Beklemede" value={payments.filter((p) => p.status === "beklemede").length} />
+        <StatCard
+          icon={<Clock size={20} strokeWidth={1.9} />}
+          label="Beklemede"
+          value={payments.filter((p) => p.status === "beklemede").length}
+        />
       </div>
 
       {payments.length === 0 ? (
         <EmptyState
-          icon="💳"
+          icon={<CreditCard size={30} strokeWidth={1.5} aria-hidden="true" />}
           title="Ödeme kaydı yok"
           description="Satış kayıtları sayfasında bir satış için 'Ödeme kaydı aç' adımını kullanın."
         />

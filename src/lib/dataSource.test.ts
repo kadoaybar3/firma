@@ -58,6 +58,76 @@ describe("dataSource satır dönüşümleri", () => {
     expect(back).toEqual(c);
   });
 
+  it("koordinatlı firma: latitude/longitude doğru alana eşlenir, yer değişmez", () => {
+    const c: Company = {
+      id: "c-coord",
+      name: "Konumlu Firma",
+      slug: "konumlu-firma",
+      categoryId: "cat1",
+      cityId: "city1",
+      district: "Merkez",
+      address: "Adres",
+      phone: "0555",
+      socials: {},
+      description: "",
+      images: [],
+      hours: { weekday: "", saturday: "", sunday: "" },
+      featured: false,
+      published: true,
+      createdAt: "",
+      updatedAt: "",
+      latitude: 38.754321,
+      longitude: 30.52,
+    };
+    const row = companyToRow(c);
+    expect(row.latitude).toBe(38.754321); // enlem
+    expect(row.longitude).toBe(30.52); // boylam — tersine dönüş YOK
+    const back = companyFromRow(row as Record<string, unknown>);
+    expect(back.latitude).toBe(38.754321);
+    expect(back.longitude).toBe(30.52);
+  });
+
+  it("koordinatsız firmada satıra lat/lng key'i KONMAZ — DB kolonu yokken canlıya yazılmaz", () => {
+    const c: Company = {
+      id: "c-nocoord",
+      name: "Konumsuz",
+      slug: "konumsuz",
+      categoryId: "cat1",
+      cityId: "city1",
+      district: "Merkez",
+      address: "Adres",
+      phone: "0555",
+      socials: {},
+      description: "",
+      images: [],
+      hours: { weekday: "", saturday: "", sunday: "" },
+      featured: false,
+      published: true,
+      createdAt: "",
+      updatedAt: "",
+    };
+    const row = companyToRow(c);
+    expect(Object.keys(row)).not.toContain("latitude");
+    expect(Object.keys(row)).not.toContain("longitude");
+  });
+
+  it("companyFromRow: koordinat kolonları yoksa undefined döner", () => {
+    const back = companyFromRow({
+      id: "c3",
+      name: "X",
+      slug: "x",
+      category_id: "k",
+      city_id: "sehir",
+      district: "d",
+      address: "a",
+      phone: "p",
+      created_at: "",
+      updated_at: "",
+    });
+    expect(back.latitude).toBeUndefined();
+    expect(back.longitude).toBeUndefined();
+  });
+
   it("company null alanları → string fallback", () => {
     const back = companyFromRow({
       id: "c2",
@@ -79,7 +149,7 @@ describe("dataSource satır dönüşümleri", () => {
     });
     expect(back.district).toBe("");
     expect(back.email).toBeUndefined();
-    expect(back.images).toEqual(["🏢"]);
+    expect(back.images).toEqual([]);
     expect(back.hours).toEqual({ weekday: "", saturday: "", sunday: "" });
   });
 

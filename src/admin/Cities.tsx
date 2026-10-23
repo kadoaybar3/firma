@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { X } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
 import { Badge, ErrorBanner, Field } from "../components/ui";
 import { useActor } from "../lib/auth";
@@ -65,12 +66,18 @@ export default function AdminCities() {
                 <button
                   type="button"
                   aria-label={`${d} ilçesini kaldır`}
-                  style={{ all: "unset", cursor: "pointer", marginLeft: 2 }}
+                  style={{
+                    all: "unset",
+                    cursor: "pointer",
+                    marginLeft: 2,
+                    display: "inline-flex",
+                    alignItems: "center",
+                  }}
                   onClick={() =>
                     run(() => removeDistrict(city.id, d, actor))
                   }
                 >
-                  ✕
+                  <X size={13} strokeWidth={2.4} aria-hidden="true" />
                 </button>
               </span>
             ))}

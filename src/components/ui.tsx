@@ -1,4 +1,5 @@
 import type { ReactNode } from "react";
+import { AlertTriangle, Info, SearchX } from "lucide-react";
 import { formatTRY } from "../lib/format";
 
 /* Paylaşılan UI parçaları — public site ve paneller ortak kullanır. */
@@ -13,7 +14,7 @@ export function StatCard({
   label: string;
   value: ReactNode;
   hint?: string;
-  icon?: string;
+  icon?: ReactNode;
   tone?: "default" | "primary" | "success" | "warning";
 }) {
   return (
@@ -48,19 +49,19 @@ export function Badge({
 }
 
 export function EmptyState({
-  icon = "🔍",
+  icon = <SearchX size={30} strokeWidth={1.5} aria-hidden="true" />,
   title,
   description,
   action,
 }: {
-  icon?: string;
+  icon?: ReactNode;
   title: string;
   description?: string;
   action?: ReactNode;
 }) {
   return (
     <div className="empty-state">
-      <span className="empty-state__icon" role="img" aria-hidden="true">
+      <span className="empty-state__icon" aria-hidden="true">
         {icon}
       </span>
       <h3>{title}</h3>
@@ -82,7 +83,8 @@ export function Loading({ label = "Yükleniyor…" }: { label?: string }) {
 export function ErrorBanner({ message }: { message: string }) {
   return (
     <div className="error-banner" role="alert">
-      <span aria-hidden="true">⚠️</span> {message}
+      <AlertTriangle size={17} strokeWidth={2} aria-hidden="true" />
+      <span>{message}</span>
     </div>
   );
 }
@@ -90,7 +92,8 @@ export function ErrorBanner({ message }: { message: string }) {
 export function InfoBanner({ children }: { children: ReactNode }) {
   return (
     <div className="info-banner" role="note">
-      ⓘ {children}
+      <Info size={17} strokeWidth={2} aria-hidden="true" />
+      <span>{children}</span>
     </div>
   );
 }
@@ -103,20 +106,28 @@ export function Field({
   label,
   hint,
   required,
+  error,
   children,
 }: {
   label: string;
   hint?: string;
   required?: boolean;
+  error?: string;
   children: ReactNode;
 }) {
   return (
     <label className="field">
       <span className="field__label">
         {label}
-        {required && <em aria-hidden="true"> *</em>}
+        {required && (
+          <>
+            <em aria-hidden="true"> *</em>
+            <span className="sr-only"> (zorunlu)</span>
+          </>
+        )}
       </span>
       {children}
+      {error && <span className="field__hint" role="alert" style={{ color: "var(--danger)" }}>{error}</span>}
       {hint && <span className="field__hint">{hint}</span>}
     </label>
   );

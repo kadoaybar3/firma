@@ -1,5 +1,6 @@
 import { useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
+import { SearchX } from "lucide-react";
 import { SEO } from "../components/SEO";
 import { FirmGrid } from "../components/FirmCard";
 import { EmptyState } from "../components/ui";
@@ -81,8 +82,8 @@ export default function FirmsPage() {
     return (
       <SEO title={`Sayfa bulunamadı | ${problem.value}`} noindex>
         <section className="container" style={{ textAlign: "center", padding: "64px 0 88px" }}>
-          <p style={{ fontSize: "3rem", margin: 0 }} aria-hidden="true">
-            🕵️
+          <p className="empty-state__icon" aria-hidden="true">
+            <SearchX size={40} strokeWidth={1.4} />
           </p>
           <h1 className="section__title" style={{ margin: "10px 0 6px" }}>
             Sayfa bulunamadı
@@ -143,7 +144,7 @@ export default function FirmsPage() {
           <input
             className="input"
             type="search"
-            placeholder="🔍 Firma ara…"
+            placeholder="Firma adı veya hizmet ara"
             aria-label="Arama terimi"
             defaultValue={queryText}
             onChange={(e) => updateParamQ(e.target.value)}
@@ -157,7 +158,7 @@ export default function FirmsPage() {
             <option value="">Tüm kategoriler</option>
             {listCategories().map((c) => (
               <option key={c.id} value={c.slug}>
-                {c.icon} {c.name}
+                {c.name}
               </option>
             ))}
           </select>
@@ -203,7 +204,6 @@ export default function FirmsPage() {
           <FirmGrid ids={results.map((c) => c.id)} />
         ) : (
           <EmptyState
-            icon="🕵️"
             title="Sonuç bulunamadı"
             description="Arama teriminizi değiştirin ya da filtreleri temizleyip tüm firmaları listeleyin."
             action={

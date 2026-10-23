@@ -1,3 +1,4 @@
+import { AlertTriangle } from "lucide-react";
 import { useSyncError, retrySync } from "../lib/syncError";
 
 /**
@@ -25,7 +26,8 @@ export function SyncBanner() {
         fontSize: 14,
       }}
     >
-      <span style={{ fontWeight: 600 }}>⚠️ Değişiklik henüz sunucuya kaydedilemedi:</span>
+      <AlertTriangle size={17} strokeWidth={2} aria-hidden="true" style={{ flexShrink: 0 }} />
+      <span style={{ fontWeight: 600 }}>Değişiklik henüz sunucuya kaydedilemedi:</span>
       <span style={{ overflowWrap: "anywhere" }}>{error}</span>
       <button
         type="button"

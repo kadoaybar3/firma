@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Clock, Wallet } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
 import { Badge, ErrorBanner, Field, StatCard } from "../components/ui";
 import { useActor } from "../lib/auth";
@@ -227,7 +228,7 @@ export default function AdminSales() {
 
       <div className="stats-grid mt-18">
         <StatCard
-          icon="💰"
+          icon={<Wallet size={20} strokeWidth={1.9} />}
           label="Kesinleşen satış toplamı"
           value={formatTRY(
             sales.filter((s) => s.status === "odendi").reduce((sum, s) => sum + s.amount, 0),
@@ -235,7 +236,7 @@ export default function AdminSales() {
           tone="success"
         />
         <StatCard
-          icon="⏳"
+          icon={<Clock size={20} strokeWidth={1.9} />}
           label="Bekleyen satış"
           value={sales.filter((s) => s.status === "potansiyel").length}
           tone="warning"

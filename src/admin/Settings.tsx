@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { CreditCard, Database } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
 import { ErrorBanner, MoneyLabel, StatCard } from "../components/ui";
 import { useActor } from "../lib/auth";
@@ -73,14 +74,14 @@ export default function AdminSettings() {
         <h3 style={{ fontWeight: 800 }}>Entegrasyon durumu</h3>
         <div className="stats-grid mt-14">
           <StatCard
-            icon="🗄️"
+            icon={<Database size={20} strokeWidth={1.9} />}
             label="Veritabanı (Supabase)"
             value={isSupabaseConfigured ? "Yapılandırıldı" : "Yapılandırılmadı"}
             tone={isSupabaseConfigured ? "success" : "warning"}
             hint={isSupabaseConfigured ? "Şema migration'ları hazır" : "Demo mod: veriler tarayıcıda"}
           />
           <StatCard
-            icon="💳"
+            icon={<CreditCard size={20} strokeWidth={1.9} />}
             label="Ödeme sağlayıcısı"
             value={isPaymentProviderConfigured ? "Etkin" : "Yapılandırılmadı"}
             tone={isPaymentProviderConfigured ? "success" : "warning"}

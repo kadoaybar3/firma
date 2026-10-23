@@ -205,7 +205,6 @@ export interface CompanyDraft {
   socials?: Company["socials"];
   description: string;
   hours?: Company["hours"];
-  images?: string[];
   featured?: boolean;
   published?: boolean;
   repId?: string | null;
@@ -231,7 +230,8 @@ export function createCompany(draft: CompanyDraft, actor: Actor): Company {
     website: draft.website?.trim() || undefined,
     socials: draft.socials ?? {},
     description: draft.description.trim(),
-    images: draft.images?.length ? draft.images : ["🏢"],
+    // Fotoğraf sistemi kaldırıldı; kolon geriye dönük uyumluluk için boş kalsın
+    images: [],
     hours: draft.hours ?? { weekday: "09:00 - 18:00", saturday: "09:00 - 16:00", sunday: "Kapalı" },
     featured: draft.featured ?? false,
     published: draft.published ?? false,

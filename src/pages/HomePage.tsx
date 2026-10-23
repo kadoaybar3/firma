@@ -1,7 +1,18 @@
 import { useMemo, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import {
+  ArrowRight,
+  Building2,
+  ChevronRight,
+  Grid2x2,
+  MapPin,
+  PhoneCall,
+  Search,
+  Store,
+} from "lucide-react";
 import { SEO } from "../components/SEO";
 import { FirmGrid } from "../components/FirmCard";
+import { CategoryGlyph } from "../components/CategoryGlyph";
 import { listCategories, listCities, listCompanies } from "../lib/repo";
 
 // Sitede gerçek arama hedefi (/firmalar?q=) olduğu için SearchAction güvenli.
@@ -24,9 +35,14 @@ const HOMEPAGE_JSON_LD: Array<Record<string, unknown>> = [
   },
 ];
 
+/** Ana sayfada gösterilecek kategori karosu sayısı (4 kolon × 2 satır). */
+const CATEGORY_TILES = 8;
+
 export default function HomePage() {
   const navigate = useNavigate();
   const [term, setTerm] = useState("");
+  const [heroCat, setHeroCat] = useState("");
+  const [heroCity, setHeroCity] = useState("");
 
   /*
    * Türetilmiş veriler tek seferde, tek geçişte üretilir ve useMemo ile sabitlenir.
@@ -39,35 +55,40 @@ export default function HomePage() {
     const categories = listCategories();
     const companies = listCompanies();
     const featured = listCompanies({ featuredOnly: true }).slice(0, 6);
-    const city = listCities()[0];
+    const cities = listCities();
+    const city = cities[0];
 
-    // Kategori + ilçe sayaçları — tüm sayılar tek O(n) geçişte çıkar
+    // Kategori sayaçları — tüm sayılar tek O(n) geçişte çıkar
     const categoryCounts = new Map<string, number>();
-    const districtCounts = new Map<string, number>();
     for (const co of companies) {
       categoryCounts.set(co.categoryId, (categoryCounts.get(co.categoryId) ?? 0) + 1);
-      if (city && co.cityId === city.id) {
-        districtCounts.set(co.district, (districtCounts.get(co.district) ?? 0) + 1);
-      }
     }
-
-    const popularCats = [...categories]
-      .map((c) => ({ cat: c, count: categoryCounts.get(c.id) ?? 0 }))
-      .sort((a, b) => b.count - a.count)
-      .slice(0, 5);
 
     return {
       categories,
       companies,
       featured,
+      cities,
       city,
       categoryCounts,
-      districtCounts,
-      popularCats,
     };
   }, []);
 
-  const { categories, companies, featured, city, categoryCounts, districtCounts, popularCats } = data;
+  const { categories, companies, featured, cities, city, categoryCounts } = data;
+
+  /*
+   * Kategori karoları: gerçek firma sayısına göre sıralanır (eşitlikte ada göre).
+   * 123 kategoriyi ana sayfaya dökmek yerine en dolu 8 tanesi gösterilir;
+   * tamamı "Tüm kategoriler" bağlantısında. Sayılar uydurulmaz — 0 ise 0 yazar.
+   */
+  const categoryTiles = useMemo(
+    () =>
+      categories
+        .map((category) => ({ category, count: categoryCounts.get(category.id) ?? 0 }))
+        .sort((a, b) => b.count - a.count || a.category.name.localeCompare(b.category.name, "tr"))
+        .slice(0, CATEGORY_TILES),
+    [categories, categoryCounts],
+  );
 
   // FirmGrid id listesi de her keystroke'ta yeniden kurulmasın. Set ile
   // çift-key önlemi: featured < 3 olduğunda ilk 3 firma featured kaydı
@@ -84,7 +105,14 @@ export default function HomePage() {
 
   function submitSearch(e: React.FormEvent) {
     e.preventDefault();
-    navigate(term.trim() ? `/firmalar?q=${encodeURIComponent(term.trim())}` : "/firmalar");
+    const params = new URLSearchParams();
+    if (term.trim()) params.set("q", term.trim());
+    if (heroCat) params.set("kategori", heroCat);
+    // İl filtresi: gerçek şehir kayıtları (slug) — /firmalar listCompanies({ citySlug })
+    // üzerinden sunucu tarafındaki şehir ilişkisiyle birebir eşleşir.
+    if (heroCity) params.set("sehir", heroCity);
+    const qs = params.toString();
+    navigate(qs ? `/firmalar?${qs}` : "/firmalar");
   }
 
   return (
@@ -94,162 +122,210 @@ export default function HomePage() {
       canonicalPath="/"
       jsonLd={HOMEPAGE_JSON_LD}
     >
-      {/* HERO */}
+      {/* KARŞILAMA — ölçülü yükseklik; beyan değil, arama odaklı. */}
       <section className="hero">
-        <div className="hero__inner">
-          <span className="hero__badge">🇹🇷 Afyonkarahisar'ın yerel firma rehberi</span>
-          <h1>
-            Aradığınız işletmeyi <span className="hero__accent">birkaç saniyede</span> bulun
+        <div className="container hero__inner">
+
+          <h1 className="hero__title">
+            Doğru firmaya,
+            <br />
+            kolayca ulaşın
           </h1>
           <p className="hero__subtitle">
-            Yemek, kuyumculuk, otomotiv, sağlık ve daha fazlası — ilçe ilçe, güvenilir firma
-            bilgileri tek platformda.
+            İhtiyacınız olan ürün ve hizmeti sunan işletmeleri bulun; telefon, adres ve çalışma
+            saatlerine tek ekrandan ulaşın.
           </p>
-          <form className="hero-search" role="search" onSubmit={submitSearch}>
-            <span className="hero-search__icon" aria-hidden="true">🔍</span>
-            <input
-              type="search"
-              placeholder="Örn: sacuk, pastane, mermer, nakliyat…"
-              aria-label="Firma arama"
-              value={term}
-              onChange={(e) => setTerm(e.target.value)}
-            />
-            <button className="btn btn--primary" type="submit">
-              Ara
-            </button>
-          </form>
-          <div className="hero-stats">
-            <span><strong>{companies.length}</strong> firma</span>
-            <span><strong>{categories.length}</strong> kategori</span>
-            <span><strong>{city?.districts.length ?? 0}</strong> ilçe</span>
-          </div>
-        </div>
-      </section>
 
-      {/* KATEGORİLER */}
-      <section className="section container" aria-labelledby="kategoriler">
-        <div className="section__head">
-          <div>
-            <h2 className="section__title" id="kategoriler">İşletme kategorileri</h2>
-            <p className="section__desc">Merkezden öndeki üstesinden dilediğiniz kaydi sıralayın.</p>
-          </div>
-          <Link to="/firmalar" className="text-muted small">Tümü →</Link>
-        </div>
-        <div className="category-grid">
-          {categories.map((c) => (
-            <Link key={c.id} className="category-card" to={`/kategori/${c.slug}`}>
-              <span className="category-card__icon" aria-hidden="true">{c.icon}</span>
-              {c.name}
-              <span className="category-card__count">
-                {categoryCounts.get(c.id) ?? 0} firma
-              </span>
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* ÖNE ÇIKANLAR */}
-      <section className="section container" aria-labelledby="onecikar">
-        <div className="section__head">
-          <div>
-            <h2 className="section__title" id="onecikar">Öne çıkan işletmeler</h2>
-            <p className="section__desc">Bölge sakinlerinin yoğun ilgi gösterdiği kayıtlar.</p>
-          </div>
-        </div>
-        <FirmGrid ids={featuredIds} />
-      </section>
-
-      {/* POPÜLER KATEGORİLER */}
-      <section className="section container" aria-labelledby="populer">
-        <div className="section__head">
-          <div>
-            <h2 className="section__title" id="populer">Popüler kategoriler</h2>
-            <p className="section__desc">En çok firma barındıran alanlar.</p>
-          </div>
-        </div>
-        <div className="chip-row">
-          {popularCats.map(({ cat }) => (
-            <Link key={cat.id} className="chip" to={`/kategori/${cat.slug}`}>
-              <span aria-hidden="true">{cat.icon}</span> {cat.name}
-            </Link>
-          ))}
-        </div>
-      </section>
-
-      {/* ŞEHİR/İLÇE KEŞFET */}
-      {city && (
-        <section className="section container" aria-labelledby="kesif">
-          <div className="section__head">
-            <div>
-              <h2 className="section__title" id="kesif">İlçe ilçe keşfedin</h2>
-              <p className="section__desc">{city.name} genelinde dilediğiniz ilçedeki işletmeleri listeleyin.</p>
+          <form className="search-panel" role="search" onSubmit={submitSearch}>
+            <div className="search-panel__row">
+              <label className="search-panel__query">
+                <Search size={19} strokeWidth={1.9} aria-hidden="true" />
+                <input
+                  type="search"
+                  placeholder="Firma adı, hizmet veya anahtar kelime"
+                  aria-label="Firma arama"
+                  value={term}
+                  onChange={(e) => setTerm(e.target.value)}
+                />
+              </label>
+              <span className="search-panel__divider" aria-hidden="true" />
+              <label className="search-panel__select">
+                <Grid2x2 size={16} strokeWidth={1.9} aria-hidden="true" />
+                <select
+                  aria-label="Kategori seç"
+                  value={heroCat}
+                  onChange={(e) => setHeroCat(e.target.value)}
+                >
+                  <option value="">Tüm kategoriler</option>
+                  {categories.map((c) => (
+                    <option key={c.id} value={c.slug}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
+              </label>
+              {cities.length > 0 && (
+                <label className="search-panel__select">
+                  <MapPin size={16} strokeWidth={1.9} aria-hidden="true" />
+                  <select
+                    aria-label="İl seç"
+                    value={heroCity}
+                    onChange={(e) => setHeroCity(e.target.value)}
+                  >
+                    <option value="">Tüm iller</option>
+                    {cities.map((c) => (
+                      <option key={c.id} value={c.slug}>
+                        {c.name}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+              )}
+              <button className="btn btn--primary search-panel__submit" type="submit">
+                <Search size={17} strokeWidth={2.1} aria-hidden="true" />
+                <span>Ara</span>
+              </button>
             </div>
-          </div>
-          <div className="chip-row">
-            <Link className="chip" to={`/sehir/${city.slug}`}>
-              <span aria-hidden="true">🏙️</span> {city.name} (tümü)
+            {/* Gerçek sayaçlar — dekoratif istatistik kutusu değil, tek satır künye. */}
+            <div className="search-panel__meta">
+              <span>
+                <strong>{companies.length}</strong> firma
+              </span>
+              <span className="search-panel__sep" aria-hidden="true" />
+              <span>
+                <strong>{categories.length}</strong> kategori
+              </span>
+              {city && (
+                <>
+                  <span className="search-panel__sep" aria-hidden="true" />
+                  <span>{city.name}</span>
+                </>
+              )}
+            </div>
+          </form>
+        </div>
+      </section>
+
+      <div className="home-body">
+        {/* KATEGORİLER */}
+        <section className="section container" aria-labelledby="kategoriler">
+          <div className="section__head">
+            <div className="section__intro">
+              <span className="section__eyebrow">Keşfet</span>
+              <h2 className="section__title" id="kategoriler">
+                Kategoriler
+              </h2>
+              <p className="section__desc">İşletmeleri alanlarına göre inceleyin.</p>
+            </div>
+            <Link to="/firmalar" className="section__link">
+              Tüm kategoriler
+              <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
             </Link>
-            {city.districts.map((d) => (
-              <Link
-                key={d}
-                className="chip"
-                to={`/sehir/${city.slug}/${encodeURIComponent(d.toLowerCase())}`}
-              >
-                {d}
-                <span className="text-muted small">({districtCounts.get(d) ?? 0})</span>
+          </div>
+
+          <div className="catgrid">
+            {categoryTiles.map(({ category, count }) => (
+              <Link key={category.id} className="cat-tile" to={`/kategori/${category.slug}`}>
+                <span className="cat-tile__icon" aria-hidden="true">
+                  <CategoryGlyph name={category.name} size={18} />
+                </span>
+                <span className="cat-tile__body">
+                  <span className="cat-tile__name">{category.name}</span>
+                  <span className="cat-tile__count">{count} firma</span>
+                </span>
+                <ChevronRight
+                  className="cat-tile__chev"
+                  size={16}
+                  strokeWidth={2}
+                  aria-hidden="true"
+                />
               </Link>
             ))}
           </div>
         </section>
-      )}
 
-      {/* NASIL ÇALIŞIR */}
-      <section className="section container" aria-labelledby="nasil">
-        <div className="section__head">
-          <h2 className="section__title" id="nasil">Firma Rehberi ne işe yarar?</h2>
-        </div>
-        <div className="how-grid">
-          <div className="how-card">
-            <div className="how-card__step">1</div>
-            <h3>Arama veya kategori seçin</h3>
-            <p>Firma adı, hizmet adı, ilçe ya da kategoriyle saniyeler içinde aradığınız işletmeyi bulun.</p>
-          </div>
-          <div className="how-card">
-            <div className="how-card__step">2</div>
-            <h3>Firmanın sayfasını inceleyin</h3>
-            <p>Telefon, açık adres, çalışma saatleri ve harita bağlantısı tek yerde, güncel bilgilerle.</p>
-          </div>
-          <div className="how-card">
-            <div className="how-card__step">3</div>
-            <h3>İletişime geçin</h3>
-            <p>Tek tuşla arayın, WhatsApp'tan yazın ya da haritadan yol tarifi alın.</p>
-          </div>
-          <div className="how-card">
-            <div className="how-card__step">4</div>
-            <h3>İşletmeniz mi var?</h3>
-            <p>Firmanızı rehbere ekletin; internette ararken bulunmanızı sağlayan dijital sayfa size özel açılır.</p>
-          </div>
-        </div>
-      </section>
-
-      {/* İŞLETME CTA */}
-      <section className="section container">
-        <div className="partner-cta">
-          <h2>İşletmeniz rehberde yer alsın 🇹🇷</h2>
-          <p>
-            Firmanızı kategorisi ve ilçesiyle birlikte rehbere ekletin; müşterileriniz sizi arama
-            motorlarında kolayca bulsun. Yıllık üyelik sürecinde satış ekibimiz size rehberlik eder.
-          </p>
-          <div className="form-row">
-            <Link className="btn btn--primary" to="/iletisim">
-              İletişime geçin
-            </Link>
-            <Link className="btn btn--ghost" style={{ color: "#fff", borderColor: "rgba(255,255,255,.4)" }} to="/hakkimizda">
-              Platform hakkında bilgi alın
+        {/* ÖNE ÇIKANLAR */}
+        <section className="section container" aria-labelledby="onecikar">
+          <div className="section__head">
+            <div className="section__intro">
+              <span className="section__eyebrow">Seçili işletmeler</span>
+              <h2 className="section__title" id="onecikar">
+                Öne çıkan firmalar
+              </h2>
+              <p className="section__desc">Rehberde öne çıkan işletmeler ve iletişim bilgileri.</p>
+            </div>
+            <Link to="/firmalar" className="section__link">
+              Tümünü gör
+              <ArrowRight size={15} strokeWidth={2} aria-hidden="true" />
             </Link>
           </div>
-        </div>
-      </section>
+          <FirmGrid ids={featuredIds} variant="featured" />
+        </section>
+
+        {/* NASIL ÇALIŞIR */}
+        <section className="section container" aria-labelledby="nasil">
+          <div className="section__head">
+            <div className="section__intro">
+              <span className="section__eyebrow">Rehber</span>
+              <h2 className="section__title" id="nasil">
+                Nasıl çalışır?
+              </h2>
+              <p className="section__desc">Dört adımda doğru işletmeye ulaşın.</p>
+            </div>
+          </div>
+          <div className="how-grid">
+            <div className="how-card">
+              <span className="how-card__icon" aria-hidden="true">
+                <Search size={18} strokeWidth={1.9} />
+              </span>
+              <h3>Arayın veya kategori seçin</h3>
+              <p>Firma adı, hizmet ya da ilçe ile saniyeler içinde aradığınız işletmeyi bulun.</p>
+            </div>
+            <div className="how-card">
+              <span className="how-card__icon" aria-hidden="true">
+                <Building2 size={18} strokeWidth={1.9} />
+              </span>
+              <h3>Firma sayfasını inceleyin</h3>
+              <p>Telefon, açık adres, çalışma saatleri ve harita bağlantısı tek sayfada.</p>
+            </div>
+            <div className="how-card">
+              <span className="how-card__icon" aria-hidden="true">
+                <PhoneCall size={18} strokeWidth={1.9} />
+              </span>
+              <h3>İletişime geçin</h3>
+              <p>Tek dokunuşla arayın, WhatsApp'tan yazın veya yol tarifi alın.</p>
+            </div>
+            <div className="how-card">
+              <span className="how-card__icon" aria-hidden="true">
+                <Store size={18} strokeWidth={1.9} />
+              </span>
+              <h3>İşletmenizi ekleyin</h3>
+              <p>Firmanız rehberde yer alsın; müşterileriniz sizi arama motorlarında bulsun.</p>
+            </div>
+          </div>
+        </section>
+
+        {/* İŞLETME CTA */}
+        <section className="section container">
+          <div className="partner-cta">
+            <div className="partner-cta__copy">
+              <h2>İşletmeniz rehberde yer alsın</h2>
+              <p>
+                Firmanızı kategorisi ve ilçesiyle birlikte rehbere ekletin; müşterileriniz sizi
+                arama motorlarında kolayca bulsun.
+              </p>
+            </div>
+            <div className="partner-cta__actions">
+              <Link className="btn btn--light" to="/iletisim">
+                İletişime geçin
+              </Link>
+              <Link className="btn btn--on-dark" to="/hakkimizda">
+                Platform hakkında
+              </Link>
+            </div>
+          </div>
+        </section>
+      </div>
     </SEO>
   );
 }

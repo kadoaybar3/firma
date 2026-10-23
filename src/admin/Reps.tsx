@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Receipt, Ticket, Wallet } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
 import { Badge, ErrorBanner, Field, MoneyLabel, StatCard } from "../components/ui";
 import { useActor } from "../lib/auth";
@@ -60,7 +61,7 @@ function AdminReps() {
         <div className="card card__pad mb-14" key={rep.id}>
           <div className="flex-between mb-14">
             <h3 style={{ fontWeight: 800 }}>
-              👤 {rep.name} <Badge tone="blue">{rep.code}</Badge>{" "}
+              {rep.name} <Badge tone="blue">{rep.code}</Badge>{" "}
               <Badge tone={rep.status === "aktif" ? "green" : "gray"}>{rep.status === "aktif" ? "Aktif" : "Pasif"}</Badge>
             </h3>
             <span className="text-muted small">{rep.phone}</span>
@@ -81,7 +82,8 @@ function AdminReps() {
               {rep.status === "aktif" ? "Pasife al" : "Aktife al"}
             </button>
             <button className="btn btn--sm btn--ghost" onClick={() => run(() => createReferralCode(rep.id, actor))}>
-              🎟️ Referans kodu üret
+              <Ticket size={15} strokeWidth={1.9} aria-hidden="true" />
+              Referans kodu üret
             </button>
             <span className="text-muted small">
               Özel komisyon oranı:{" "}
@@ -108,9 +110,27 @@ function AdminReps() {
         </div>
       ))}
       <div className="stats-grid mt-18">
-        <StatCard icon="🎟️" label="Aktif referans kodu" value={listReferrals(actor).filter(r=>!r.usedAt).length} hint="Kullanılmamış kod sayısı" />
-        <StatCard icon="🧾" label="Toplam komisyon kaydı" value={listCommissions(actor).length} />
-        <StatCard icon="💰" label="Ödenen komisyon toplamı" value={formatTRY(listCommissions(actor).filter(c=>c.com.status==="odendi").reduce((s,c)=>s+c.com.amount,0))} tone="success" />
+        <StatCard
+          icon={<Ticket size={20} strokeWidth={1.9} />}
+          label="Aktif referans kodu"
+          value={listReferrals(actor).filter((r) => !r.usedAt).length}
+          hint="Kullanılmamış kod sayısı"
+        />
+        <StatCard
+          icon={<Receipt size={20} strokeWidth={1.9} />}
+          label="Toplam komisyon kaydı"
+          value={listCommissions(actor).length}
+        />
+        <StatCard
+          icon={<Wallet size={20} strokeWidth={1.9} />}
+          label="Ödenen komisyon toplamı"
+          value={formatTRY(
+            listCommissions(actor)
+              .filter((c) => c.com.status === "odendi")
+              .reduce((s, c) => s + c.com.amount, 0),
+          )}
+          tone="success"
+        />
       </div>
     </div>
   );

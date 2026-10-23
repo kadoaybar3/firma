@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
+import { CalendarDays, Target } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
 import { CompanyForm } from "./Companies";
 import { Badge, EmptyState, ErrorBanner, Field, StatCard } from "../components/ui";
@@ -65,14 +66,17 @@ export function LeadBoard({ actor }: { actor: ReturnType<typeof useActor> }) {
     <div>
       {error && <ErrorBanner message={error} />}
       {leads.length === 0 ? (
-        <EmptyState icon="🎯" title="Henüz aday kaydı yok" />
+        <EmptyState
+          icon={<Target size={30} strokeWidth={1.5} aria-hidden="true" />}
+          title="Henüz aday kaydı yok"
+        />
       ) : (
         <div className="table-wrap">
           <table className="table">
             <thead>
               <tr>
                 <th>Aday firma</th>
-                <th>Temsilci</th>
+                {actor.role === "admin" && <th>Temsilci</th>}
                 <th>İlçe</th>
                 <th>Durum</th>
                 <th>Ziyaret</th>
@@ -130,9 +134,9 @@ function LeadRow({
           )}
           <div className="text-muted small">{formatDateTime(lead.createdAt)}</div>
         </td>
-        <td>
-          {actor.role === "admin" ? (lead.repId ? (getRepById(lead.repId)?.name ?? "—") : "—") : null}
-        </td>
+        {actor.role === "admin" && (
+          <td>{lead.repId ? (getRepById(lead.repId)?.name ?? "—") : "—"}</td>
+        )}
         <td className="text-muted">{lead.district ?? "—"}</td>
         <td>
           <select
@@ -182,7 +186,7 @@ function LeadRow({
       </tr>
       {converting && (
         <tr>
-          <td colSpan={6} style={{ background: "#fafbfe" }}>
+          <td colSpan={actor.role === "admin" ? 6 : 5} style={{ background: "#fafbfe" }}>
             <ConvertLeadPanel
               lead={lead}
               run={run}
@@ -194,7 +198,7 @@ function LeadRow({
       )}
       {expanded && (
         <tr>
-          <td colSpan={6} style={{ background: "#fafbfe" }}>
+          <td colSpan={actor.role === "admin" ? 6 : 5} style={{ background: "#fafbfe" }}>
             <div className="grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
               <div>
                 <h4 style={{ marginBottom: 8 }}>Ziyaret / görüşme geçmişi</h4>
@@ -225,7 +229,7 @@ function LeadRow({
                 </button>
                 <div className="mt-14">
                   <StatCard
-                    icon="📅"
+                    icon={<CalendarDays size={20} strokeWidth={1.9} />}
                     label="Aday durumu değişikliği en son"
                     value={formatDateTime(lead.updatedAt)}
                     hint="Adayın güncellenme zamanı"
@@ -271,7 +275,6 @@ function ConvertLeadPanel({
     socials: {},
     description: lead.note,
     // hours verilmez → createCompany varsayılanını kullanır
-    images: ["🏢"],
     featured: false,
     published: false, // admin onayı (doğrudan yayına al) olmadan yayına girmez
     repId: lead.repId ?? null,

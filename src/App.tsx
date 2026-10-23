@@ -3,6 +3,7 @@ import type { ReactNode } from "react";
 import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { AuthProvider, useAuth } from "./lib/auth";
 import { SiteLayout } from "./components/SiteLayout";
+import { ScrollToTop } from "./components/ScrollToTop";
 import { ErrorBoundary } from "./components/ErrorBoundary";
 import { ErrorBanner } from "./components/ui";
 
@@ -53,6 +54,7 @@ const AdminReferrals = lazy(() => import("./admin/Referrals"));
 const AdminReports = lazy(() => import("./admin/Reports"));
 const AdminSettings = lazy(() => import("./admin/Settings"));
 const AdminAudit = lazy(() => import("./admin/Audit"));
+const AdminImport = lazy(() => import("./admin/Import"));
 
 // --- Temsilci paneli (lazy — yalnızca temsilci rolü erişir) ---
 const RepLayout = lazy(() =>
@@ -60,7 +62,8 @@ const RepLayout = lazy(() =>
 );
 const RepDashboard = lazy(() => import("./rep/Dashboard"));
 const RepLeads = lazy(() => import("./rep/Leads"));
-const RepSales = lazy(() => import("./rep/Sales"));
+const RepMembershipSale = lazy(() => import("./rep/MembershipSale"));
+const RepMySales = lazy(() => import("./rep/MySales"));
 
 /** Lazy bölüm yüklenirken gösterilen ortak bekleme görünümü */
 function PageFallback() {
@@ -116,10 +119,22 @@ function BootGate({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+/** Route-level role check, before either protected panel tree is rendered. */
+function RequireRole({ role, children }: { role: "admin" | "temsilci"; children: ReactNode }) {
+  const { user } = useAuth();
+  if (!user) return <Navigate to="/giris" replace />;
+  if (user.role !== role) {
+    return <RoleError expected={role === "admin" ? "yönetici" : "satış temsilcisi"} />;
+  }
+  return <>{children}</>;
+}
+
 export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
+        {/* Rota değişiminde sayfa başına dön (geri/ileri hariç) */}
+        <ScrollToTop />
         {/* Hata sınırı Suspense'i dışında olmalı: chunk çözümlemesi sırasında
             firlayan hata Suspense'ten yukarı akar ve burada yakalanır. */}
         <ErrorBoundary>
@@ -145,11 +160,12 @@ export default function App() {
               <Route path="giris" element={<LoginPage />} />
 
               {/* ===== Yönetim paneli (yalnızca admin rolü) ===== */}
-              <Route path="yonetim" element={<AdminLayout />}>
+              <Route path="yonetim" element={<RequireRole role="admin"><AdminLayout /></RequireRole>}>
                 <Route index element={<AdminDashboard />} />
                 <Route path="firmalar" element={<AdminCompanies />} />
                 <Route path="kategoriler" element={<AdminCategories />} />
                 <Route path="sehirler" element={<AdminCities />} />
+                <Route path="ice-aktar" element={<AdminImport />} />
                 <Route path="temsilciler" element={<AdminReps />} />
                 <Route path="adaylar" element={<AdminLeads />} />
                 <Route path="satislar" element={<AdminSales />} />
@@ -163,10 +179,14 @@ export default function App() {
               </Route>
 
               {/* ===== Satış temsilcisi paneli (yalnızca temsilci rolü) ===== */}
-              <Route path="temsilci" element={<RepLayout />}>
+              <Route path="temsilci" element={<RequireRole role="temsilci"><RepLayout /></RequireRole>}>
                 <Route index element={<RepDashboard />} />
-                <Route path="adaylar" element={<RepLeads />} />
-                <Route path="satislar" element={<RepSales />} />
+                <Route path="firmalar" element={<RepLeads />} />
+                <Route path="uyelik" element={<RepMembershipSale />} />
+                <Route path="satislarim" element={<RepMySales />} />
+                {/* Eski bağlantılar korunur: yer imleri kırılmaz */}
+                <Route path="adaylar" element={<Navigate to="/temsilci/firmalar" replace />} />
+                <Route path="satislar" element={<Navigate to="/temsilci/satislarim" replace />} />
                 <Route path="*" element={<Navigate to="/temsilci" replace />} />
               </Route>
 

@@ -1,5 +1,6 @@
 import { Component } from "react";
 import type { ErrorInfo, ReactNode } from "react";
+import { RefreshCw, Wrench } from "lucide-react";
 
 /**
  * Uygulama çapında hata sınırı.
@@ -64,7 +65,7 @@ export class ErrorBoundary extends Component<{ children: ReactNode }, BoundarySt
       <div className="section container" style={{ padding: "48px 16px" }} role="alert">
         <div className="empty-state">
           <span className="empty-state__icon" aria-hidden="true">
-            {chunk ? "🔄" : "🧯"}
+            {chunk ? <RefreshCw size={34} strokeWidth={1.6} /> : <Wrench size={34} strokeWidth={1.6} />}
           </span>
           <h3>{chunk ? "Site yeni bir sürüme geçti" : "Bu bölüm yüklenemedi"}</h3>
           <p>

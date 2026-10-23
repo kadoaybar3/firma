@@ -57,6 +57,12 @@ export interface Company {
   featured: boolean;
   /** Halka açık sitede görünürlük */
   published: boolean;
+  /**
+   * Konum koordinatları (o = kayıt yok). Kolonlar 0001'de bulunmadığından
+   * şu an hiçbir yazım yolu doldurmaz; migration onayından sonra dolu olur.
+   */
+  latitude?: number;
+  longitude?: number;
   /** Satışı gerçekleştiren temsilci (bilgi amaçlı) */
   repId?: string;
   createdAt: string;

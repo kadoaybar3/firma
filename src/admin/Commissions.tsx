@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BadgeCheck, Receipt } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
 import { Badge, EmptyState, ErrorBanner, StatCard } from "../components/ui";
 import { useActor } from "../lib/auth";
@@ -40,13 +41,13 @@ export default function AdminCommissions() {
 
       <div className="stats-grid mb-14">
         <StatCard
-          icon="🧾"
+          icon={<Receipt size={20} strokeWidth={1.9} />}
           label="Ödenmemiş komisyon"
           value={formatTRY(rows.filter((r) => r.com.status !== "odendi").reduce((s, r) => s + r.com.amount, 0))}
           tone="warning"
         />
         <StatCard
-          icon="✅"
+          icon={<BadgeCheck size={20} strokeWidth={1.9} />}
           label="Ödenmiş komisyon"
           value={formatTRY(rows.filter((r) => r.com.status === "odendi").reduce((s, r) => s + r.com.amount, 0))}
           tone="success"
@@ -54,7 +55,11 @@ export default function AdminCommissions() {
       </div>
 
       {rows.length === 0 ? (
-        <EmptyState icon="🧾" title="Komisyon kaydı yok" description="Kesinleşen satış otomatik olarak komisyon üretir." />
+        <EmptyState
+          icon={<Receipt size={30} strokeWidth={1.5} aria-hidden="true" />}
+          title="Komisyon kaydı yok"
+          description="Kesinleşen satış otomatik olarak komisyon üretir."
+        />
       ) : (
         <div className="table-wrap">
           <table className="table">

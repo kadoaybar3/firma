@@ -1,3 +1,4 @@
+import { ShieldCheck } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
 import { Badge, EmptyState, auditActionLabels } from "../components/ui";
 import { listAudit } from "../lib/repo";
@@ -12,7 +13,11 @@ export default function AdminAudit() {
         desc="Kritik ynetim işlemleri burada kalıcı olarak toplanır. Supabase aktifken kayıtlar veritabanında tutulur."
       />
       {audit.length === 0 ? (
-        <EmptyState icon="🛡️" title="Denetim kaydı yok" description="İşlemler yapıldıkça burada listelenecek." />
+        <EmptyState
+          icon={<ShieldCheck size={30} strokeWidth={1.5} aria-hidden="true" />}
+          title="Denetim kaydı yok"
+          description="İşlemler yapıldıkça burada listelenecek."
+        />
       ) : (
         <div className="table-wrap">
           <table className="table">

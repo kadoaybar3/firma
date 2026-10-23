@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { BadgeCheck, Clock } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
 import { Badge, ErrorBanner, StatCard } from "../components/ui";
 import { useActor } from "../lib/auth";
@@ -34,9 +35,14 @@ export default function AdminMemberships() {
       {error && <ErrorBanner message={error} />}
 
       <div className="stats-grid mb-14">
-        <StatCard icon="🔐" label="Aktif üyelik" value={active.length} tone="success" />
         <StatCard
-          icon="⌛"
+          icon={<BadgeCheck size={20} strokeWidth={1.9} />}
+          label="Aktif üyelik"
+          value={active.length}
+          tone="success"
+        />
+        <StatCard
+          icon={<Clock size={20} strokeWidth={1.9} />}
           label="Süresi biten"
           value={memberships.length - active.length}
           tone="warning"

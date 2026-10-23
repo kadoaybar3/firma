@@ -5,6 +5,13 @@
 #   VITE_SUPABASE_ANON_KEY  → Supabase publishable (anon) key — service_role DEĞİL
 #   SITE_URL                → Üretim adresi (ör. https://firma-rehberi.netlify.app);
 #                             sitemap üretimi ve canonical URL buna bağlı
+#   GOOGLE_PLACES_API_KEY   → Places API (New) anahtarı (/api/places-search için);
+#                             tanımsızsa arama ucu açılmaz (503)
+# (opsiyonel, otomatik işletme bulma — Python koleksiyon servisi ayakta olmalı)
+#   COLLECTOR_BASE_URL      → Python servisinin adresi (ör. http://127.0.0.1:8787
+#                             veya ayrı sunucu: https://kolektor.ornek.com)
+#   COLLECTOR_API_KEY       → Python servisinin beklediği servis anahtarı;
+#                             proxy her isteğe sunucuda x-collector-key ekler
 # (opsiyonel, daha ileri ödeme entegrasyonu için)
 #   VITE_PAYMENT_PROVIDER
 #   VITE_PAYMENT_CHECKOUT_URL

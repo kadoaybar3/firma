@@ -78,6 +78,35 @@ function sitemapPlugin(): Plugin {
 
 export default defineConfig({
   plugins: [react(), sitemapPlugin()],
+  server: {
+    proxy: {
+      // Yerel geliştirme: Python koleksiyon servisi (services/collector/main.py)
+      // doğrudan hedeflenir — proxy anahtar eklemez; anahtarsız serviste yalnız
+      // 127.0.0.1 istekleri kabul edilir (servisin varsayılan geliştirme kuralı).
+      "/api/collector": {
+        target: "http://127.0.0.1:8787",
+        changeOrigin: false,
+        rewrite: (p) => p.replace(/^\/api\/collector/, ""),
+        // Koleksiyon servisi KAPALIYKEN karanlık "HTTP 502" yerine anlaşılır
+        // yanıt: 503 + Türkçe mesaj — tarayıcıyı bilgilendirir (CollectorConfigError
+        // bu JSON.message'ı kullanıcıya gösterir; bkz. src/lib/collector.ts).
+        configure: (proxy) => {
+          proxy.on("error", (_err, _req, res) => {
+            const r = res as import("node:http").ServerResponse | undefined;
+            if (r && typeof r.writeHead === "function" && !r.headersSent) {
+              r.writeHead(503, { "Content-Type": "application/json; charset=utf-8" });
+              r.end(
+                JSON.stringify({
+                  message:
+                    "Koleksiyon servisine ulaşılamadı (127.0.0.1:8787 kapalı). Yerel geliştirme: 'python3 services/collector/main.py' komutunu çalıştırın.",
+                }),
+              );
+            }
+          });
+        },
+      },
+    },
+  },
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
