@@ -1227,6 +1227,22 @@
   overflow-wrap: anywhere;
 }
 
+/* Geniş masaüstü (≥1200px): 7 kutunun tamamı tek satırda, eşit genişlikte.
+   Daha dar ekranlarda auto-fit sarması ve ≤960px istifleme değişmez. */
+@media (min-width: 1200px) {
+  .adm-kpi-band {
+    grid-template-columns: repeat(7, minmax(0, 1fr));
+  }
+
+  .adm-kpi {
+    padding: 15px 11px;
+  }
+
+  .adm-kpi__value {
+    font-size: 1.4rem;
+  }
+}
+
 /* Satır listeleri */
 .adm-list {
   display: grid;
