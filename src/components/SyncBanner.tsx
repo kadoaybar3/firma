@@ -33,7 +33,8 @@ export function SyncBanner() {
         type="button"
         className="btn btn--sm"
         onClick={() => {
-          void retrySync();
+          // Hata yine banner üzerinden gösterilir; unhandled rejection olmasın.
+          void retrySync().catch(() => undefined);
         }}
         style={{ marginLeft: "auto" }}
       >

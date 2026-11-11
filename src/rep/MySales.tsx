@@ -1,118 +1,216 @@
-import { Receipt, Wallet, BadgeCheck, Banknote } from "lucide-react";
 import { Link } from "react-router-dom";
-import { PanelHead } from "../admin/AdminLayout";
-import { Badge, EmptyState, StatCard } from "../components/ui";
+import { BadgeCheck, Banknote, Building2, Receipt, Wallet } from "lucide-react";
 import { useActor } from "../lib/auth";
-import { getCompanyById, listCommissions, listPayments, listSales } from "../lib/repo";
 import { formatDateTime, formatTRY } from "../lib/format";
-import type { SaleStatus } from "../lib/types";
+import {
+  getCompanyById,
+  listCommissionPayouts,
+  listCommissionPayoutSummary,
+  listCommissions,
+  listPayments,
+  listSales,
+} from "../lib/repo";
+import type { PaymentStatus, SaleStatus } from "../lib/types";
 
-const SALE_STATUS: Record<SaleStatus, { label: string; tone: "green" | "orange" | "red" }> = {
-  odendi: { label: "Kesinleşti", tone: "green" },
-  potansiyel: { label: "Beklemede", tone: "orange" },
-  iptal: { label: "İptal", tone: "red" },
+const SALE_STATUS: Record<SaleStatus, { label: string; tone: string }> = {
+  odendi: { label: "Kesinleşti", tone: "rep-badge--green" },
+  potansiyel: { label: "Onay bekliyor", tone: "rep-badge--amber" },
+  iptal: { label: "İptal", tone: "rep-badge--red" },
+};
+
+const PAYMENT_STATUS: Record<PaymentStatus, { label: string; tone: string }> = {
+  onaylandi: { label: "Ödeme doğrulandı", tone: "rep-badge--green" },
+  beklemede: { label: "Ödeme bekliyor", tone: "rep-badge--amber" },
+  hata: { label: "Ödeme başarısız", tone: "rep-badge--red" },
+  iade: { label: "İade edildi", tone: "rep-badge--gray" },
 };
 
 /**
- * Çalışan — Satışlarım. Yalnızca kendi satışları (repo actor.repId ile filtreler);
- * yönetici finansal ayarları bu ekranda yer almaz.
+ * Satışlarım — yalnızca oturumdaki temsilcinin kayıtları.
+ * Filtreleme repo katmanında `actor.repId` ile yapılır; başka temsilcinin
+ * satış/ödeme/komisyon satırı bu ekrana hiç gelmez.
  */
 export default function RepMySales() {
   const actor = useActor();
   const sales = listSales(actor);
   const payments = listPayments(actor);
   const commissions = listCommissions(actor);
+  const payouts = listCommissionPayouts(actor);
+  const commissionSummary = listCommissionPayoutSummary(actor)[0];
 
   const confirmed = sales.filter((s) => s.status === "odendi");
-  const pendingCommission = commissions
-    .filter((c) => c.com.status !== "odendi")
-    .reduce((sum, c) => sum + c.com.amount, 0);
-  const paidCommission = commissions
-    .filter((c) => c.com.status === "odendi")
-    .reduce((sum, c) => sum + c.com.amount, 0);
+  const confirmedTotal = confirmed.reduce((sum, s) => sum + s.amount, 0);
+  const pendingCommission = commissionSummary?.outstanding ?? 0;
+  const paidCommission = commissionSummary?.paid ?? 0;
 
   return (
-    <div className="panel-content">
-      <PanelHead
-        title="Satışlarım"
-        desc="Yalnızca kendi satış ve komisyon kayıtlarınız. Ödeme ve komisyon durumu yönetici tarafından güncellenir."
-        action={
-          <Link className="btn btn--primary" to="/temsilci/uyelik">
-            <Wallet size={16} strokeWidth={2} aria-hidden="true" />
-            Yeni üyelik satışı
-          </Link>
-        }
-      />
-
-      <div className="stats-grid" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,220px),1fr))", gap: 14 }}>
-        <StatCard icon={<Receipt size={20} strokeWidth={1.9} />} label="Açtığım satış" value={sales.length} hint={`${confirmed.length} kesinleşti`} />
-        <StatCard icon={<BadgeCheck size={20} strokeWidth={1.9} />} label="Kesinleşen satış" value={confirmed.length} tone="success" hint={formatTRY(confirmed.reduce((s, x) => s + x.amount, 0))} />
-        <StatCard icon={<Banknote size={20} strokeWidth={1.9} />} label="Bekleyen komisyon" value={formatTRY(pendingCommission)} tone="warning" hint="Ödeme onayı bekliyor" />
-        <StatCard icon={<Wallet size={20} strokeWidth={1.9} />} label="Ödenmiş kazanç" value={formatTRY(paidCommission)} tone="primary" hint="Hesaba geçen komisyon" />
+    <div className="rep-stack">
+      <div className="rep-pagehead">
+        <h1>Satışlarım</h1>
+        <p>
+          Yalnızca kendi satış, komisyon ve temsilci ödeme kayıtlarınız görüntülenir. Komisyon
+          ödemeleri yönetici tarafından kaydedilir.
+        </p>
       </div>
 
-      {sales.length === 0 ? (
-        <div style={{ marginTop: 18 }}>
-          <EmptyState
-            icon={<Receipt size={30} strokeWidth={1.5} aria-hidden="true" />}
-            title="Henüz satış kaydınız yok"
-            description="Üyelik Satışı ekranından firma seçip ilk satış kaydınızı açabilirsiniz."
-          />
+      <section className="rep-stats" aria-label="Satış özeti">
+        <div className="rep-stat">
+          <span className="rep-stat__icon" aria-hidden="true">
+            <Receipt size={18} strokeWidth={2} />
+          </span>
+          <span className="rep-stat__label">Satış kaydı</span>
+          <span className="rep-stat__value">{sales.length}</span>
+          <span className="rep-stat__hint">{confirmed.length} kesinleşti</span>
         </div>
+
+        <div className="rep-stat">
+          <span className="rep-stat__icon rep-stat__icon--green" aria-hidden="true">
+            <BadgeCheck size={18} strokeWidth={2} />
+          </span>
+          <span className="rep-stat__label">Kesinleşen tutar</span>
+          <span className="rep-stat__value">{formatTRY(confirmedTotal)}</span>
+          <span className="rep-stat__hint">Ödemesi doğrulanan satışlar</span>
+        </div>
+
+        <div className="rep-stat">
+          <span className="rep-stat__icon rep-stat__icon--amber" aria-hidden="true">
+            <Banknote size={18} strokeWidth={2} />
+          </span>
+          <span className="rep-stat__label">Kalan komisyon</span>
+          <span className="rep-stat__value">{formatTRY(pendingCommission)}</span>
+          <span className="rep-stat__hint">Henüz ödenmemiş tutar</span>
+        </div>
+
+        <div className="rep-stat">
+          <span className="rep-stat__icon rep-stat__icon--slate" aria-hidden="true">
+            <Wallet size={18} strokeWidth={2} />
+          </span>
+          <span className="rep-stat__label">Ödenmiş kazanç</span>
+          <span className="rep-stat__value">{formatTRY(paidCommission)}</span>
+          <span className="rep-stat__hint">Hesabınıza geçen komisyon</span>
+        </div>
+      </section>
+
+      <section className="rep-card">
+        <div className="rep-card__head"><h2>Ödeme geçmişi</h2></div>
+        {payouts.length === 0 ? (
+          <p className="text-muted small">Henüz ödeme kaydı yok.</p>
+        ) : (
+          <ul className="rep-list">
+            {payouts.map((payout) => (
+              <li key={payout.id}>
+                <div className="rep-row">
+                  <span className="rep-row__main">
+                    <strong>{formatDateTime(payout.paidAt)}</strong>
+                    <span>{payout.referenceNo ? `Banka referans no: ${payout.referenceNo}` : "Banka referans no girilmedi"}</span>
+                  </span>
+                  <span className="rep-row__amount">{formatTRY(payout.amount)}</span>
+                </div>
+              </li>
+            ))}
+          </ul>
+        )}
+      </section>
+
+      {sales.length === 0 ? (
+        <section className="rep-card">
+          <div className="rep-empty">
+            <span className="rep-empty__icon" aria-hidden="true">
+              <Building2 size={24} strokeWidth={1.8} />
+            </span>
+            <strong>Henüz satış kaydınız yok</strong>
+            <p>
+              Yeni firma taslağı oluşturup ödeme/onay sürecini tamamladığınızda satış kaydı
+              burada görünür.
+            </p>
+            <Link className="rep-btn rep-btn--primary rep-btn--sm" to="/temsilci/yeni">
+              Yeni firma ekle
+            </Link>
+          </div>
+        </section>
       ) : (
-        <div className="table-wrap" style={{ marginTop: 18 }}>
-          <table className="table">
-            <thead>
-              <tr>
-                <th>Firma</th>
-                <th>Tarih</th>
-                <th>Tutar</th>
-                <th>Satış</th>
-                <th>Ödeme</th>
-                <th>Komisyon</th>
-              </tr>
-            </thead>
-            <tbody>
-              {sales.map((sale) => {
-                const company = getCompanyById(sale.companyId);
-                const payment = payments.find((p) => p.saleId === sale.id);
-                const commission = commissions.find((c) => c.com.saleId === sale.id);
-                const st = SALE_STATUS[sale.status];
-                return (
-                  <tr key={sale.id}>
-                    <td>
-                      <strong>{company?.name ?? "—"}</strong>
-                      <div className="text-muted small">{company?.district ?? ""}</div>
-                    </td>
-                    <td className="small text-muted">{formatDateTime(sale.createdAt)}</td>
-                    <td><strong>{formatTRY(sale.amount)}</strong></td>
-                    <td><Badge tone={st.tone}>{st.label}</Badge></td>
-                    <td>
-                      <Badge tone={payment?.status === "onaylandi" ? "green" : "orange"}>
-                        {payment?.status === "onaylandi"
-                          ? "Doğrulandı"
-                          : payment
-                            ? "Doğrulama bekliyor"
-                            : "Ödeme kaydı yok"}
-                      </Badge>
-                    </td>
-                    <td className="small">
-                      {commission ? (
-                        <>
-                          <strong>{formatTRY(commission.com.amount)}</strong>
-                          <div className="text-muted">{commission.com.status === "odendi" ? "Ödendi" : "Bekliyor"}</div>
-                        </>
-                      ) : (
-                        <span className="text-muted">Ödeme onayı sonrası oluşur</span>
-                      )}
-                    </td>
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
+        <div className="rep-grid">
+          {sales.map((sale) => {
+            const company = getCompanyById(sale.companyId);
+            const payment = payments.find((p) => p.saleId === sale.id);
+            const commission = commissions.find(({ com }) => com.saleId === sale.id);
+            const saleStatus = SALE_STATUS[sale.status];
+
+            return (
+              <article key={sale.id} className="rep-card rep-draft">
+                <div className="rep-draft__top">
+                  <div className="rep-draft__title">
+                    <strong title={company?.name ?? "Firma"}>
+                      {company?.name ?? "Firma kaydı"}
+                    </strong>
+                    <span>{formatDateTime(sale.createdAt)}</span>
+                  </div>
+                  <span className={`rep-badge ${saleStatus.tone}`}>{saleStatus.label}</span>
+                </div>
+
+                <div className="rep-draft__meta">
+                  {company?.district && <span>{company.district}</span>}
+                  <span>Satış tutarı: {formatTRY(sale.amount)}</span>
+                </div>
+
+                <ul className="rep-list">
+                  <li>
+                    <div className="rep-row">
+                      <span className="rep-row__main">
+                        <strong>Ödeme durumu</strong>
+                        <span>{payment ? formatDateTime(payment.updatedAt) : "Kayıt yok"}</span>
+                      </span>
+                      <span className="rep-row__side">
+                        {payment ? (
+                          <span className={`rep-badge ${PAYMENT_STATUS[payment.status].tone}`}>
+                            {PAYMENT_STATUS[payment.status].label}
+                          </span>
+                        ) : (
+                          <span className="rep-badge rep-badge--gray">Ödeme yok</span>
+                        )}
+                      </span>
+                    </div>
+                  </li>
+                  <li>
+                    <div className="rep-row">
+                      <span className="rep-row__main">
+                        <strong>Yönetici onayı</strong>
+                        <span>Satışın kesinleşme durumu</span>
+                      </span>
+                      <span className="rep-row__side">
+                        <span className={`rep-badge ${saleStatus.tone}`}>{saleStatus.label}</span>
+                      </span>
+                    </div>
+                  </li>
+                  <li>
+                    <div className="rep-row">
+                      <span className="rep-row__main">
+                        <strong>Komisyon</strong>
+                        <span>
+                          {commission
+                            ? "Komisyon kaydı oluşturuldu"
+                            : "Ödeme onayı sonrası oluşur"}
+                        </span>
+                      </span>
+                      <span className="rep-row__amount">
+                        {commission ? formatTRY(commission.com.amount) : "—"}
+                      </span>
+                    </div>
+                  </li>
+                </ul>
+              </article>
+            );
+          })}
         </div>
       )}
+
+      <div className="rep-note">
+        <Building2 size={16} strokeWidth={1.9} aria-hidden="true" />
+        <span>
+          Başka temsilcilerin satışları, komisyonları ve ödeme kayıtları bu ekranda hiçbir
+          koşulda gösterilmez.
+        </span>
+      </div>
     </div>
   );
 }

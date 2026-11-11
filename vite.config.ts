@@ -105,6 +105,26 @@ export default defineConfig({
           });
         },
       },
+      // Yerel geliştirme: Google Maps scraper servisi (services/google-scraper/server.py).
+      "/api/google-scraper": {
+        target: "http://127.0.0.1:8788",
+        changeOrigin: false,
+        rewrite: (p) => p.replace(/^\/api\/google-scraper/, ""),
+        configure: (proxy) => {
+          proxy.on("error", (_err, _req, res) => {
+            const r = res as import("node:http").ServerResponse | undefined;
+            if (r && typeof r.writeHead === "function" && !r.headersSent) {
+              r.writeHead(503, { "Content-Type": "application/json; charset=utf-8" });
+              r.end(
+                JSON.stringify({
+                  message:
+                    "Scraper servisine ulaşılamadı (127.0.0.1:8788 kapalı). Yerel geliştirme: 'services/google-scraper/.venv/bin/python services/google-scraper/server.py' komutunu çalıştırın.",
+                }),
+              );
+            }
+          });
+        },
+      },
     },
   },
   test: {

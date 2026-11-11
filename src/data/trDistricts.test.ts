@@ -26,7 +26,7 @@ describe("TR_ILCELERI", () => {
     for (const il of TR_ILLER) {
       const list = TR_ILCELERI[il];
       expect(list.length, il).toBeGreaterThan(0);
-      expect(new Set(list.map((d) => d.trim() === d ? d : d)).size, il).toBe(list.length);
+      expect(new Set(list).size, il).toBe(list.length);
       for (const d of list) expect(d.trim()).toBe(d);
     }
   });
@@ -36,6 +36,12 @@ describe("TR_ILCELERI", () => {
     expect(list).toContain("Merkez");
     expect(list).toContain("Sandıklı");
     expect(list).toContain("Şuhut");
+  });
+
+  it("bilinen il/ilçe eşleşmeleri doğrudur", () => {
+    expect(TR_ILCELERI.İstanbul).toEqual(expect.arrayContaining(["Kadıköy", "Beşiktaş", "Üsküdar"]));
+    expect(TR_ILCELERI.Ankara).toEqual(expect.arrayContaining(["Çankaya", "Keçiören", "Yenimahalle"]));
+    expect(TR_ILCELERI.İzmir).toEqual(expect.arrayContaining(["Konak", "Karşıyaka", "Bornova"]));
   });
 
   it("Afyon'da Merkez garantili; diğer illerin hepsinde en az bir ilçe (resmî sette her ilde Merkez yoktur)", () => {

@@ -481,6 +481,11 @@ textarea {
   to { transform: rotate(360deg); }
 }
 
+/* Buton içi yükleme göstergesi (Loader2 ikonu) */
+.spin {
+  animation: spin 0.8s linear infinite;
+}
+
 .error-banner {
   display: flex;
   align-items: flex-start;
@@ -808,6 +813,36 @@ textarea {
   background-repeat: no-repeat;
 }
 
+/* Ana sayfa kategori seçimi: aramalı, arama panelinin görünümüne uyar. */
+.search-panel__select .cat-select {
+  flex: 1;
+  min-width: 0;
+}
+
+.search-panel__select .loc-btn {
+  min-height: 0;
+  padding: 13px 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  font-size: 0.88rem;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.search-panel__select .loc-btn.open,
+.search-panel__select .loc-btn:focus-visible {
+  border-color: transparent;
+  box-shadow: none;
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+.search-panel__select .loc-btn svg {
+  color: #8893a6;
+}
+
 .search-panel__submit {
   flex: 0 0 auto;
   min-height: 46px;
@@ -891,6 +926,11 @@ textarea {
     padding: 10px 16px 10px 0;
     font-size: 0.85rem;
     background-position: calc(100% - 10px) 54%, calc(100% - 5px) 54%;
+  }
+
+  .search-panel__select .loc-btn {
+    padding: 10px 0;
+    font-size: 0.85rem;
   }
 
   .search-panel__submit {
@@ -2775,13 +2815,180 @@ textarea {
   overflow-wrap: anywhere;
 }
 
+/* ---------- Konum kartı (sol kolon, saatlerin altı) ---------- */
+.firm-location__title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+}
+
+.firm-location__title > svg {
+  color: var(--primary-700);
+  flex-shrink: 0;
+}
+
+.firm-location__title .firm-card__title {
+  margin-bottom: 0;
+}
+
+.firm-location__link {
+  font-size: 0.82rem;
+  font-weight: 650;
+  white-space: nowrap;
+}
+
+.firm-location__link:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+  border-radius: 6px;
+}
+
+/* Yönetim haritasını halka açık kartın içine sığdır: kendi başlık/alt bilgisi gizlenir. */
+.firm-location .fr-map {
+  grid-column: unset;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: transparent;
+  position: relative;
+}
+
+.firm-location .fr-map__head,
+.firm-location .fr-map__footer {
+  display: none;
+}
+
+.firm-location .fr-map__canvas-wrap {
+  height: 230px;
+  min-height: 230px;
+}
+
+/* Atıf: sağ alt köşede, küçük puntolu, yarı saydam zemin üzerinde beyaz metin. */
+.firm-location .fr-map__attr {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  z-index: 2;
+  margin: 0;
+  padding: 3px 7px;
+  max-width: calc(100% - 16px);
+  text-align: right;
+  font-size: 0.65rem;
+  line-height: 1.4;
+  color: rgba(255, 255, 255, 0.92);
+  background: rgba(13, 27, 46, 0.55);
+  border-radius: 6px;
+  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(6px);
+}
+
+.firm-location .fr-map__attr a {
+  color: inherit;
+  text-decoration: none;
+  opacity: 0.9;
+}
+
+.firm-location .fr-map__attr a:hover,
+.firm-location .fr-map__attr a:focus-visible {
+  color: #fff;
+  opacity: 1;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+
+/* Hover destekleyen cihazlarda atıf küçük nokta olarak durur, hover/focus ile menü açılır. */
+@media (hover: hover) {
+  .firm-location .fr-map__attr {
+    width: 22px;
+    height: 22px;
+    padding: 0;
+    border-radius: 999px;
+    overflow: hidden;
+    color: transparent;
+    max-width: 22px;
+  }
+
+  .firm-location .fr-map__attr::before {
+    content: "";
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    background: #fff;
+    pointer-events: none;
+  }
+
+  .firm-location .fr-map__attr a {
+    opacity: 0;
+    visibility: hidden;
+  }
+
+  .firm-location .fr-map__attr:hover,
+  .firm-location .fr-map__attr:focus-within {
+    width: auto;
+    height: auto;
+    max-width: calc(100% - 16px);
+    padding: 3px 7px;
+    border-radius: 6px;
+    overflow: visible;
+    color: rgba(255, 255, 255, 0.92);
+  }
+
+  .firm-location .fr-map__attr:hover::before,
+  .firm-location .fr-map__attr:focus-within::before {
+    display: none;
+  }
+
+  .firm-location .fr-map__attr:hover a,
+  .firm-location .fr-map__attr:focus-within a {
+    opacity: 0.9;
+    visibility: visible;
+  }
+
+  .firm-location .fr-map__attr:hover a:hover,
+  .firm-location .fr-map__attr:focus-within a:hover,
+  .firm-location .fr-map__attr a:focus-visible {
+    color: #fff;
+    opacity: 1;
+    text-decoration: underline;
+    text-underline-offset: 2px;
+  }
+}
+
 /* ---------- İletişim kartı ---------- */
 .firm-contact__phone {
-  display: grid;
-  gap: 3px;
+  display: flex;
+  gap: 11px;
+  align-items: flex-start;
   padding-bottom: 14px;
   margin-bottom: 14px;
   border-bottom: 1px solid var(--border);
+}
+
+.firm-contact__phone-body {
+  display: grid;
+  gap: 3px;
+  min-width: 0;
+}
+
+/* Apple tarzı ikon karosu: hafif tintli, yuvarlatılmış, hizalı */
+.firm-contact__icon {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: var(--primary-soft);
+  color: var(--primary-700);
+}
+
+.firm-contact__icon svg {
+  display: block;
 }
 
 .firm-contact__label {
@@ -2796,8 +3003,14 @@ textarea {
   font-size: 1.18rem;
   font-weight: 800;
   letter-spacing: -0.01em;
+  line-height: 1.35;
   color: var(--text);
   overflow-wrap: anywhere;
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .firm-contact__phone a:hover {
@@ -2805,12 +3018,20 @@ textarea {
   text-decoration: none;
 }
 
+.firm-contact__phone a:focus-visible,
+a.firm-contact__value:focus-visible,
+.firm-social:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
 .firm-contact__rows { display: grid; gap: 14px; }
 
 .firm-contact__row {
   display: flex;
-  gap: 10px;
+  gap: 11px;
   align-items: flex-start;
+  min-height: 44px;
 }
 
 .firm-contact__row > svg {
@@ -2832,7 +3053,12 @@ textarea {
   overflow-wrap: anywhere;
 }
 
-a.firm-contact__value { color: var(--text); }
+a.firm-contact__value {
+  color: var(--text);
+  border-radius: 6px;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s ease;
+}
 
 a.firm-contact__value:hover {
   color: var(--primary-700);
@@ -2842,6 +3068,11 @@ a.firm-contact__value:hover {
   font-size: 0.78rem;
   font-weight: 650;
   margin-top: 2px;
+  min-height: 32px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
+  -webkit-tap-highlight-color: transparent;
 }
 
 .firm-socials {
@@ -2856,20 +3087,38 @@ a.firm-contact__value:hover {
 .firm-social {
   display: inline-flex;
   align-items: center;
-  gap: 6px;
-  font-size: 0.8rem;
+  justify-content: center;
+  gap: 7px;
+  font-size: 0.82rem;
   font-weight: 650;
   color: var(--text);
   background: var(--surface-2);
   border: 1px solid var(--border);
   border-radius: var(--radius-pill);
-  padding: 6px 11px;
+  padding: 8px 13px;
+  min-height: 40px;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 0.15s ease, border-color 0.15s ease, color 0.15s ease;
 }
 
 .firm-social:hover {
   color: var(--primary-700);
   border-color: #c9d8f2;
+  background: var(--primary-soft);
   text-decoration: none;
+}
+
+@media (max-width: 759px) {
+  .firm-social {
+    min-height: 44px;
+    padding: 9px 14px;
+  }
+
+  .firm-socials {
+    gap: 9px;
+  }
+
+  .firm-contact__rows { gap: 16px; }
 }
 
 /* ---------- Paylaşım ---------- */

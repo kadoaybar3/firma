@@ -4,7 +4,11 @@
 #   VITE_SUPABASE_URL       → Supabase proje URL'si (.env'dekiyle aynı; Değer ekrana yazılmaz)
 #   VITE_SUPABASE_ANON_KEY  → Supabase publishable (anon) key — service_role DEĞİL
 #   SITE_URL                → Üretim adresi (ör. https://firma-rehberi.netlify.app);
-#                             sitemap üretimi ve canonical URL buna bağlı
+#                             sitemap üretimi, canonical URL ve Nominatim
+#                             User-Agent/Referer kimliği buna bağlı
+#   GEOCODE_CONTACT         → (opsiyonel) Nominatim için iletişim e-postası;
+#                             SITE_URL yoksa kimlik olarak kullanılır. Uydurma
+#                             değer girilmez; SITE_URL varsa gerekmez.
 #   GOOGLE_PLACES_API_KEY   → Places API (New) anahtarı (/api/places-search için);
 #                             tanımsızsa arama ucu açılmaz (503)
 # (opsiyonel, otomatik işletme bulma — Python koleksiyon servisi ayakta olmalı)
@@ -16,8 +20,12 @@
 #   VITE_PAYMENT_PROVIDER
 #   VITE_PAYMENT_CHECKOUT_URL
 #
-# NOT: service_role/secret anahtar NETLIFY'a da GİRMEZ; istemci kişiler yalnız
-# publishable key kullanır ve tüm erişim RLS arkasındadır.
+#   SUPABASE_URL              → (sunucu tarafı) Netlify Function'ların Supabase adresi
+#   SUPABASE_SERVICE_ROLE_KEY → (sunucu tarafı, YALNIZCA Netlify Function ortamı)
+#                               Personel hesabı oluşturma; istemciye/VITE_ değişkenine ASLA girmez
+#
+# NOT: service_role anahtarı tarayıcı paketine girmez; yalnız Netlify Function
+# ortamında tanımlanır ve erişim istemcide RLS arkasındadır.
 
 [build]
   command = "npm run build"
@@ -31,3 +39,14 @@
 
 [build.environment]
   NODE_VERSION = "20"
+
+# Yerel geliştirme: Netlify Dev, Vite dev sunucusunu (5173) proxy'ler ve
+# /api/* fonksiyonlarını birlikte sunar. Tarayıcı adresi: http://localhost:8888
+# (Statik `--dir .` modu KULLANILMAZ; kök index.html /src/main.tsx'e işaret
+# ettiğinden düz statik sunucuda MIME hatası verir.)
+[dev]
+  framework = "vite"
+  command = "npm run dev"
+  targetPort = 5173
+  port = 8888
+  autoLaunch = false

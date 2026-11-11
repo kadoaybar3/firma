@@ -2,6 +2,7 @@ import type {
   Category,
   City,
   Commission,
+  CommissionPayout,
   Company,
   DB,
   Lead,
@@ -15,6 +16,8 @@ import type {
 } from "./types";
 import { supabase, isSupabaseConfigured } from "./supabase";
 import { nowISO } from "./engine";
+import { normalizeCoordinates, toFiniteNumber } from "./coordinates";
+import { encodeLeadNote, parseLeadNote } from "./leadLocation";
 
 /**
  * SUPABASE VERİ KAYNAĞI KATMANI (P-1 bağlantı turu)
@@ -53,6 +56,7 @@ export function emptyDB(): DB {
     payments: [],
     memberships: [],
     commissions: [],
+    commissionPayouts: [],
     referrals: [],
     settings: {
       membershipPrice: 0,
@@ -116,12 +120,12 @@ export function citiesFromRows(
 
 export function companyToRow(c: Company): Record<string, unknown> {
   /**
-   * Koordinatlar yalnız `Company` üzerinde TANIMLI ise satıra girer.
-   * `companies` tablosunda latitude/longitude kolonları henüz yok (0001):
-   * createCompany/createCompanyUpdate akışları bu alanları doldurmadığından
-   * canlıya asla yazılımaz — kolonlar future migration (0007 öneri) ile
-   * eklendiğinde sıfır kod değişikliğiyle kalıcı olur.
+   * Koordinatlar yalnız İKİSİ de geçerliyse satıra girer. Kolonlar 0007
+   * migration'ı ile eklenir; öncesinde koordinat dolu bir firma yazılırsa
+   * PostgREST "column does not exist" hatası verir — bu, migration'ın
+   * uygulanmadığını görünür kılar (sessiz veri kaybı yok).
    */
+  const coords = normalizeCoordinates(c.latitude, c.longitude);
   return {
     id: c.id,
     name: c.name,
@@ -140,13 +144,18 @@ export function companyToRow(c: Company): Record<string, unknown> {
     featured: Boolean(c.featured),
     published: Boolean(c.published),
     sales_rep_id: c.repId ?? null,
-    ...(c.latitude !== undefined && c.longitude !== undefined ? { latitude: c.latitude, longitude: c.longitude } : {}),
+    ...(coords ? { latitude: coords.latitude, longitude: coords.longitude } : {}),
     created_at: c.createdAt ?? nowISO(),
     updated_at: c.updatedAt ?? nowISO(),
   };
 }
 
 export function companyFromRow(row: Record<string, unknown>): Company {
+  // Koordinatlar yalnız kolonlar mevcutsa ve iki değer de geçerliyse dolu gelir.
+  const coords = normalizeCoordinates(
+    toFiniteNumber(row["latitude"]),
+    toFiniteNumber(row["longitude"]),
+  );
   return {
     id: sv(row, "id"),
     name: sv(row, "name"),
@@ -165,9 +174,7 @@ export function companyFromRow(row: Record<string, unknown>): Company {
     featured: Boolean(row["featured"]),
     published: Boolean(row["published"]),
     repId: sopt(row, "sales_rep_id"),
-    // Koordinatlar yalnız kolonlar mevcutsa dolu gelir (migration sonrası)
-    latitude: typeof row["latitude"] === "number" ? (row["latitude"] as number) : undefined,
-    longitude: typeof row["longitude"] === "number" ? (row["longitude"] as number) : undefined,
+    ...(coords ? { latitude: coords.latitude, longitude: coords.longitude } : {}),
     createdAt: sv(row, "created_at"),
     updatedAt: sv(row, "updated_at"),
   };
@@ -198,6 +205,7 @@ export function repToRow(r: SalesRep): Record<string, unknown> {
 }
 
 export function leadFromRow(row: Record<string, unknown>): Lead {
+  const parsed = parseLeadNote(sv(row, "note"));
   return {
     id: sv(row, "id"),
     repId: sopt(row, "sales_rep_id"),
@@ -206,7 +214,13 @@ export function leadFromRow(row: Record<string, unknown>): Lead {
     cityId: sopt(row, "city_id"),
     district: sopt(row, "district"),
     phone: sopt(row, "phone"),
-    note: sv(row, "note"),
+    email: sopt(row, "email"),
+    socials: (row["socials"] as Company["socials"] | null) ?? {},
+    address: parsed.address,
+    latitude: parsed.latitude,
+    longitude: parsed.longitude,
+    packageKey: parsed.packageKey,
+    note: parsed.note,
     status:
       sv(row, "status") === "yeni" ||
       sv(row, "status") === "irtibat" ||
@@ -232,7 +246,14 @@ export function leadToRow(l: Lead): Record<string, unknown> {
     city_id: l.cityId ?? null,
     district: l.district ?? null,
     phone: l.phone ?? null,
-    note: l.note ?? "",
+    email: l.email ?? null,
+    socials: l.socials ?? {},
+    note: encodeLeadNote(l.note ?? "", {
+      address: l.address,
+      latitude: l.latitude,
+      longitude: l.longitude,
+      packageKey: l.packageKey,
+    }),
     status: l.status,
     visit_count: l.visitCount ?? 0,
     created_at: l.createdAt ?? nowISO(),
@@ -380,6 +401,30 @@ export function commissionToRow(c: Commission): Record<string, unknown> {
   };
 }
 
+export function commissionPayoutFromRow(row: Record<string, unknown>): CommissionPayout {
+  return {
+    id: sv(row, "id"),
+    repId: sv(row, "sales_rep_id"),
+    amount: num(row, "amount"),
+    referenceNo: sopt(row, "reference_no"),
+    paidAt: sv(row, "paid_at"),
+    createdAt: sv(row, "created_at"),
+    createdBy: sopt(row, "created_by"),
+  };
+}
+
+export function commissionPayoutToRow(payout: CommissionPayout): Record<string, unknown> {
+  return {
+    id: payout.id,
+    sales_rep_id: payout.repId,
+    amount: payout.amount,
+    reference_no: payout.referenceNo ?? null,
+    paid_at: payout.paidAt,
+    created_at: payout.createdAt,
+    created_by: payout.createdBy ?? null,
+  };
+}
+
 export function referralFromRow(row: Record<string, unknown>): Referral {
   return {
     id: sv(row, "id"),
@@ -406,14 +451,18 @@ export function settingsFromRow(row: Record<string, unknown> | null): Settings {
   if (!row)
     return {
       membershipPrice: 1000,
-      repCommission: 600,
+      repCommission: 50,
       referralReward: 100,
       renewalCommission: 600,
       updatedAt: nowISO(),
     };
+  const repCommission = num(row, "rep_commission");
   return {
     membershipPrice: num(row, "membership_price"),
-    repCommission: num(row, "rep_commission"),
+    // rep_commission artık YÜZDE. Eski satırlar hâlâ TL (ör. 600) taşıyor olabilir;
+    // >100 değerler yüzde olarak yorumlanamaz, genel oran %50 sayılır. Admin ayarı
+    // yüzde olarak kaydettiğinde (≤100) bu yedek devre dışı kalır.
+    repCommission: repCommission > 100 ? 50 : repCommission,
     referralReward: num(row, "referral_reward"),
     renewalCommission: num(row, "renewal_commission"),
     updatedAt: sv(row, "updated_at"),
@@ -464,6 +513,7 @@ export async function loadSnapshot(): Promise<SnapshotResult> {
     "payments",
     "memberships",
     "commissions",
+    "commission_payouts",
     "referrals",
     "app_settings",
   ] as const;
@@ -471,7 +521,7 @@ export async function loadSnapshot(): Promise<SnapshotResult> {
   const failure = outs.find((o) => o.error);
   if (failure) throw new Error(`Supabase verisi okunamadı → ${failure.error}`);
 
-  const [cats, cityRows, districtRows, repRows, compRows, leadRows, visitRows, saleRows, payRows, memRows, comRows, refRows, settingsRows] =
+  const [cats, cityRows, districtRows, repRows, compRows, leadRows, visitRows, saleRows, payRows, memRows, comRows, payoutRows, refRows, settingsRows] =
     outs.map((o) => o.rows);
 
   const db: DB = {
@@ -485,6 +535,7 @@ export async function loadSnapshot(): Promise<SnapshotResult> {
     payments: payRows.map(paymentFromRow),
     memberships: memRows.map(membershipFromRow),
     commissions: comRows.map(commissionFromRow),
+    commissionPayouts: payoutRows.map(commissionPayoutFromRow),
     referrals: refRows.map(referralFromRow),
     settings: settingsFromRow(settingsRows[0] ?? null),
     audit: [],
@@ -514,6 +565,26 @@ function diffFor(
   const deletes: string[] = [];
   for (const id of baseMap.keys()) if (!localMap.has(id)) deletes.push(id);
   return { upserts, deletes };
+}
+
+async function updateSettingsRow(settings: Settings): Promise<void> {
+  if (!supabase) throw new Error("Supabase istemcisi yok.");
+
+  const payload = settingsToRow(settings);
+  const values = Object.fromEntries(Object.entries(payload).filter(([key]) => key !== "id"));
+  const { data, error } = await supabase
+    .from("app_settings")
+    .update(values as never)
+    .eq("id", 1)
+    .select("id")
+    .maybeSingle();
+
+  if (error) throw new Error(`app_settings update: ${error.message}`);
+  if (!data) {
+    throw new Error(
+      "app_settings: id=1 ayar satırı bulunamadı veya yönetici UPDATE RLS politikası etkin değil.",
+    );
+  }
 }
 
 async function writeChunk(table: string, op: "upsert" | "delete", payload: Record<string, unknown>[] | string[]): Promise<void> {
@@ -552,6 +623,25 @@ export async function syncSnapshot(local: DB, base: DB | null): Promise<DB> {
   if (!isSupabaseConfigured) throw new Error("Supabase yapılandırılmadı.");
 
   const b = base ?? emptyDB();
+
+  /**
+   * YAYIN GÜVENLİĞİ (son savunma hattı): `published` false→true geçişi yalnız
+   * firmanın satışı ve o satışa bağlı ONAYLI ödeme varsa sunucuya yazılır.
+   * İSTİSNA: scraper işaretli firmalar — yetki repo.createScraperCompany
+   * (requireAdmin) içinde doğrulandı; sync aktörü doğrulayamaz, bu kararı
+   * miras alır. Genel create/update yolları işaret üretemez (yayın kilidi aynen).
+   */
+  const basePublished = new Map(b.companies.map((c) => [c.id, c.published === true]));
+  for (const c of local.companies) {
+    if (c.published !== true || basePublished.get(c.id) === true) continue;
+    if (c.socials?.source === "google-maps-scraper") continue;
+    const saleIds = new Set(local.sales.filter((s) => s.companyId === c.id).map((s) => s.id));
+    const hasConfirmedPayment = local.payments.some(
+      (p) => saleIds.has(p.saleId) && p.status === "onaylandi",
+    );
+    if (!hasConfirmedPayment)
+      throw new Error(`"${c.name}" yayına alınamaz: satış ve onaylı ödeme kaydı bulunmuyor.`);
+  }
 
   /* ---- 1) BABA tablolar: kategori/şehir/temsilci ---- */
   // Kategoriler
@@ -630,7 +720,7 @@ export async function syncSnapshot(local: DB, base: DB | null): Promise<DB> {
     s.repCommission !== bs.repCommission ||
     s.referralReward !== bs.referralReward ||
     s.renewalCommission !== bs.renewalCommission;
-  if (valuesDiffer) await writeChunk("app_settings", "upsert", [settingsToRow(s)]);
+  if (valuesDiffer) await updateSettingsRow(s);
 
   // Sunucuda artık bilinen durum, local'in SENKRON EDİLEbilir parçalarıdır
   // (audit_log bilinçli dışarıda kalır).
@@ -693,7 +783,7 @@ export async function submitWebLead(input: {
 const SYNC_DEBOUNCE_MS = 500;
 
 let syncTimer: ReturnType<typeof setTimeout> | null = null;
-let flushInFlight = false;
+let flushPromise: Promise<void> | null = null;
 const syncListeners = new Set<(error: string | null) => void>();
 
 export function onSyncStateChange(fn: (error: string | null) => void): () => void {
@@ -719,6 +809,13 @@ export function bindSyncBridge(b: SyncBridge): void {
   bridge = b;
 }
 
+/**
+ * Bekleyen farkı yazar. Hata durumunda:
+ *  - baseline DEĞİŞMEZ (bir sonraki deneme aynı farkı tekrar gönderir),
+ *  - hata dinleyicilere (UI banner) duyurulur,
+ *  - hata ÇAĞIRANA fırlatılır — böylece kritik işlemler (ödeme onayı, firma
+ *    dönüşümü) yazım başarısızken "başarılı" görünmez.
+ */
 async function doFlush(): Promise<void> {
   if (!bridge || !bridge.isConfigured()) return;
   const current = bridge.getCurrent();
@@ -728,41 +825,48 @@ async function doFlush(): Promise<void> {
     bridge.setBaseline(nextBase);
     emitSync(null);
   } catch (err) {
-    // Hata sessizce YUTULMAZ: base değişmedi; bir sonraki persist/flush aynı
-    // farkı tekrar dener ve hata dinleyicilere/UI'e duyurulur.
     const message = err instanceof Error ? err.message : String(err);
     console.warn("[sync] kayıt sunucuya yazılamadı:", message);
     emitSync(message);
+    throw new Error(message);
   }
+}
+
+/** Tek uçuş (single-flight) flush: aynı anda iki yazım başlatılmaz. */
+function startFlush(): Promise<void> {
+  if (!flushPromise) {
+    flushPromise = doFlush().finally(() => {
+      flushPromise = null;
+    });
+  }
+  return flushPromise;
 }
 
 /** persist() çağrısından beslenen, debounce'lu yazım kuyruğu. */
 export function scheduleSync(): void {
   if (!bridge || !bridge.isConfigured()) return;
   if (syncTimer) return;
-  syncTimer = setTimeout(async () => {
+  syncTimer = setTimeout(() => {
     syncTimer = null;
-    if (flushInFlight) {
+    if (flushPromise) {
       // In-flight flush sırasında gelen yazılar bir sonraki tura düşer
       scheduleSync();
       return;
     }
-    flushInFlight = true;
-    await doFlush();
-    flushInFlight = false;
+    // Arka plan kuyruğu: hata banner'a düşer, burada yutulur (unhandled rejection yok).
+    void startFlush().catch(() => undefined);
   }, SYNC_DEBOUNCE_MS);
 }
 
-/** Bekleyen farkı hemen yazar (hydrate/login/logout öncesi çağrılır). */
+/**
+ * Bekleyen farkı hemen yazar (hydrate/login/logout ve kritik işlemler öncesi).
+ * Yazım başarısız olursa hata çağırana fırlatılır.
+ */
 export async function flushNow(): Promise<void> {
   if (!bridge || !bridge.isConfigured()) return;
   if (syncTimer) {
     clearTimeout(syncTimer);
     syncTimer = null;
   }
-  if (!flushInFlight) {
-    flushInFlight = true;
-    await doFlush();
-    flushInFlight = false;
-  }
+  await startFlush();
 }

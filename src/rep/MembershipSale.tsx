@@ -166,8 +166,8 @@ export default function RepMembershipSale() {
             <div className="package-card__price">{formatTRY(settings.membershipPrice)}</div>
             <dl className="package-card__rows">
               <div>
-                <dt>Satış komisyonu</dt>
-                <dd>{formatTRY(settings.repCommission)}</dd>
+                <dt>Satış komisyonu (%{settings.repCommission})</dt>
+                <dd>{formatTRY(Math.round((settings.membershipPrice * settings.repCommission) / 100))}</dd>
               </div>
               <div>
                 <dt>Yenileme komisyonu</dt>

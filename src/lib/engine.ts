@@ -124,11 +124,9 @@ export function confirmSale(
   if (sale.channel === "temsilci" && sale.repId) {
     const rep = db.reps.find((r) => r.id === sale.repId);
     if (!rep) throw new BizError("Temsilci bulunamadı.");
-    // Özel oran tanımlıysa yüzdesel hesap; aksi halde genel tutar
-    const amount =
-      rep.customCommissionRate != null
-        ? Math.round((sale.amount * rep.customCommissionRate) / 100)
-        : s.repCommission;
+    // Komisyon = gerçek satış tutarı × oran (%). Özel oran varsa o, yoksa genel oran.
+    const rate = rep.customCommissionRate ?? s.repCommission;
+    const amount = Math.round((sale.amount * rate) / 100);
     const commission: Commission = {
       id: uid(),
       saleId: sale.id,
@@ -277,6 +275,12 @@ export function confirmRenewal(
 /**
  * Ödeme doğrulama (manuel — sağlayıcı entegrasyonu yokken). Yalnızca admin.
  * Gerçek entegrasyonda bu adım webhook ile sunucu tarafında otomatik yapılır.
+ *
+ * Güvenlik kuralları:
+ *  - Yalnızca "beklemede" durumundaki kayıt doğrulanabilir. Başarısız (hata)
+ *    veya iade edilmiş bir kayıt sonradan "tahsil edildi" yapılamaz.
+ *  - İptal edilmiş satışın ödemesi doğrulanamaz.
+ *  - Aynı ödeme ikinci kez doğrulanamaz (mükerrer engel).
  */
 export function verifyPayment(
   db: DB,
@@ -287,6 +291,17 @@ export function verifyPayment(
   const payment = db.payments.find((p) => p.id === paymentId);
   if (!payment) throw new BizError("Ödeme kaydı bulunamadı.");
   if (payment.status === "onaylandi") throw new BizError("Ödeme zaten doğrulanmış.");
+  if (payment.status !== "beklemede")
+    throw new BizError("Yalnızca beklemedeki ödeme doğrulanabilir; yeni bir ödeme kaydı açın.");
+  if (payment.provider !== "hicbiri" && payment.provider !== "eft")
+    throw new BizError(
+      "Kart ödemesi yalnızca sağlayıcı doğrulamasıyla tamamlanabilir; manuel onay verilemez.",
+    );
+
+  const sale = db.sales.find((s) => s.id === payment.saleId);
+  if (sale?.status === "iptal") throw new BizError("İptal edilmiş satışın ödemesi doğrulanamaz.");
+  if (sale?.status === "odendi") throw new BizError("Satış zaten kesinleştirilmiş.");
+
   payment.status = "onaylandi";
   payment.updatedAt = nowISO();
   log(db, actor, "odeme_dogrulandi", `Ödeme manuel doğrulandı (demo)`, {
@@ -295,6 +310,187 @@ export function verifyPayment(
     not: "Sağlayıcı entegrasyonu yapılandırılmadı; doğrulama yönetici tarafından manuel yapıldı.",
   });
   return payment;
+}
+
+/* ---------------------------------------------------------
+   ÖDEME KAYDI AÇMA / EFT ONAYI (idempotent)
+   --------------------------------------------------------- */
+
+/** Bir satış için hâlâ geçerli (bekleyen veya onaylı) ödeme kaydı. */
+function activePaymentForSale(db: DB, saleId: string): Payment | undefined {
+  return db.payments.find(
+    (p) => p.saleId === saleId && (p.status === "beklemede" || p.status === "onaylandi"),
+  );
+}
+
+/**
+ * provider_ref ve idempotency_key SUNUCUDA UNIQUE'tir. Aynı anahtarın ikinci
+ * kez üretilmesi "duplicate key" hatasının kaynağıdır; bu yardımcı, çakışma
+ * varsa sonuna sıra numarası ekleyerek her denemeyi ayrıştırır.
+ */
+function uniquePaymentKey(db: DB, base: string): string {
+  let key = base;
+  let i = 2;
+  while (db.payments.some((p) => p.providerRef === key || p.idempotencyKey === key)) {
+    key = `${base}-${i++}`;
+  }
+  return key;
+}
+
+/**
+ * Satış için BEKLEMEDE ödeme kaydı açar (admin).
+ *
+ * Idempotent: satışın zaten bekleyen/onaylı bir ödemesi varsa YENİ kayıt
+ * üretilmez, mevcut kayıt döner. Böylece çift tıklama veya sayfa yenileme
+ * mükerrer `provider_ref` üretmez. Yalnızca reddedilmiş/başarısız (hata) ya
+ * da iade edilmiş ödemelerden sonra yeni bir deneme kaydı açılır.
+ */
+export function openPendingPayment(db: DB, saleId: string, actor: Actor): Payment {
+  requireAdmin(actor);
+  const sale = db.sales.find((s) => s.id === saleId);
+  if (!sale) throw new BizError("Satış bulunamadı.");
+  if (sale.status === "iptal") throw new BizError("İptal edilmiş satışa ödeme kaydı açılamaz.");
+  if (sale.status === "odendi") throw new BizError("Satış zaten kesinleştirilmiş.");
+
+  const existing = activePaymentForSale(db, saleId);
+  if (existing) return existing;
+
+  const key = uniquePaymentKey(db, `PENDING-${sale.id}`);
+  const payment: Payment = {
+    id: uid(),
+    saleId,
+    amount: sale.amount,
+    provider: "hicbiri",
+    providerRef: key,
+    status: "beklemede",
+    idempotencyKey: key,
+    createdAt: nowISO(),
+    updatedAt: nowISO(),
+  };
+  db.payments.push(payment);
+  log(db, actor, "odeme_kaydi_acildi", `Beklemede ödeme kaydı açıldı`, {
+    saleId,
+    paymentId: payment.id,
+    providerRef: payment.providerRef,
+  });
+  return payment;
+}
+
+/**
+ * EFT tahsilatını onaylar ve satışı tek adımda kesinleştirir (admin).
+ *
+ * Akış:
+ *  1. Satış "potansiyel" olmalı; onaylanmış ödeme varsa yalnızca eksik
+ *     kesinleştirme tamamlanır (kendi kendini onaran idempotent davranış).
+ *  2. Bekleyen EFT/manuel ödeme varsa yeniden kullanılır; yoksa yeni EFT
+ *     kaydı üretilir (referans `EFT-<satış-id>`).
+ *  3. Ödeme "onaylandi" işaretlenir, ardından satış kesinleştirilir
+ *     (üyelik + komisyon). Hata olursa bellek durumu geri alınır.
+ *
+ * Aynı satışın ikinci kez onaylanması komisyon/üyelik mükerrerliği
+ * üretmez; `confirmSale`/`confirmRenewal` motoru bunu engeller.
+ */
+export function approveEftPayment(db: DB, saleId: string, actor: Actor): Payment {
+  requireAdmin(actor);
+  const sale = db.sales.find((s) => s.id === saleId);
+  if (!sale) throw new BizError("Satış bulunamadı.");
+  if (sale.status === "iptal") throw new BizError("İptal edilmiş satışın ödemesi onaylanamaz.");
+  if (sale.status === "odendi") throw new BizError("Bu satış zaten kesinleştirildi.");
+
+  const approved = db.payments.find((p) => p.saleId === saleId && p.status === "onaylandi");
+  if (approved) {
+    // Ödeme daha önce doğrulanmış ama kesinleştirme yarıda kalmış olabilir.
+    try {
+      if (sale.renewalForMembershipId) confirmRenewal(db, saleId, actor);
+      else confirmSale(db, saleId, actor);
+    } catch (err) {
+      throw new BizError(err instanceof Error ? err.message : "Satış kesinleştirilemedi.");
+    }
+    return approved;
+  }
+
+  const pending = db.payments.find((p) => p.saleId === saleId && p.status === "beklemede");
+  if (pending && pending.provider !== "hicbiri" && pending.provider !== "eft")
+    throw new BizError(
+      "Bu satışta kart ödeme kaydı bekliyor. Kart ödemesi sağlayıcı doğrulamasıyla tamamlanmalı; EFT onayı verilemez.",
+    );
+
+  // İşlem yarıda kalırsa bellekteki durumu geri alabilmek için anlık görüntü.
+  const before = JSON.parse(
+    JSON.stringify({
+      sales: db.sales,
+      payments: db.payments,
+      memberships: db.memberships,
+      commissions: db.commissions,
+      referrals: db.referrals,
+    }),
+  ) as Pick<DB, "sales" | "payments" | "memberships" | "commissions" | "referrals">;
+
+  let payment = pending;
+  if (!payment) {
+    const key = uniquePaymentKey(db, `EFT-${sale.id}`);
+    payment = {
+      id: uid(),
+      saleId,
+      amount: sale.amount,
+      provider: "eft",
+      providerRef: key,
+      status: "beklemede",
+      idempotencyKey: key,
+      createdAt: nowISO(),
+      updatedAt: nowISO(),
+    };
+    db.payments.push(payment);
+  }
+
+  payment.provider = "eft";
+  payment.status = "onaylandi";
+  payment.updatedAt = nowISO();
+
+  try {
+    if (sale.renewalForMembershipId) confirmRenewal(db, saleId, actor);
+    else confirmSale(db, saleId, actor);
+  } catch (err) {
+    db.sales = before.sales;
+    db.payments = before.payments;
+    db.memberships = before.memberships;
+    db.commissions = before.commissions;
+    db.referrals = before.referrals;
+    throw new BizError(err instanceof Error ? err.message : "EFT onayı tamamlanamadı.");
+  }
+
+  log(db, actor, "eft_onaylandi", `EFT ödemesi onaylandı ve satış kesinleşti`, {
+    saleId,
+    paymentId: payment.id,
+    providerRef: payment.providerRef,
+  });
+  return payment;
+}
+
+/**
+ * Bekleyen ödemeyi reddeder (admin). Ödeme kaydı SİLİNMEZ; "hata" olarak
+ * işaretlenir ve satış potansiyel kalır, böylece doğru ödeme geldiğinde
+ * yeniden denenebilir. Tahsil edilmiş gibi işaretlenemez.
+ */
+export function rejectPendingPayment(db: DB, saleId: string, actor: Actor): Payment[] {
+  requireAdmin(actor);
+  const sale = db.sales.find((s) => s.id === saleId);
+  if (!sale) throw new BizError("Satış bulunamadı.");
+  if (sale.status === "iptal") throw new BizError("Satış zaten iptal edilmiş.");
+  if (sale.status === "odendi") throw new BizError("Kesinleşmiş satışın ödemesi reddedilemez.");
+
+  const pending = db.payments.filter((p) => p.saleId === saleId && p.status === "beklemede");
+  if (pending.length === 0) throw new BizError("Reddedilecek bekleyen ödeme kaydı yok.");
+
+  for (const p of pending) {
+    p.status = "hata";
+    p.updatedAt = nowISO();
+  }
+  log(db, actor, "odeme_reddedildi", `Bekleyen ödeme reddedildi`, {
+    saleId,
+    paymentIds: pending.map((p) => p.id),
+  });
+  return pending;
 }
 
 /**

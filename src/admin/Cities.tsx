@@ -4,6 +4,7 @@ import { PanelHead } from "./AdminLayout";
 import { Badge, ErrorBanner, Field } from "../components/ui";
 import { useActor } from "../lib/auth";
 import { addDistrict, createCity, districtCount, listCities, removeDistrict } from "../lib/repo";
+import { normalizeSearch } from "../lib/slug";
 
 export default function AdminCities() {
   const actor = useActor();
@@ -25,8 +26,8 @@ export default function AdminCities() {
   return (
     <div className="panel-content">
       <PanelHead
-        title="Şehir ve ilçeler"
-        desc="Hizmet bölgelerini yönetin. Şayfanın 'Merkez' ilçesi silinemez."
+        title="Şehir ve İlçeler"
+        desc="Hizmet bölgelerini yönetin. Şehrin 'Merkez' ilçesi silinemez."
       />
       {error && <ErrorBanner message={error} />}
 
@@ -63,22 +64,24 @@ export default function AdminCities() {
               <span key={d} className="chip">
                 {d}
                 <span className="text-muted small">({districtCount(city.id, d)})</span>
-                <button
-                  type="button"
-                  aria-label={`${d} ilçesini kaldır`}
-                  style={{
-                    all: "unset",
-                    cursor: "pointer",
-                    marginLeft: 2,
-                    display: "inline-flex",
-                    alignItems: "center",
-                  }}
-                  onClick={() =>
-                    run(() => removeDistrict(city.id, d, actor))
-                  }
-                >
-                  <X size={13} strokeWidth={2.4} aria-hidden="true" />
-                </button>
+                {normalizeSearch(d) !== "merkez" && (
+                  <button
+                    type="button"
+                    aria-label={`${d} ilçesini kaldır`}
+                    style={{
+                      all: "unset",
+                      cursor: "pointer",
+                      marginLeft: 2,
+                      display: "inline-flex",
+                      alignItems: "center",
+                    }}
+                    onClick={() =>
+                      run(() => removeDistrict(city.id, d, actor))
+                    }
+                  >
+                    <X size={13} strokeWidth={2.4} aria-hidden="true" />
+                  </button>
+                )}
               </span>
             ))}
           </div>

@@ -41,6 +41,7 @@ const AdminLayout = lazy(() =>
   import("./admin/AdminLayout").then((m) => ({ default: m.AdminLayout })),
 );
 const AdminDashboard = lazy(() => import("./admin/Dashboard"));
+const AdminCompanyWorkflow = lazy(() => import("./admin/CompanyWorkflow"));
 const AdminCompanies = lazy(() => import("./admin/Companies"));
 const AdminCategories = lazy(() => import("./admin/Categories"));
 const AdminCities = lazy(() => import("./admin/Cities"));
@@ -61,8 +62,10 @@ const RepLayout = lazy(() =>
   import("./rep/RepLayout").then((m) => ({ default: m.RepLayout })),
 );
 const RepDashboard = lazy(() => import("./rep/Dashboard"));
-const RepLeads = lazy(() => import("./rep/Leads"));
-const RepMembershipSale = lazy(() => import("./rep/MembershipSale"));
+const RepNewCompany = lazy(() => import("./rep/NewCompany"));
+const RepDrafts = lazy(() => import("./rep/Drafts"));
+const RepDraftEdit = lazy(() => import("./rep/DraftEdit"));
+const RepPayment = lazy(() => import("./rep/Payment"));
 const RepMySales = lazy(() => import("./rep/MySales"));
 
 /** Lazy bölüm yüklenirken gösterilen ortak bekleme görünümü */
@@ -162,6 +165,7 @@ export default function App() {
               {/* ===== Yönetim paneli (yalnızca admin rolü) ===== */}
               <Route path="yonetim" element={<RequireRole role="admin"><AdminLayout /></RequireRole>}>
                 <Route index element={<AdminDashboard />} />
+                <Route path="firma-akisi" element={<AdminCompanyWorkflow />} />
                 <Route path="firmalar" element={<AdminCompanies />} />
                 <Route path="kategoriler" element={<AdminCategories />} />
                 <Route path="sehirler" element={<AdminCities />} />
@@ -181,11 +185,15 @@ export default function App() {
               {/* ===== Satış temsilcisi paneli (yalnızca temsilci rolü) ===== */}
               <Route path="temsilci" element={<RequireRole role="temsilci"><RepLayout /></RequireRole>}>
                 <Route index element={<RepDashboard />} />
-                <Route path="firmalar" element={<RepLeads />} />
-                <Route path="uyelik" element={<RepMembershipSale />} />
+                <Route path="yeni" element={<RepNewCompany />} />
+                <Route path="taslaklar" element={<RepDrafts />} />
+                <Route path="taslak/:id" element={<RepDraftEdit />} />
+                <Route path="taslak/:id/odeme" element={<RepPayment />} />
                 <Route path="satislarim" element={<RepMySales />} />
                 {/* Eski bağlantılar korunur: yer imleri kırılmaz */}
-                <Route path="adaylar" element={<Navigate to="/temsilci/firmalar" replace />} />
+                <Route path="firmalar" element={<Navigate to="/temsilci/taslaklar" replace />} />
+                <Route path="uyelik" element={<Navigate to="/temsilci/taslaklar" replace />} />
+                <Route path="adaylar" element={<Navigate to="/temsilci/taslaklar" replace />} />
                 <Route path="satislar" element={<Navigate to="/temsilci/satislarim" replace />} />
                 <Route path="*" element={<Navigate to="/temsilci" replace />} />
               </Route>

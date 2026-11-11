@@ -156,6 +156,7 @@ export const auditActionLabels: Record<string, string> = {
   odeme_dogrulandi: "Ödeme doğrulandı",
   komisyon_uretildi: "Komisyon üretildi",
   komisyon_odendi: "Komisyon ödendi",
+  komisyon_odeme_kaydedildi: "Temsilci ödemesi kaydedildi",
   uyelik_yenilendi: "Üyelik yenilendi",
   yenileme_baslatti: "Yenileme süreci başlatıldı",
   referans_olusturuldu: "Referans kodu oluşturuldu",

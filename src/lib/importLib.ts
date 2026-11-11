@@ -101,7 +101,7 @@ export function tokenJaccard(a: string, b: string): number {
 
 /* ============ MÜKERRER KONTROL ============ */
 
-export type DuplicateReason = "telefon" | "ad-slug" | "ad-benzer" | "adres";
+export type DuplicateReason = "telefon" | "ad-slug" | "ad-benzer" | "adres" | "place-id";
 
 export interface DuplicateMatch {
   company: Pick<Company, "id" | "name" | "slug" | "phone" | "address" | "district" | "cityId" | "categoryId">;
@@ -122,7 +122,7 @@ export interface DuplicateReport {
  * dar tutulur (yanlış-pozitif düşük).
  */
 export function findDuplicates(
-  candidate: { name: string; phone: string; address: string },
+  candidate: { name: string; phone: string; address: string; placeId?: string },
   existing: Company[],
 ): DuplicateReport {
   const exact: DuplicateMatch[] = [];
@@ -130,10 +130,12 @@ export function findDuplicates(
   const candPhone = phoneKey(candidate.phone);
   const candSlug = slugify(candidate.name);
   const candName = normalizeCompanyName(candidate.name);
-  if (!candName && !candPhone) return { exact, suspicious };
+  const candPlace = (candidate.placeId ?? "").trim();
+  if (!candName && !candPhone && !candPlace) return { exact, suspicious };
 
   for (const company of existing) {
     const reasons: DuplicateReason[] = [];
+    if (candPlace && (company.socials as { placeId?: string } | undefined)?.placeId === candPlace) reasons.push("place-id");
     if (candPhone && phoneKey(company.phone) === candPhone) reasons.push("telefon");
     if (candSlug && company.slug === candSlug) reasons.push("ad-slug");
     if (candName.length >= 4) {
@@ -155,7 +157,7 @@ export function findDuplicates(
       },
       reasons,
     };
-    if (reasons.includes("telefon") || reasons.includes("ad-slug")) exact.push(match);
+    if (reasons.includes("telefon") || reasons.includes("ad-slug") || reasons.includes("place-id")) exact.push(match);
     else suspicious.push(match);
   }
   return { exact, suspicious };
@@ -357,6 +359,7 @@ export function analyzeImportRows(
   const issues: RowIssue[] = [];
   const seenNames = new Map<string, number>();
   const seenPhones = new Map<string, number>();
+  const seenPlaceIds = new Map<string, number>();
   /** Planlanan yeni kategoriler (anahtar → ad) — kayıt aşamasına bildirilir. */
   const plannedCategories = new Map<string, string>();
   /** Planlanan yeni şehirler (anahtar → ad) — O-7; yalnız gerçek il adları. */
@@ -453,9 +456,14 @@ export function analyzeImportRows(
     const placeIdRaw = at("placeId").trim();
     if (placeIdRaw && /^[\w-]{4,255}$/.test(placeIdRaw)) placeId = placeIdRaw;
 
-    // Yığın içi mükerrer — telefon/ad aynıysa sonraki kopya atlanır
+    // Yığın içi mükerrer — telefon/ad/Place ID aynıysa sonraki kopya atlanır
     const dupPhone = seenPhones.get(phoneKey(phone));
     const dupName = seenNames.get(slugify(name));
+    const dupPlace = placeId ? seenPlaceIds.get(placeId) : undefined;
+    if (dupPlace !== undefined) {
+      issues.push({ rowIndex, severity: "uyari", message: `${dupPlace}. satırla aynı Place ID'yi taşıyor — tekrar atlandı.` });
+      return;
+    }
     if (dupPhone !== undefined) {
       issues.push({ rowIndex, severity: "uyari", message: `${dupPhone}. satırla aynı telefonu taşıyor — tekrar atlandı.` });
       return;
@@ -466,6 +474,7 @@ export function analyzeImportRows(
     }
     seenPhones.set(phoneKey(phone), rowIndex);
     seenNames.set(slugify(name), rowIndex);
+    if (placeId) seenPlaceIds.set(placeId, rowIndex);
 
     if (!addressTokens(at("address")).size) {
       issues.push({ rowIndex, severity: "uyari", message: `“${name}”: Adres alanı boş.` });
@@ -586,6 +595,38 @@ export function matchDistrict(text: string, city: City): string | undefined {
 export function matchCategory(text: string, categories: Category[]): Category | undefined {
   const n = normalizeSearch(text);
   return categories.find((c) => normalizeSearch(c.name) === n || c.slug === slugify(text));
+}
+
+/**
+ * GOOGLE → FIRMA REHBERİ KATEGORİ EŞLEŞMESİ (merkezi, salt-okunur).
+ * Birebir eşleşme yoksa dar anahtar sözcüklerle üst kategoriye gider;
+ * hedef DB'de yoksa veya eşleşme belirsizse undefined döner (uydurma yok,
+ * kullanıcı seçer). Yalnız mevcut kategori ID'leri döner.
+ */
+const GOOGLE_CATEGORY_RULES: Array<{ keys: string[]; target: string }> = [
+  { keys: ["fast food", "burger", "hamburger", "doner", "döner", "kebap", "pizza", "restoran", "lokanta", "kafe", "cafe", "pastane", "firın", "firin", "sucuk", "kasap", "kahvalti", "kahvaltıcı", "tatlıcı", "tatlici", "yemek"], target: "Yemek & İçecek" },
+  { keys: ["dis", "dentist", "eczane", "pharmacy", "saglik", "sağlık", "klinik", "poliklinik"], target: "Sağlık & Eczane" },
+  { keys: ["oto", "otomotiv", "lastik", "kaporta", "boya", "yedek"], target: "Otomotiv" },
+  { keys: ["kuyum", "altın", "altin", "mücevher", "mucevher"], target: "Kuyumculuk" },
+  { keys: ["eğitim", "egitim", "okul", "dershane", "üniversite", "universite", "kurs", "kütüphane", "kutuphane"], target: "Eğitim" },
+  { keys: ["inşaat", "insaat", "yapi", "yapı", "müteahhit", "mimar"], target: "Yapı & İnşaat" },
+  { keys: ["otel", "otelcilik", "hostel", "pansiyon", "apart", "motel"], target: "Konaklama" },
+  { keys: ["tarım", "tarim", "besi", "yem", "şarküteri", "bakkal"], target: "Tarım & Hayvancılık" },
+  { keys: ["nakliyat", "kargo", "kurye", "tasima", "taşıma", "lojistik", "turizm"], target: "Nakliyat" },
+];
+
+export function matchGoogleCategory(googleText: string, categories: Category[]): Category | undefined {
+  const exact = matchCategory(googleText, categories);
+  if (exact) return exact;
+  const n = normalizeSearch(googleText);
+  if (!n) return undefined;
+  for (const rule of GOOGLE_CATEGORY_RULES) {
+    if (rule.keys.some((k) => n.includes(normalizeSearch(k)))) {
+      const hit = matchCategory(rule.target, categories);
+      if (hit) return hit;
+    }
+  }
+  return undefined;
 }
 
 /* ============ GRUPLU İŞLEME YARDIMCI ============ */

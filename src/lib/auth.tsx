@@ -37,7 +37,7 @@ export interface AuthState {
   phase: AuthPhase;
   bootError: string | null;
   login: (
-    email: string,
+    identifier: string,
     password: string,
   ) => Promise<{ ok: boolean; error?: string; role?: Role }>;
   logout: () => Promise<void>;
@@ -60,6 +60,15 @@ function friendlyAuthError(message: string): string {
     return "Çok fazla deneme; lütfen bir süre sonra tekrar deneyin.";
   if (m.includes("fetch") || m.includes("network")) return "Ağ hatası; bağlantınızı kontrol edin.";
   return message;
+}
+
+/** Telefonu karşılaştırma anahtarına indirger; importLib phoneKey ile aynı. */
+function phoneKey(raw: string): string {
+  let digits = (raw ?? "").replace(/\D/g, "");
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.length === 12 && digits.startsWith("90")) digits = digits.slice(2);
+  if (digits.length === 11 && digits.startsWith("0")) digits = digits.slice(1);
+  return digits;
 }
 
 /**
@@ -148,9 +157,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const login = useCallback(async (email: string, password: string) => {
+  const login = useCallback(async (identifier: string, password: string) => {
+    const value = identifier.trim();
+    const isEmail = value.includes("@");
+    if (!isEmail && phoneKey(value).length < 10) {
+      return { ok: false, error: "Geçerli bir e-posta veya telefon numarası girin." };
+    }
     if (!isSupabaseConfigured || !supabase) {
-      const found = demoUsers().find((u) => u.email.toLowerCase() === email.trim().toLowerCase());
+      if (!isEmail) return { ok: false, error: "Demo modda telefonla giriş yoktur; e-posta kullanın." };
+      const found = demoUsers().find((u) => u.email.toLowerCase() === value.toLowerCase());
       if (!found) return { ok: false, error: "Bu e-posta kayıtlı değil. Demo hesapları deneyin." };
       if (password !== DEMO_PASSWORD) return { ok: false, error: "Şifre hatalı (demo şifresi: demo)" };
       localStorage.setItem(SESSION_KEY, JSON.stringify({ userId: found.id } satisfies Session));
@@ -158,11 +173,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       return { ok: true, role: found.role };
     }
     try {
-      const { error } = await supabase.auth.signInWithPassword({
-        email: email.trim(),
-        password,
-      });
-      if (error) return { ok: false, error: friendlyAuthError(error.message) };
+      if (isEmail) {
+        const { error } = await supabase.auth.signInWithPassword({ email: value, password });
+        if (error) return { ok: false, error: friendlyAuthError(error.message) };
+      } else {
+        // Telefon → e-posta eşleştirmesi ve şifre doğrulaması sunucuda yapılır;
+        // yalnızca oturum tokenları döner (SMS/OTP gerekmez).
+        const res = await fetch("/api/phone-login", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ phone: value, password }),
+        });
+        const payload = (await res.json().catch(() => ({}))) as {
+          message?: string;
+          access_token?: string;
+          refresh_token?: string;
+        };
+        if (!res.ok || !payload.access_token || !payload.refresh_token) {
+          return { ok: false, error: payload.message || "Telefon veya şifre hatalı." };
+        }
+        const { error } = await supabase.auth.setSession({
+          access_token: payload.access_token,
+          refresh_token: payload.refresh_token,
+        });
+        if (error) return { ok: false, error: "Oturum açılamadı; tekrar deneyin." };
+      }
       const u = await profileToUser();
       if (!u) return { ok: false, error: "Oturum açıldı ancak profil bilgisi alınamadı." };
       await flushNow(); // giriş öncesi bekleyen yazım varsa önce sunucuya gitsin
@@ -180,7 +215,11 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       setUser(null);
       return;
     }
-    await flushNow(); // çıkış öncesi bekleyen farkı gönder
+    try {
+      await flushNow(); // çıkış öncesi bekleyen farkı gönder; hata banner'da görünür
+    } catch {
+      /* yazım başarısız olsa da çıkış engellenmez (veri bellekte kalır) */
+    }
     await supabase.auth.signOut();
     setUser(null);
     try {

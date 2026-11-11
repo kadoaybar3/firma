@@ -26,7 +26,8 @@ export const DEMO_PASSWORD = DEMO_USER_PASSWORD;
 
 export const defaultSettings: Settings = {
   membershipPrice: 1000,
-  repCommission: 600,
+  /** Temsilci komisyon oranı (%) — tutar üzerinden yüzdesel hesaplanır. */
+  repCommission: 50,
   referralReward: 100,
   renewalCommission: 600,
   updatedAt: new Date().toISOString(),
@@ -70,7 +71,7 @@ const companySeed: Array<
     address: " Cumhuriyet Cad. No:41 Merkez, Afyonkarahisar",
     phone: "0272 213 41 21",
     email: "siparis@afyonsucuksarayi.com",
-    website: "https://afyonsucuksarayi.example.com",
+    website: undefined,
     socials: { instagram: "afyonsucuksarayi", facebook: "afyonsucuksarayi" },
     description:
       "1923 yılından bu yana geleneksel yatırımlarıyla üretilen Afyon sucuğu, pastırma ve kaymak ürünlerinde uzman aile işletmesi.",
@@ -86,7 +87,7 @@ const companySeed: Array<
     address: "Zafer Cad. No:12 Merkez, Afyonkarahisar",
     phone: "0272 212 88 03",
     email: "info@ozmiraskuyum.com",
-    website: "https://ozmiraskuyum.example.com",
+    website: undefined,
     socials: { instagram: "ozmiraskuyum" },
     description:
       "Afyon kaymağı desenli takılardan sertifikalı altın bileziklere; hayali ürünlerde uzman kuyumcu.",
@@ -117,8 +118,8 @@ const companySeed: Array<
     district: "Sandıklı",
     address: "Termal Yolu No:5 Sandıklı, Afyonkarahisar",
     phone: "0272 616 04 40",
-    email: "rezervasyon@sandiklitermal.example.com",
-    website: "https://sandiklitermal.example.com",
+    email: undefined,
+    website: undefined,
     socials: {},
     description:
       "Hüda hamamları ve kaplıca suyuyla şifa amaçlı vadetilen termal otel; 46 derece su sıcaklığındaki havuzlarla serhaletme hizmeti.",
@@ -182,7 +183,7 @@ const companySeed: Array<
     address: "Ocgelik Yolu 3. Km İscehisar, Afyonkarahisar",
     phone: "0272 655 10 24",
     email: "satis@iscehisartas.com",
-    website: "https://iscehisartas.example.com",
+    website: undefined,
     socials: { instagram: "iscehisartas" },
     description:
       "Afyon beyaz mermer, bej traverten ve alter taş ürünlerinde ocaktan çıkarma ve kesme hizmetleri veren mermer atölyesi.",
@@ -230,7 +231,7 @@ const companySeed: Array<
     address: "Kurtuluş Yolu No:2 Merkez, Afyonkarahisar",
     phone: "0272 228 55 77",
     email: "kayit@akademiders.com",
-    website: "https://akademiders.example.com",
+    website: undefined,
     socials: { instagram: "akademiders" },
     description:
       "LGS, YKS ve KPSS hazırlık kursları; 12 kişilik sınıflar ve ücretsiz deneme sınavlarıyla eğitim kurumu.",
@@ -245,7 +246,7 @@ const companySeed: Array<
     district: "Şuhut",
     address: "Merkez Mah. Pazar Yeri No:1 Şuhut, Afyonkarahisar",
     phone: "0272 681 30 50",
-    email: "suhutkiraz@example.com",
+    email: undefined,
     website: undefined,
     socials: {},
     description:
@@ -445,11 +446,12 @@ export function seedDB(): DB {
         saleId: sale.id,
         repId: "rep-1",
         type: "satis",
-        amount: settings.repCommission,
+        amount: Math.round((sale.amount * settings.repCommission) / 100),
         status: "beklemede",
         createdAt: sale.confirmedAt ?? sale.createdAt,
       },
     ],
+    commissionPayouts: [],
     referrals,
     settings,
     audit: [],

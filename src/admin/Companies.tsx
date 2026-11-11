@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
@@ -14,9 +14,14 @@ import {
 } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
 import { Badge, EmptyState, ErrorBanner, Field, InfoBanner } from "../components/ui";
+import LocationSelect from "../components/LocationSelect";
 import { useActor } from "../lib/auth";
+import { useLiveDataRevision } from "../lib/liveData";
 import { formatDateTime } from "../lib/format";
+import { findCityByName } from "../lib/location";
 import {
+  addDistrict,
+  createCity,
   createCompany,
   deleteCompany,
   listCategories,
@@ -26,11 +31,19 @@ import {
   updateCompany,
 } from "../lib/repo";
 import type { CompanyDraft } from "../lib/repo";
+import { normalizeSearch } from "../lib/slug";
+import { AddressFields } from "./AddressFields";
+import CategorySelect from "../components/CategorySelect";
+import CompanyLocationMap, { type LocationPinSource } from "../components/CompanyLocationMap";
 
 export default function AdminCompanies() {
+  useLiveDataRevision();
   const actor = useActor();
   const [q, setQ] = useState("");
   const [catFilter, setCatFilter] = useState("");
+  const [provinceFilter, setProvinceFilter] = useState("");
+  const [districtFilter, setDistrictFilter] = useState("");
+  const [statusFilter, setStatusFilter] = useState<"all" | "published" | "unpublished">("all");
   const [editingId, setEditingId] = useState<string | null>(null);
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -66,17 +79,69 @@ export default function AdminCompanies() {
   const cities = listCities();
   const reps = listReps(actor);
 
+  const allCompanies = useMemo(
+    () => listCompanies({ includeUnpublished: true }),
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [tick],
+  );
+
+  const selectedCity = findCityByName(cities, provinceFilter);
+  const cityFilter = selectedCity?.id ?? "";
+
   const companies = useMemo(
     () =>
-      listCompanies({ includeUnpublished: true }).filter((c) => {
+      allCompanies.filter((c) => {
         if (catFilter && c.categoryId !== catFilter) return false;
+        if (provinceFilter) {
+          // Statik listede olup veritabanında karşılığı olmayan il → eşleşme yok.
+          if (!cityFilter || c.cityId !== cityFilter) return false;
+        }
+        if (districtFilter && c.district !== districtFilter) return false;
+        if (statusFilter === "published" && !c.published) return false;
+        if (statusFilter === "unpublished" && c.published) return false;
         if (!q.trim()) return true;
-        return `${c.name} ${c.district} ${c.address} ${c.phone}`
+        const cityName = cities.find((city) => city.id === c.cityId)?.name ?? "";
+        return `${c.name} ${c.district} ${cityName} ${c.address} ${c.phone} ${c.email ?? ""}`
           .toLocaleLowerCase("tr")
           .includes(q.toLocaleLowerCase("tr").replace(/İ/g, "i").replace(/ı/g, "i"));
       }),
-    [q, catFilter, tick],
+    [q, catFilter, cityFilter, districtFilter, provinceFilter, statusFilter, allCompanies, cities],
   );
+
+  /**
+   * Filtrede eski/özel ilçeler kaybolmasın: seçili ilin DB ilçeleri + o ildeki
+   * firmaların mevcut ilçe değerleri ortak listeye eklenir.
+   */
+  const extraDistrictNames = useMemo(() => {
+    if (!selectedCity) return [];
+    const seen = new Set<string>();
+    const out: string[] = [];
+    const candidates = [
+      ...selectedCity.districts,
+      ...allCompanies.filter((c) => c.cityId === selectedCity.id).map((c) => c.district),
+    ];
+    for (const raw of candidates) {
+      const name = raw.trim();
+      if (!name) continue;
+      const key = normalizeSearch(name);
+      if (seen.has(key)) continue;
+      seen.add(key);
+      out.push(name);
+    }
+    return out;
+  }, [selectedCity, allCompanies]);
+
+  const hasFilters = Boolean(
+    q.trim() || catFilter || provinceFilter || districtFilter || statusFilter !== "all",
+  );
+
+  function clearFilters() {
+    setQ("");
+    setCatFilter("");
+    setProvinceFilter("");
+    setDistrictFilter("");
+    setStatusFilter("all");
+  }
 
   function refresh() {
     setTick((t) => t + 1);
@@ -184,8 +249,7 @@ export default function AdminCompanies() {
   return (
     <div className="panel-content">
       <PanelHead
-        title="Firma kayıtları"
-        desc="Rehberdeki tüm firmalar; yayında/pasif durumu, öne çıkarma, düzenleme ve toplu işlemler (seçimle yayına al / yayından al / sil)."
+        title="Firmalar"
         action={
           <div style={{ display: "flex", gap: 10 }}>
             <button className="btn" onClick={publishAllVisible} disabled={creating || unpublishedRows.length === 0}>
@@ -223,26 +287,64 @@ export default function AdminCompanies() {
           }
         />
       ) : (
-        <div className="filter-bar" style={{ gridTemplateColumns: "1fr 1fr", maxWidth: 560 }}>
-          <input
-            className="input"
-            placeholder="Firma adı / telefon ara…"
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-          />
-          <select
-            className="input"
-            value={catFilter}
-            onChange={(e) => setCatFilter(e.target.value)}
-          >
-            <option value="">Tüm kategoriler</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <>
+          <div className="filter-bar companies-filter-bar">
+            <input
+              className="input"
+              type="search"
+              placeholder="Firma adı, telefon veya e-posta ara…"
+              aria-label="Firma ara"
+              value={q}
+              onChange={(e) => setQ(e.target.value)}
+            />
+            <CategorySelect
+              className="filter-category"
+              categories={categories}
+              value={catFilter}
+              onChange={setCatFilter}
+              allLabel="Tüm kategoriler"
+              ariaLabel="Kategori filtresi"
+            />
+            <LocationSelect
+              className="filter-location"
+              value={{ province: provinceFilter, district: districtFilter }}
+              onChange={(next) => {
+                setProvinceFilter(next.province);
+                setDistrictFilter(next.district);
+              }}
+              labelProvince="İl filtresi"
+              labelDistrict="İlçe filtresi"
+              placeholderProvince="İl ara…"
+              placeholderDistrict="İlçe ara…"
+              extraProvinces={cities.map((city) => city.name)}
+              extraDistricts={extraDistrictNames}
+              clearable
+            />
+            <select
+              className="input"
+              aria-label="Yayın durumu"
+              value={statusFilter}
+              onChange={(e) =>
+                setStatusFilter(e.target.value as "all" | "published" | "unpublished")
+              }
+            >
+              <option value="all">Tüm durumlar</option>
+              <option value="published">Yayında</option>
+              <option value="unpublished">Yayın dışı / onay bekleyen</option>
+            </select>
+          </div>
+          <div className="filter-bar__meta">
+            <span>
+              {companies.length} firma gösteriliyor
+              {hasFilters ? ` · ${unpublishedRows.length} yayın dışı` : ""}
+            </span>
+            {hasFilters && (
+              <button type="button" className="filter-bar__reset" onClick={clearFilters}>
+                Filtreleri temizle
+              </button>
+            )}
+          </div>
+        </>
       )}
 
       {!creating && companies.length === 0 ? (
@@ -276,7 +378,7 @@ export default function AdminCompanies() {
 
       {!creating && companies.length > 0 && (
         <div className="table-wrap table-wrap--cards">
-          <table className="table table--rows">
+          <table className="table table--rows companies-table">
             <thead>
               <tr>
                 <th style={{ width: 34 }}>
@@ -485,13 +587,26 @@ export function CompanyForm({
       socials: {},
       description: "",
       featured: false,
-      published: true,
+      // GÜVENLİK: yeni firma taslak doğar; yayına alma satış + onaylı ödeme
+      // guard'ından geçen updateCompany() ile yapılır.
+      published: false,
     },
   );
   const [error, setError] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string,string>>({});
-
-  const city = cities.find((c) => c.id === draft.cityId);
+  const actor = useActor();
+  /** Seçili il adı — DB'de şehir kaydı yoksa submit sırasında oluşturulur. */
+  const [addressProvince, setAddressProvince] = useState(
+    () => cities.find((c) => c.id === (initial?.cityId ?? cities[0]?.id ?? ""))?.name ?? "",
+  );
+  /**
+   * Kayıtlı konum "saved" başlar. Adres değişirse eski koordinat temizlenir;
+   * yalnızca kullanıcının bu oturumda elle seçtiği pin ("manual") korunur.
+   */
+  const [pinSource, setPinSource] = useState<LocationPinSource | null>(() =>
+    initial?.latitude !== undefined && initial?.longitude !== undefined ? "saved" : null,
+  );
+  const suggestionCompanies = useMemo(() => listCompanies({ includeUnpublished: true }), []);
 
   return (
     <div className="card card__pad mb-14">
@@ -503,14 +618,44 @@ export function CompanyForm({
           const next: Record<string,string> = {};
           if (!draft.name.trim()) next.name = "Firma adı zorunludur.";
           if (!draft.categoryId) next.categoryId = "Kategori seçin.";
-          if (!draft.cityId) next.cityId = "Şehir seçin.";
-          if (!draft.district.trim()) next.district = "İlçe zorunludur.";
+          if (!addressProvince.trim()) next.cityId = "İl seçin.";
+          if (!draft.district.trim()) next.district = "İlçe seçin.";
           if (!draft.phone.trim()) next.phone = "Telefon zorunludur.";
-          if (!draft.description.trim()) next.description = "Açıklama zorunludur.";
+          // Mevcut kayıtlarda açıklama boş olabilir; düzenlemeyi engelleme.
+          if (!initial && !draft.description.trim()) next.description = "Açıklama zorunludur.";
           setFieldErrors(next);
           if (Object.keys(next).length) return;
           try {
-            onSubmit(draft);
+            let nextDraft = draft;
+            if (addressProvince.trim()) {
+              // İl DB'de yoksa mevcut repo fonksiyonuyla oluştur (şema değişmez).
+              let city = cities.find(
+                (c) => normalizeSearch(c.name) === normalizeSearch(addressProvince),
+              );
+              if (!city) {
+                city = listCities().find(
+                  (c) => normalizeSearch(c.name) === normalizeSearch(addressProvince),
+                );
+              }
+              if (!city) {
+                city = createCity(
+                  addressProvince,
+                  actor,
+                  draft.district.trim() ? [draft.district.trim()] : undefined,
+                );
+              }
+              nextDraft = { ...nextDraft, cityId: city.id };
+              // Statik listeden seçilen ilçe şehir kaydında yoksa filtreler için ekle.
+              if (
+                draft.district.trim() &&
+                !city.districts.some(
+                  (name) => normalizeSearch(name) === normalizeSearch(draft.district),
+                )
+              ) {
+                addDistrict(city.id, draft.district, actor);
+              }
+            }
+            onSubmit(nextDraft);
           } catch (err) {
             setError(err instanceof Error ? err.message : "Kayıt başarısız.");
           }
@@ -526,41 +671,51 @@ export function CompanyForm({
             />
           </Field>
           <Field label="Kategori" required error={fieldErrors.categoryId}>
-            <select
+            <CategorySelect
+              categories={categories}
               value={draft.categoryId}
-              onChange={(e) => setDraft({ ...draft, categoryId: e.target.value })}
-            >
-              {categories.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.icon} {c.name}
-                </option>
-              ))}
-            </select>
+              onChange={(categoryId) => setDraft({ ...draft, categoryId })}
+            />
           </Field>
-          <Field label="Şehir" required error={fieldErrors.cityId}>
-            <select
-              value={draft.cityId}
-              onChange={(e) => setDraft({ ...draft, cityId: e.target.value })}
-            >
-              {cities.map((c) => (
-                <option key={c.id} value={c.id}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
-          </Field>
-          <Field label="İlçe" required error={fieldErrors.district}>
-            <select
-              value={draft.district}
-              onChange={(e) => setDraft({ ...draft, district: e.target.value })}
-            >
-              {(city?.districts ?? []).map((d) => (
-                <option key={d} value={d}>
-                  {d}
-                </option>
-              ))}
-            </select>
-          </Field>
+          <AddressFields
+            cities={cities}
+            companies={suggestionCompanies}
+            initialCityId={initial?.cityId ?? cities[0]?.id ?? ""}
+            initialDistrict={initial?.district ?? "Merkez"}
+            initialAddress={initial?.address ?? ""}
+            fieldErrors={{ cityId: fieldErrors.cityId, district: fieldErrors.district }}
+            onChange={(next) => {
+              setAddressProvince(next.province);
+              const addressChanged =
+                next.cityId !== draft.cityId ||
+                next.district !== draft.district ||
+                next.address !== draft.address;
+              const invalidate = addressChanged && pinSource !== "manual";
+              setDraft((current) => ({
+                ...current,
+                cityId: next.cityId,
+                district: next.district,
+                address: next.address,
+                ...(invalidate ? { latitude: undefined, longitude: undefined } : {}),
+              }));
+              if (invalidate) setPinSource(null);
+            }}
+          />
+          <CompanyLocationMap
+            address={draft.address}
+            district={draft.district}
+            province={addressProvince}
+            latitude={draft.latitude}
+            longitude={draft.longitude}
+            onChange={(coords, source) => {
+              setDraft((current) => ({
+                ...current,
+                latitude: coords?.latitude,
+                longitude: coords?.longitude,
+              }));
+              setPinSource(coords ? (source === "manual" ? "manual" : "geocode") : null);
+            }}
+          />
           <div className="form-section">İletişim bilgileri</div>
           <Field label="Telefon" required error={fieldErrors.phone}>
             <input
@@ -589,6 +744,13 @@ export function CompanyForm({
               onChange={(e) => setDraft({ ...draft, socials: { ...draft.socials, instagram: e.target.value } })}
             />
           </Field>
+          <Field label="Facebook sayfası">
+            <input
+              value={draft.socials?.facebook ?? ""}
+              onChange={(e) => setDraft({ ...draft, socials: { ...draft.socials, facebook: e.target.value } })}
+              placeholder="Sayfa adı veya profil bağlantısı"
+            />
+          </Field>
           <Field label="WhatsApp numarası" hint="Örn. 90555XXXXXXX">
             <input
               value={draft.socials?.whatsapp ?? ""}
@@ -597,7 +759,12 @@ export function CompanyForm({
           </Field>
           <div className="form-section">Firma açıklaması</div>
           <div style={{ gridColumn: "1 / -1" }}>
-            <Field label="Açıklama" required error={fieldErrors.description}>
+            <Field
+              label="Açıklama"
+              required={!initial}
+              hint={initial ? "Mevcut firmalarda boş bırakılabilir." : undefined}
+              error={fieldErrors.description}
+            >
               <textarea
                 rows={3}
                 value={draft.description}
@@ -644,7 +811,7 @@ export function CompanyForm({
           <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "0.9rem" }}>
             <input
               type="checkbox"
-              checked={draft.published ?? true}
+              checked={draft.published ?? false}
               onChange={(e) => setDraft({ ...draft, published: e.target.checked })}
             />
             Doğrudan yayına al
@@ -689,8 +856,18 @@ function EditCompany({
   const actor = useActor();
   const company = listCompanies({ includeUnpublished: true }).find((c) => c.id === companyId);
   const [error, setError] = useState<string | null>(null);
+  const formRef = useRef<HTMLDivElement>(null);
 
   if (!company) return null;
+
+  // Form açıldığında görünür alana getir (sticky topbar için offset)
+  useEffect(() => {
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    // Topbar (60px) + biraz boşluk
+    setTimeout(() => {
+      window.scrollBy(0, -76);
+    }, 100);
+  }, []);
 
   // Mevcut firma verisinden taslak eşlemesi — admin 14 alanı baştan yazmasın
   const draft: CompanyDraft = {
@@ -708,10 +885,12 @@ function EditCompany({
     featured: company.featured,
     published: company.published,
     repId: company.repId ?? null,
+    latitude: company.latitude,
+    longitude: company.longitude,
   };
 
   return (
-    <div className="card card__pad mb-14" style={{ paddingLeft: 16 }}>
+    <div ref={formRef} className="card card__pad mb-14" style={{ paddingLeft: 16 }}>
       <h3 style={{ fontWeight: 800, marginBottom: 14 }}>Firmayı düzenle: {company.name}</h3>
       {error && <div className="error-banner mb-14">{error}</div>}
       <CompanyForm

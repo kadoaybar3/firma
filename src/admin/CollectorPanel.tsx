@@ -8,16 +8,16 @@
  * imkânsız — kayıt mevcut runImport/doğrulama akışına, o da "Kategori →
  * gerçek DB kimliği (tahmin yok)" kilidiyle meydana gelir.
  *
- * Kaynaklar (servis registery):
- *  - google-places  : canlı resmî Places API (anahtar sunucuda; yoksa 400/503)
- *  - maps-scraper-csv: ÇEVRİMDIŞI dosya/yapıştırma — daha önce (örn. izole
- *    O-3 testi gibi) ELDE EDİLMİŞ scraper çıktısı; canlı maps-scraper kaynağı
- *    YASAK (ToS) ve panelde sunulmaz — bkz. docs/SCRAPER-DEGERLENDIRMESI.md.
+ * Kaynak politikası: panelde yalnız maps-scraper-csv (ÇEVRİMDIŞI dosya /
+ * yapıştırma — daha önce izole ortamda hazırlanmış scraper çıktısı) sunulur.
+ * Canlı google-places ve canlı maps-scraper seçenekleri kapalıdır ve bu
+ * panelden seçilemez (bkz. docs/SCRAPER-DEGERLENDIRMESI.md).
  */
 
 import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { Badge, ErrorBanner, Field, InfoBanner } from "../components/ui";
+import CategorySelect from "../components/CategorySelect";
 import {
   CollectorConfigError,
   CollectorJobError,
@@ -61,7 +61,7 @@ export function CollectorPanel({
   const cities = listCities();
   const categories = listCategories();
   const companies = listCompanies();
-  const [source, setSource] = useState<CollectorSource>("google-places");
+  const [source, setSource] = useState<CollectorSource>("maps-scraper-csv");
   const [il, setIl] = useState(TR_ILLER[2] ?? "");
   const [ilce, setIlce] = useState("");
   const [categoryId, setCategoryId] = useState("");
@@ -262,10 +262,6 @@ export function CollectorPanel({
               setError(null);
             }}
           >
-            <option value="google-places">Google Places (canlı · anahtar gerekir)</option>
-            <option value="maps-scraper">
-              {`Google Maps Scraper — canlı (${health ? (health.scraperEnabled ? "hazır · yerel deney" : "yapılandırma gerekir") : "durum sorgulanamadı"})`}
-            </option>
             <option value="maps-scraper-csv">Scraper CSV içe aktar (çevrimdışı dosya)</option>
           </select>
         </Field>
@@ -297,14 +293,15 @@ export function CollectorPanel({
           </select>
         </Field>
         <Field label="Kategori" required>
-          <select value={categoryId} disabled={busy} onChange={(e) => { setCategoryId(e.target.value); setCandidates(null); }}>
-            <option value="">— seçiniz —</option>
-            {categories.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.icon} {c.name}
-              </option>
-            ))}
-          </select>
+          <CategorySelect
+            categories={categories}
+            value={categoryId}
+            onChange={(id) => {
+              setCategoryId(id);
+              setCandidates(null);
+            }}
+            disabled={busy}
+          />
         </Field>
         {!isCsvSource && (
           <Field label="Firma sayısı" required>

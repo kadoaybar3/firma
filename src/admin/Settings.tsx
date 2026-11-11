@@ -47,9 +47,11 @@ export default function AdminSettings() {
               </td>
             </tr>
             <tr>
-              <td>− Satış temsilcisi komisyonu</td>
+              <td>− Satış temsilcisi komisyonu (%{getSettings().repCommission})</td>
               <td style={{ textAlign: "right" }}>
-                <MoneyLabel amount={getSettings().repCommission} />
+                <MoneyLabel
+                  amount={Math.round((getSettings().membershipPrice * getSettings().repCommission) / 100)}
+                />
               </td>
             </tr>
             <tr>
@@ -62,7 +64,11 @@ export default function AdminSettings() {
               <td>= Platform payı (gider öncesi)</td>
               <td style={{ textAlign: "right", fontWeight: 800, color: "var(--success)" }}>
                 <MoneyLabel
-                  amount={getSettings().membershipPrice - getSettings().repCommission - getSettings().referralReward}
+                  amount={
+                    getSettings().membershipPrice -
+                    Math.round((getSettings().membershipPrice * getSettings().repCommission) / 100) -
+                    getSettings().referralReward
+                  }
                 />
               </td>
             </tr>
@@ -131,7 +137,8 @@ function SettingsForm({
   const priceN = Number(price) || 0;
   const commissionN = Number(commission) || 0;
   const rewardN = Number(reward) || 0;
-  const share = priceN - commissionN - rewardN;
+  const commissionMoney = Math.round((priceN * commissionN) / 100);
+  const share = priceN - commissionMoney - rewardN;
   void formatTRY;
 
   return (
@@ -154,9 +161,15 @@ function SettingsForm({
             <span className="field__hint">Örnek: 1.000 TL</span>
           </label>
           <label className="field">
-            <span className="field__label">Satış temsilcisi komisyonu (TL)</span>
-            <input type="number" min={0} value={commission} onChange={(e) => setCommission(Number(e.target.value))} />
-            <span className="field__hint">Örnek: 600 TL</span>
+            <span className="field__label">Satış temsilcisi komisyon oranı (%)</span>
+            <input
+              type="number"
+              min={0}
+              max={100}
+              value={commission}
+              onChange={(e) => setCommission(Number(e.target.value))}
+            />
+            <span className="field__hint">Örnek: 50 → 1.000 TL'lik satışta 500 TL</span>
           </label>
           <label className="field">
             <span className="field__label">Doğrudan referans ödülü (TL)</span>

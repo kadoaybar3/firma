@@ -12,55 +12,109 @@ import {
   Wallet,
 } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
-import { StatCard, auditActionLabels, Badge, EmptyState, InfoBanner } from "../components/ui";
+import { Badge, EmptyState, InfoBanner, auditActionLabels } from "../components/ui";
 import { useActor } from "../lib/auth";
+import { useLiveDataRevision } from "../lib/liveData";
 import { formatDateTime, formatTRY } from "../lib/format";
 import { isSupabaseConfigured } from "../lib/supabase";
 import {
+  getCompanyById,
   listAudit,
   listCompanies,
+  listCommissionPayoutSummary,
+  listCommissions,
   listLeads,
-  listMemberships,
   listPayments,
   listReps,
   listSales,
   monthlyReport,
 } from "../lib/repo";
+import type { Payment, Sale } from "../lib/types";
 
 const QUICK_ACTIONS = [
-  { to: "/yonetim/firmalar", label: "Firma kayıtları", desc: "Yayın durumu ve düzenleme", icon: Store },
-  { to: "/yonetim/adaylar", label: "Firma adayları", desc: "Sahadan gelen adaylar", icon: Target },
-  { to: "/yonetim/odemeler", label: "Ödeme kayıtları", desc: "Doğrulama bekleyenler", icon: CreditCard },
-  { to: "/yonetim/satislar", label: "Satış kayıtları", desc: "Satış ve komisyon", icon: Wallet },
-  { to: "/yonetim/temsilciler", label: "Satış temsilcileri", desc: "Ekip ve performans", icon: Users },
-  { to: "/yonetim/ice-aktar", label: "İçe aktarma", desc: "Toplu firma ekleme", icon: Download },
+  { to: "/yonetim/firmalar", label: "Firma ekle", desc: "Yeni kayıt", icon: Store },
+  { to: "/yonetim/ice-aktar", label: "İçe aktar", desc: "Toplu liste", icon: Download },
+  { to: "/yonetim/odemeler", label: "Ödeme onayla", desc: "EFT kuyruğu", icon: CreditCard },
+  { to: "/yonetim/satislar", label: "Satış aç", desc: "Yeni üyelik", icon: Wallet },
+  { to: "/yonetim/adaylar", label: "Adayları gör", desc: "Saha bildirimleri", icon: Target },
+  { to: "/yonetim/temsilciler", label: "Personel", desc: "Ekip yönetimi", icon: Users },
 ];
 
+function saleStatus(sale: Sale): { tone: "green" | "orange" | "red"; label: string } {
+  if (sale.status === "odendi") return { tone: "green", label: "Kesinleşti" };
+  if (sale.status === "iptal") return { tone: "red", label: "İptal" };
+  return { tone: "orange", label: "Bekliyor" };
+}
+
+function paymentMethod(payment?: Payment): string {
+  if (!payment) return "Kayıt yok";
+  if (payment.provider === "eft") return "EFT";
+  if (payment.provider === "hicbiri") return "Manuel";
+  return "Kart";
+}
+
+function paymentLabel(payment: Payment): { tone: "green" | "orange" | "red" | "gray"; label: string } {
+  if (payment.status === "onaylandi") return { tone: "green", label: "Onaylandı" };
+  if (payment.status === "beklemede") return { tone: "orange", label: "Bekliyor" };
+  if (payment.status === "hata") return { tone: "red", label: "Reddedildi" };
+  return { tone: "gray", label: "İade" };
+}
+
 export default function AdminDashboard() {
+  useLiveDataRevision();
   const actor = useActor();
   const companies = listCompanies({ includeUnpublished: true });
-  const memberships = listMemberships(actor);
   const payments = listPayments(actor);
   const sales = listSales(actor);
   const leads = listLeads(actor);
   const reps = listReps(actor);
-  const audit = listAudit(8);
+  const commissions = listCommissions(actor);
+  const payoutSummary = listCommissionPayoutSummary(actor);
+  const audit = listAudit(6);
   const months = monthlyReport(6);
 
-  const published = companies.filter((c) => c.published).length;
+  const published = companies.filter((company) => company.published).length;
   const unpublished = companies.length - published;
-  const activeReps = reps.filter((r) => r.status === "aktif").length;
-  const confirmedSales = sales.filter((s) => s.status === "odendi");
-  const activeMemberships = memberships.filter((m) => m.status === "aktif").length;
-  const pendingPayments = payments.filter((p) => p.status !== "onaylandi");
-  const openLeads = leads.filter((l) => l.status !== "anlaşma" && l.status !== "iptal");
-  const maxAmount = Math.max(0, ...months.map((m) => m.totalAmount));
+  const activeReps = reps.filter((rep) => rep.status === "aktif");
+  const confirmedSales = sales.filter((sale) => sale.status === "odendi");
+  const collected = confirmedSales.reduce((sum, sale) => sum + sale.amount, 0);
+  const potentialSales = sales.filter((sale) => sale.status === "potansiyel");
+
+  /** Ödeme onayı bekleyen satışlar: kaydı olmayan veya ödemesi henüz onaylanmamış. */
+  const awaitingPayment = potentialSales.filter((sale) => {
+    const rows = payments.filter((payment) => payment.saleId === sale.id);
+    return !rows.some((payment) => payment.status === "onaylandi");
+  });
+  const pendingLeads = leads.filter(
+    (lead) => lead.status === "anlaşma" && !lead.convertedToCompanyId,
+  );
+  const openLeads = leads.filter((lead) => lead.status !== "anlaşma" && lead.status !== "iptal");
+  const outstandingCommission = payoutSummary.reduce((sum, row) => sum + row.outstanding, 0);
+
+  const recentSales = sales.slice(0, 6);
+  const recentPayments = [...payments]
+    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+    .slice(0, 6);
+
+  const perf = reps
+    .map((rep) => {
+      const repSales = confirmedSales.filter((sale) => sale.repId === rep.id);
+      const amount = repSales.reduce((sum, sale) => sum + sale.amount, 0);
+      const commission = commissions
+        .filter(({ com }) => com.repId === rep.id)
+        .reduce((sum, { com }) => sum + com.amount, 0);
+      return { rep, count: repSales.length, amount, commission };
+    })
+    .sort((a, b) => b.amount - a.amount);
+  const maxPerf = Math.max(1, ...perf.map((row) => row.amount));
+
+  const maxMonth = Math.max(1, ...months.map((month) => month.totalAmount));
 
   return (
     <div className="panel-content">
       <PanelHead
-        title="Genel durum"
-        desc="Firma, üyelik, satış ve tahsilat hareketlerinin güncel özeti."
+        title="Genel Bakış"
+        desc="Firma, satış, tahsilat ve saha ekibinin güncel durumu. Tüm rakamlar kayıtlı gerçek verilerden hesaplanır."
       />
 
       {!isSupabaseConfigured && (
@@ -69,191 +123,386 @@ export default function AdminDashboard() {
         </InfoBanner>
       )}
 
-      <div
-        className="stats-grid"
-        style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,215px),1fr))", gap: 14 }}
-      >
-        <StatCard
-          icon={<Store size={20} />}
-          label="Yayındaki firma"
-          value={published}
-          hint={`${companies.length} toplam · ${unpublished} yayın dışı`}
-        />
-        <StatCard
-          icon={<Users size={20} />}
-          label="Aktif satış temsilcisi"
-          value={activeReps}
-          tone="primary"
-          hint={`${reps.length} kayıtlı temsilci`}
-        />
-        <StatCard
-          icon={<BadgeCheck size={20} />}
-          label="Satış ve üyelik"
-          value={sales.length}
-          tone="success"
-          hint={`${confirmedSales.length} kesinleşti · ${activeMemberships} aktif üyelik`}
-        />
-        <StatCard
-          icon={<CreditCard size={20} />}
-          label="Onay bekleyen ödeme"
-          value={pendingPayments.length}
-          tone="warning"
-          hint={pendingPayments.length ? "Doğrulama gerekiyor" : "Bekleyen yok"}
-        />
-        <StatCard
-          icon={<CircleAlert size={20} />}
-          label="Bekleyen firma adayı"
-          value={openLeads.length}
-          tone={openLeads.length ? "warning" : "default"}
-          hint={`${leads.length} toplam aday`}
-        />
+      <div className="adm-kpi-band" aria-label="Özet göstergeler">
+        <div className="adm-kpi">
+          <div className="adm-kpi__label">
+            <Store size={14} strokeWidth={1.9} aria-hidden="true" /> Toplam firma
+          </div>
+          <div className="adm-kpi__value">{companies.length}</div>
+          <div className="adm-kpi__hint">Rehberdeki tüm kayıtlar</div>
+        </div>
+        <div className="adm-kpi">
+          <div className="adm-kpi__label">
+            <BadgeCheck size={14} strokeWidth={1.9} aria-hidden="true" /> Yayındaki
+          </div>
+          <div className="adm-kpi__value">{published}</div>
+          <div className="adm-kpi__hint">Sitede görünen firmalar</div>
+        </div>
+        <div className="adm-kpi">
+          <div className="adm-kpi__label">
+            <CircleAlert size={14} strokeWidth={1.9} aria-hidden="true" /> Onay bekleyen
+          </div>
+          <div className="adm-kpi__value">{unpublished}</div>
+          <div className="adm-kpi__hint">Yayına alınmayı bekleyen</div>
+        </div>
+        <div className="adm-kpi">
+          <div className="adm-kpi__label">
+            <Wallet size={14} strokeWidth={1.9} aria-hidden="true" /> Toplam satış
+          </div>
+          <div className="adm-kpi__value">{sales.length}</div>
+          <div className="adm-kpi__hint">{potentialSales.length} satış beklemede</div>
+        </div>
+        <div className="adm-kpi">
+          <div className="adm-kpi__label">
+            <ChartNoAxesColumnIncreasing size={14} strokeWidth={1.9} aria-hidden="true" />{" "}
+            Tahsil edilen
+          </div>
+          <div className="adm-kpi__value">{formatTRY(collected)}</div>
+          <div className="adm-kpi__hint">{confirmedSales.length} kesinleşen satış</div>
+        </div>
+        <div className="adm-kpi">
+          <div className="adm-kpi__label">
+            <CreditCard size={14} strokeWidth={1.9} aria-hidden="true" /> Ödeme onayı
+          </div>
+          <div className="adm-kpi__value">{awaitingPayment.length}</div>
+          <div className="adm-kpi__hint">EFT / manuel tahsilat</div>
+        </div>
+        <div className="adm-kpi">
+          <div className="adm-kpi__label">
+            <Users size={14} strokeWidth={1.9} aria-hidden="true" /> Aktif personel
+          </div>
+          <div className="adm-kpi__value">{activeReps.length}</div>
+          <div className="adm-kpi__hint">{reps.length} kayıtlı personel</div>
+        </div>
       </div>
 
-      <div
-        className="grid"
-        style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(min(100%,420px),1fr))", gap: 16, marginTop: 18 }}
-      >
-        <section className="card card__pad">
-          <div className="flex-between">
-            <div>
-              <h3 style={{ fontWeight: 800 }}>Son 6 ay satış</h3>
-              <p className="text-muted small">Yalnızca ödemesi doğrulanmış satışlar.</p>
-            </div>
-            <ChartNoAxesColumnIncreasing size={19} aria-hidden="true" />
+      <div className="adm-dash-grid">
+        <section className="adm-panel">
+          <div className="adm-panel__head">
+            <h2>
+              <Wallet size={16} strokeWidth={1.9} aria-hidden="true" /> Son satışlar
+            </h2>
+            <Link className="adm-panel__link" to="/yonetim/satislar">
+              Tümü <ArrowRight size={13} aria-hidden="true" />
+            </Link>
           </div>
-          {maxAmount === 0 ? (
-            <EmptyState
-              title="Henüz kesinleşmiş satış yok"
-              description="Satışlar ödeme doğrulandıktan sonra bu grafikte görünür."
-            />
+          <div className="adm-panel__body adm-panel__body--flush">
+            {recentSales.length === 0 ? (
+              <EmptyState
+                title="Henüz satış kaydı yok"
+                description="İlk satışı açtığınızda burada görünecek."
+              />
+            ) : (
+              <div className="table-wrap">
+                <table className="table" style={{ minWidth: 560 }}>
+                  <thead>
+                    <tr>
+                      <th>Firma</th>
+                      <th>Kanal</th>
+                      <th>Tutar</th>
+                      <th>Durum</th>
+                      <th>Tarih</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {recentSales.map((sale) => {
+                      const company = getCompanyById(sale.companyId);
+                      const status = saleStatus(sale);
+                      const rep = reps.find((row) => row.id === sale.repId);
+                      return (
+                        <tr key={sale.id}>
+                          <td>
+                            <strong className="adm-list__title" style={{ display: "block" }}>
+                              {company?.name ?? "—"}
+                            </strong>
+                            <span className="text-muted small">
+                              {sale.channel === "temsilci"
+                                ? rep?.name ?? "Temsilci"
+                                : sale.referralCode
+                                  ? `Doğrudan · ${sale.referralCode}`
+                                  : "Doğrudan"}
+                            </span>
+                          </td>
+                          <td className="small text-muted">
+                            {sale.renewalForMembershipId ? "Yenileme" : "Üyelik"}
+                          </td>
+                          <td>{formatTRY(sale.amount)}</td>
+                          <td>
+                            <Badge tone={status.tone}>{status.label}</Badge>
+                          </td>
+                          <td className="small text-muted">{formatDateTime(sale.createdAt)}</td>
+                        </tr>
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </section>
+
+        <div className="adm-dash-stack">
+          <section className="adm-panel">
+            <div className="adm-panel__head">
+              <h2>
+                <CircleAlert size={16} strokeWidth={1.9} aria-hidden="true" /> Bekleyen işlemler
+              </h2>
+              <Badge tone={awaitingPayment.length + pendingLeads.length + unpublished ? "orange" : "green"}>
+                {awaitingPayment.length + pendingLeads.length + unpublished}
+              </Badge>
+            </div>
+            <div className="adm-panel__body">
+              <Link className="adm-task adm-task--warn" to="/yonetim/odemeler">
+                <span className="adm-task__icon" aria-hidden="true">
+                  <CreditCard size={16} strokeWidth={1.9} />
+                </span>
+                <span className="adm-task__text">
+                  <strong>{awaitingPayment.length} ödeme onayı bekliyor</strong>
+                  <span>EFT onayı satışı ve komisyonu kesinleştirir</span>
+                </span>
+                <ArrowRight size={14} aria-hidden="true" />
+              </Link>
+              <Link className="adm-task adm-task--warn" to="/yonetim/adaylar">
+                <span className="adm-task__icon" aria-hidden="true">
+                  <Target size={16} strokeWidth={1.9} />
+                </span>
+                <span className="adm-task__text">
+                  <strong>{pendingLeads.length} anlaşma bildirimi</strong>
+                  <span>Firmaya dönüştürüp satış açın</span>
+                </span>
+                <ArrowRight size={14} aria-hidden="true" />
+              </Link>
+              <Link className="adm-task adm-task--blue" to="/yonetim/firmalar">
+                <span className="adm-task__icon" aria-hidden="true">
+                  <Store size={16} strokeWidth={1.9} />
+                </span>
+                <span className="adm-task__text">
+                  <strong>{unpublished} firma yayın dışı</strong>
+                  <span>İçerik kontrolü sonrası yayına alın</span>
+                </span>
+                <ArrowRight size={14} aria-hidden="true" />
+              </Link>
+              <Link className="adm-task" to="/yonetim/adaylar">
+                <span className="adm-task__icon" aria-hidden="true">
+                  <Target size={16} strokeWidth={1.9} />
+                </span>
+                <span className="adm-task__text">
+                  <strong>{openLeads.length} aday takip bekliyor</strong>
+                  <span>Yeni, iletişim ve görüşme aşamasındakiler</span>
+                </span>
+                <ArrowRight size={14} aria-hidden="true" />
+              </Link>
+            </div>
+          </section>
+
+          <section className="adm-panel">
+            <div className="adm-panel__head">
+              <h2>Hızlı işlemler</h2>
+            </div>
+            <div className="adm-panel__body">
+              <div className="adm-quick">
+                {QUICK_ACTIONS.map(({ to, label, desc, icon: Icon }) => (
+                  <Link key={to} className="adm-quick__item" to={to}>
+                    <span className="adm-quick__icon" aria-hidden="true">
+                      <Icon size={15} strokeWidth={1.9} />
+                    </span>
+                    <span>
+                      <strong>{label}</strong>
+                      <small>{desc}</small>
+                    </span>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          </section>
+        </div>
+      </div>
+
+      <div className="adm-dash-grid" style={{ marginTop: 14 }}>
+        <section className="adm-panel">
+          <div className="adm-panel__head">
+            <h2>
+              <CreditCard size={16} strokeWidth={1.9} aria-hidden="true" /> Son ödeme hareketleri
+            </h2>
+            <Link className="adm-panel__link" to="/yonetim/odemeler">
+              Ödeme onayları <ArrowRight size={13} aria-hidden="true" />
+            </Link>
+          </div>
+          <div className="adm-panel__body">
+            {recentPayments.length === 0 ? (
+              <p className="text-muted small">Henüz ödeme kaydı oluşmadı.</p>
+            ) : (
+              <div className="adm-list">
+                {recentPayments.map((payment) => {
+                  const sale = sales.find((row) => row.id === payment.saleId);
+                  const company = sale ? getCompanyById(sale.companyId) : undefined;
+                  const status = paymentLabel(payment);
+                  return (
+                    <div className="adm-list__row" key={payment.id}>
+                      <span
+                        className={`adm-dot ${
+                          payment.status === "onaylandi"
+                            ? "adm-dot--green"
+                            : payment.status === "beklemede"
+                              ? "adm-dot--amber"
+                              : payment.status === "hata"
+                                ? "adm-dot--red"
+                                : "adm-dot--blue"
+                        }`}
+                        aria-hidden="true"
+                      />
+                      <span className="adm-list__main">
+                        <span className="adm-list__title">{company?.name ?? "—"}</span>
+                        <span className="adm-list__meta">
+                          {paymentMethod(payment)} · {formatDateTime(payment.updatedAt)}
+                        </span>
+                      </span>
+                      <span className="adm-list__amount">
+                        {formatTRY(payment.amount)}
+                        <span style={{ display: "block", marginTop: 3 }}>
+                          <Badge tone={status.tone}>{status.label}</Badge>
+                        </span>
+                      </span>
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+        </section>
+
+        <section className="adm-panel">
+          <div className="adm-panel__head">
+            <h2>
+              <Users size={16} strokeWidth={1.9} aria-hidden="true" /> Personel performansı
+            </h2>
+            <Link className="adm-panel__link" to="/yonetim/temsilciler">
+              Personel <ArrowRight size={13} aria-hidden="true" />
+            </Link>
+          </div>
+          <div className="adm-panel__body">
+            {perf.length === 0 ? (
+              <p className="text-muted small">Kayıtlı personel yok.</p>
+            ) : (
+              <>
+                {perf.slice(0, 4).map(({ rep, count, amount, commission }) => (
+                  <div className="adm-perf" key={rep.id}>
+                    <div className="adm-perf__top">
+                      <span className="adm-perf__name">
+                        {rep.name}{" "}
+                        <Badge tone={rep.status === "aktif" ? "green" : "gray"}>
+                          {rep.status === "aktif" ? "Aktif" : "Pasif"}
+                        </Badge>
+                      </span>
+                      <span className="adm-perf__value">{formatTRY(amount)}</span>
+                    </div>
+                    <span className="adm-perf__meter" aria-hidden="true">
+                      <span
+                        className="adm-perf__fill"
+                        style={{ width: `${amount === 0 ? 0 : Math.max(4, (amount / maxPerf) * 100)}%` }}
+                      />
+                    </span>
+                    <div className="adm-perf__meta">
+                      {count} kesinleşen satış · {formatTRY(commission)} komisyon
+                    </div>
+                  </div>
+                ))}
+                {outstandingCommission > 0 && (
+                  <p className="text-muted small" style={{ marginTop: 10 }}>
+                    Temsilcilere toplam {formatTRY(outstandingCommission)} ödeme bekliyor.
+                  </p>
+                )}
+              </>
+            )}
+          </div>
+        </section>
+      </div>
+
+      <section className="adm-panel" style={{ marginTop: 14 }}>
+        <div className="adm-panel__head">
+          <h2>
+            <ChartNoAxesColumnIncreasing size={16} strokeWidth={1.9} aria-hidden="true" /> Son 6 ay
+            satış eğilimi
+          </h2>
+          <Link className="adm-panel__link" to="/yonetim/raporlar">
+            Raporlar <ArrowRight size={13} aria-hidden="true" />
+          </Link>
+        </div>
+        <div className="adm-panel__body">
+          {maxMonth <= 1 && months.every((month) => month.totalAmount === 0) ? (
+            <p className="text-muted small">Kesinleşen satış olmadığı için grafik boş.</p>
           ) : (
-            <div className="mt-14" style={{ display: "grid", gap: 12 }}>
-              {months.map((m) => (
-                <div
-                  key={m.month}
-                  title={`${formatTRY(m.totalAmount)} · ${m.saleCount} satış`}
-                  style={{ display: "grid", gridTemplateColumns: "58px 1fr auto", gap: 10, alignItems: "center" }}
-                >
-                  <span className="small text-muted">
+            <div className="adm-bars">
+              {months.map((month) => (
+                <div className="adm-bar" key={month.month}>
+                  <span className="adm-bar__label">
                     {new Intl.DateTimeFormat("tr-TR", { month: "short", year: "2-digit" }).format(
-                      new Date(`${m.month}-01T12:00:00`),
+                      new Date(`${month.month}-01T12:00:00`),
                     )}
                   </span>
                   <span
-                    className="bar-track"
+                    className="adm-bar__track"
                     role="img"
-                    aria-label={`${m.saleCount} satış, ${formatTRY(m.totalAmount)}`}
+                    aria-label={`${month.saleCount} satış, ${formatTRY(month.totalAmount)}`}
                   >
                     <span
-                      className="bar-fill"
-                      style={{ width: `${maxAmount ? (m.totalAmount / maxAmount) * 100 : 0}%` }}
+                      className="adm-bar__fill"
+                      style={{ width: `${(month.totalAmount / maxMonth) * 100}%` }}
                     />
                   </span>
-                  <strong className="small" style={{ fontVariantNumeric: "tabular-nums" }}>
-                    {formatTRY(m.totalAmount)}
-                  </strong>
+                  <span className="adm-bar__value">
+                    {formatTRY(month.totalAmount)}{" "}
+                    <span className="text-muted">· {month.saleCount}</span>
+                  </span>
                 </div>
               ))}
             </div>
           )}
-        </section>
+        </div>
+      </section>
 
-        <section className="card card__pad">
-          <div className="flex-between">
-            <h3 style={{ fontWeight: 800 }}>Dikkat gerektirenler</h3>
-            <Badge tone={pendingPayments.length + openLeads.length + unpublished ? "orange" : "green"}>
-              {pendingPayments.length + openLeads.length + unpublished}
-            </Badge>
-          </div>
-
-          <div className="attention-list">
-            <Link className="attention-row" to="/yonetim/odemeler">
-              <span className="attention-row__icon" aria-hidden="true">
-                <CreditCard size={16} strokeWidth={1.9} />
-              </span>
-              <span className="attention-row__text">
-                <strong>{pendingPayments.length} ödeme doğrulama bekliyor</strong>
-                <span className="text-muted small">Ödeme onaylanınca üyelik ve komisyon oluşur</span>
-              </span>
-              <ArrowRight size={15} aria-hidden="true" />
-            </Link>
-            <Link className="attention-row" to="/yonetim/adaylar">
-              <span className="attention-row__icon" aria-hidden="true">
-                <Target size={16} strokeWidth={1.9} />
-              </span>
-              <span className="attention-row__text">
-                <strong>{openLeads.length} firma adayı takip bekliyor</strong>
-                <span className="text-muted small">Anlaşma aşamasındakiler firmaya dönüştürülebilir</span>
-              </span>
-              <ArrowRight size={15} aria-hidden="true" />
-            </Link>
-            <Link className="attention-row" to="/yonetim/firmalar">
-              <span className="attention-row__icon" aria-hidden="true">
-                <Store size={16} strokeWidth={1.9} />
-              </span>
-              <span className="attention-row__text">
-                <strong>{unpublished} firma yayın dışı</strong>
-                <span className="text-muted small">Yayına alınmayı bekliyor olabilir</span>
-              </span>
-              <ArrowRight size={15} aria-hidden="true" />
-            </Link>
-          </div>
-
-          <h4 style={{ fontWeight: 800, marginTop: 18, marginBottom: 8 }}>Hızlı işlemler</h4>
-          <div className="quick-grid">
-            {QUICK_ACTIONS.map(({ to, label, desc, icon: Icon }) => (
-              <Link key={to} className="quick-tile" to={to}>
-                <span className="quick-tile__icon" aria-hidden="true">
-                  <Icon size={16} strokeWidth={1.9} />
-                </span>
-                <span>
-                  <strong>{label}</strong>
-                  <span className="text-muted small">{desc}</span>
-                </span>
-              </Link>
-            ))}
-          </div>
-        </section>
-      </div>
-
-      <div className="flex-between" style={{ marginTop: 22 }}>
-        <h3 style={{ fontWeight: 800 }}>Son işlemler</h3>
-        <Link to="/yonetim/denetim" className="small">
-          Tüm işlem geçmişi
-        </Link>
-      </div>
-      <div className="table-wrap" style={{ marginTop: 12 }}>
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Tarih</th>
-              <th>Eylem</th>
-              <th>Özet</th>
-              <th>Rol</th>
-            </tr>
-          </thead>
-          <tbody>
-            {audit.length === 0 ? (
-              <tr>
-                <td colSpan={4} className="text-muted">
-                  Henüz işlem kaydı yok.
-                </td>
-              </tr>
-            ) : (
-              audit.map((entry) => (
-                <tr key={entry.id}>
-                  <td className="text-muted small">{formatDateTime(entry.at)}</td>
-                  <td>
-                    <Badge tone="blue">{auditActionLabels[entry.action] ?? entry.action}</Badge>
-                  </td>
-                  <td>{entry.summary}</td>
-                  <td className="text-muted small">{entry.actorRole}</td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
-      </div>
+      <section className="adm-panel" style={{ marginTop: 14 }}>
+        <div className="adm-panel__head">
+          <h2>Son denetim kayıtları</h2>
+          <Link className="adm-panel__link" to="/yonetim/denetim">
+            Tüm denetim kayıtları <ArrowRight size={13} aria-hidden="true" />
+          </Link>
+        </div>
+        <div className="adm-panel__body adm-panel__body--flush">
+          {audit.length === 0 ? (
+            <p className="text-muted small" style={{ padding: 18 }}>
+              Henüz denetim kaydı yok.
+            </p>
+          ) : (
+            <div className="table-wrap">
+              <table className="table" style={{ minWidth: 560 }}>
+                <thead>
+                  <tr>
+                    <th>Tarih</th>
+                    <th>Eylem</th>
+                    <th>Özet</th>
+                    <th>Aktör</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {audit.map((entry) => (
+                    <tr key={entry.id}>
+                      <td className="small text-muted" style={{ whiteSpace: "nowrap" }}>
+                        {formatDateTime(entry.at)}
+                      </td>
+                      <td>
+                        <Badge tone="blue">{auditActionLabels[entry.action] ?? entry.action}</Badge>
+                      </td>
+                      <td>{entry.summary}</td>
+                      <td className="small text-muted">{entry.actorRole}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          )}
+        </div>
+      </section>
     </div>
   );
 }

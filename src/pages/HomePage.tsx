@@ -13,6 +13,7 @@ import {
 import { SEO } from "../components/SEO";
 import { FirmGrid } from "../components/FirmCard";
 import { CategoryGlyph } from "../components/CategoryGlyph";
+import CategorySelect from "../components/CategorySelect";
 import { listCategories, listCities, listCompanies } from "../lib/repo";
 
 // Sitede gerçek arama hedefi (/firmalar?q=) olduğu için SearchAction güvenli.
@@ -149,21 +150,17 @@ export default function HomePage() {
                 />
               </label>
               <span className="search-panel__divider" aria-hidden="true" />
-              <label className="search-panel__select">
+              <div className="search-panel__select">
                 <Grid2x2 size={16} strokeWidth={1.9} aria-hidden="true" />
-                <select
-                  aria-label="Kategori seç"
+                <CategorySelect
+                  className="cat-select--hero"
+                  categories={categories.map((c) => ({ id: c.slug, name: c.name }))}
                   value={heroCat}
-                  onChange={(e) => setHeroCat(e.target.value)}
-                >
-                  <option value="">Tüm kategoriler</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.slug}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
+                  onChange={setHeroCat}
+                  allLabel="Tüm kategoriler"
+                  ariaLabel="Kategori seç"
+                />
+              </div>
               {cities.length > 0 && (
                 <label className="search-panel__select">
                   <MapPin size={16} strokeWidth={1.9} aria-hidden="true" />

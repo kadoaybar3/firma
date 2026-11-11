@@ -52,12 +52,12 @@ function freshLead(leadId: string): Lead {
 }
 
 describe("convertLead", () => {
-  it("firmayı lead verisiyle oluşturur (rep eşlemeli, slug üretimli, yayın dışı) ve adayı işaretler", () => {
+  it("firmayı lead verisiyle oluşturur (rep eşlemeli, slug üretimli, yayın dışı) ve adayı işaretler", async () => {
     resetDB();
     const seed = seedDB();
     const lead = seedLead();
 
-    const company = convertLead(lead.id, draftFrom(lead, seed), admin);
+    const company = await convertLead(lead.id, draftFrom(lead, seed), admin);
 
     // Firma oluşturuldu ve lead'in sahibi temsilciye eşlendi
     expect(company.name).toBe(lead.companyName);
@@ -72,30 +72,30 @@ describe("convertLead", () => {
     expect(after.status).toBe(lead.status);
   });
 
-  it("aynı adayda ikinci dönüşüm denemesi HATA verir", () => {
+  it("aynı adayda ikinci dönüşüm denemesi HATA verir", async () => {
     resetDB();
     const seed = seedDB();
     const lead = seedLead();
-    convertLead(lead.id, draftFrom(lead, seed), admin);
-    expect(() => convertLead(lead.id, draftFrom(lead, seed), admin)).toThrow(
+    await convertLead(lead.id, draftFrom(lead, seed), admin);
+    await expect(convertLead(lead.id, draftFrom(lead, seed), admin)).rejects.toThrow(
       "Bu aday zaten firmaya dönüşmüştür.",
     );
   });
 
-  it("temsilci rolünde HATA verir (dönüşüm yalnızca admin)", () => {
+  it("temsilci rolünde HATA verir (dönüşüm yalnızca admin)", async () => {
     resetDB();
     const seed = seedDB();
     const lead = seedLead();
-    expect(() => convertLead(lead.id, draftFrom(lead, seed), rep)).toThrow(
+    await expect(convertLead(lead.id, draftFrom(lead, seed), rep)).rejects.toThrow(
       "Firmaya dönüşüm yalnızca yönetici tarafından yapılır.",
     );
   });
 
-  it("dönüşümden sonra deleteLead HATA verir; denetim kaydı aday_donusum tutulur", () => {
+  it("dönüşümden sonra deleteLead HATA verir; denetim kaydı aday_donusum tutulur", async () => {
     resetDB();
     const seed = seedDB();
     const lead = seedLead();
-    const company = convertLead(lead.id, draftFrom(lead, seed), admin);
+    const company = await convertLead(lead.id, draftFrom(lead, seed), admin);
 
     expect(() => deleteLead(lead.id, admin)).toThrow(
       "Firmaya dönüşmüş aday silinemez; dönüşüm geçmişini korumak için firma kaydıyla birlikte kapatın.",
@@ -114,23 +114,23 @@ describe("convertLead", () => {
     expect(detail.companyId).toBe(company.id);
   });
 
-  it("formdaki temsilci seçimi kazanır: admin farklı rep seçerse firma ona atanır (B1 notu)", () => {
+  it("formdaki temsilci seçimi kazanır: admin farklı rep seçerse firma ona atanır (B1 notu)", async () => {
     resetDB();
     const seed = seedDB();
     const lead = seedLead();
     // lead-1'in sahibi rep-1; admin bilinçli olarak rep-2'ye atıyor
     const draft = { ...draftFrom(lead, seed), repId: "rep-2" };
 
-    const company = convertLead(lead.id, draft, admin);
+    const company = await convertLead(lead.id, draft, admin);
 
     expect(company.repId).toBe("rep-2");
   });
 
-  it("dönüşüm kaynaklı firma silinirse aday işaretçisi temizlenir (zombi aday yok)", () => {
+  it("dönüşüm kaynaklı firma silinirse aday işaretçisi temizlenir (zombi aday yok)", async () => {
     resetDB();
     const seed = seedDB();
     const lead = seedLead();
-    const company = convertLead(lead.id, draftFrom(lead, seed), admin);
+    const company = await convertLead(lead.id, draftFrom(lead, seed), admin);
 
     deleteCompany(company.id, admin);
 

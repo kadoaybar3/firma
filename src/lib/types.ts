@@ -49,6 +49,10 @@ export interface Company {
     instagram?: string;
     facebook?: string;
     whatsapp?: string;
+    /** Google Place ID (scraper ile aktarılan firmalarda; JSONB, kolon yok). */
+    placeId?: string;
+    /** İçe aktarma kaynağı (yalnız "google-maps-scraper" yayın ödeme istisnası doğurur). */
+    source?: string;
   };
   description: string;
   /** Görsel yoksa kullanılan emoji rozetleri (demo görsel politikası) */
@@ -58,8 +62,8 @@ export interface Company {
   /** Halka açık sitede görünürlük */
   published: boolean;
   /**
-   * Konum koordinatları (o = kayıt yok). Kolonlar 0001'de bulunmadığından
-   * şu an hiçbir yazım yolu doldurmaz; migration onayından sonra dolu olur.
+   * Harita konumu (WGS84). Kolonlar 0007 migration'ı ile eklendi; mevcut
+   * kayıtlarda NULL olabilir. İki alan birlikte anlamlıdır.
    */
   latitude?: number;
   longitude?: number;
@@ -95,6 +99,20 @@ export interface Lead {
   cityId?: string;
   district?: string;
   phone?: string;
+  email?: string;
+  /** İletişim ve sosyal hesaplar; firma dönüşümünde aynen aktarılır. */
+  socials?: Company["socials"];
+  /**
+   * Açık adres. `leads` tablosunda adres kolonu olmadığından `note` içindeki
+   * makine-okunur işaretle taşınır (bkz. lib/leadLocation.ts); UI'da normal
+   * alan gibi davranır.
+   */
+  address?: string;
+  /** Aday aşamasında seçilen konum (aynı işaret içinde taşınır). */
+  latitude?: number;
+  longitude?: number;
+  /** Seçilen üyelik paketi (note işareti içinde taşınır; şema değişmez). */
+  packageKey?: "normal" | "featured";
   note: string;
   status: LeadStatus;
   visitCount: number;
@@ -183,6 +201,17 @@ export interface Commission {
   paidAt?: string;
 }
 
+/** Yönetici tarafından temsilciye yapılan gerçek para transferi. */
+export interface CommissionPayout {
+  id: string;
+  repId: string;
+  amount: number;
+  referenceNo?: string;
+  paidAt: string;
+  createdAt: string;
+  createdBy?: string;
+}
+
 /** Temsilciye verilen doğrudan referans kodu */
 export interface Referral {
   id: string;
@@ -196,6 +225,7 @@ export interface Referral {
 /** Yönetim tarafından değiştirilebilir iş kuralları — kaynak koda SABLLENMEZ */
 export interface Settings {
   membershipPrice: number;
+  /** Temsilci komisyon oranı (%). Satış tutarıyla çarpılarak hesaplanır. */
   repCommission: number;
   referralReward: number;
   renewalCommission: number;
@@ -224,6 +254,7 @@ export interface DB {
   payments: Payment[];
   memberships: Membership[];
   commissions: Commission[];
+  commissionPayouts?: CommissionPayout[];
   referrals: Referral[];
   settings: Settings;
   audit: AuditEntry[];

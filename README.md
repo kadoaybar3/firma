@@ -104,7 +104,7 @@ npm test
 
 ## ❗ Yapılmadı / yapılandırılmasını bekleyenler
 
-1. **Migration'ların canlıya uygulanması** — supabase/migrations 0001–0006 hazır; SQL Editor sırası: [`docs/SUPABASE-KURULUM.md`](docs/SUPABASE-KURULUM.md).
+1. **Migration'ların canlıya uygulanması** — supabase/migrations 0001–0008 hazır; SQL Editor sırası: [`docs/SUPABASE-KURULUM.md`](docs/SUPABASE-KURULUM.md).
 2. **Gerçek ödeme sağlayıcısı** — iyzico/PayTR hesabı; `VITE_PAYMENT_*` ortam değişkenleri ve sunucu tarafındaki webhook doğrulama servisi (bu depo içinde edge function şablonu eklenmelidir).
 3. **SSR/prerender** — halka açık sayfaların arama motoru tarafından tam taranabilirliği için opsiyonel prerender önerilir (ör. `vite-ssg` veya host tarafında statik snapshot); bu sürümde başlık/meta per-route yönetiliyor.
 4. **İletişim formu e-posta servisi** — web başvuruları yalnızca panolle tutulur; e-posta bildirim entegrasyonu ileri adımdır.
@@ -115,7 +115,7 @@ npm test
 
 Ayrıntılı adım adım rehber: [`docs/SUPABASE-KURULUM.md`](docs/SUPABASE-KURULUM.md)
 
-1. Migration'ları Supabase Dashboard'da sırayla uygula: **0001 → 0002 → 0003 → 0004 → 0005 → 0006** (her dosyanın tamamı tek seferde).
+1. Migration'ları Supabase Dashboard'da sırayla uygula: **0001 → 0002 → 0003 → 0004 → 0005 → 0006 → 0007 → 0008** (her dosyanın tamamı tek seferde).
 2. Authentication'da ilk kullanıcıyı yarat; SQL ile `profiles.role = 'admin'` yap.
 3. Netlify'a GitHub deposunu bağla: build `npm run build`, publish `dist` (`netlify.toml` hazır), env: `VITE_SUPABASE_URL`, `VITE_SUPABASE_ANON_KEY`, `SITE_URL`.
 4. Girilen üretim adresini `SITE_URL` olarak kullan; sitemap otomatik üretilir.

@@ -1,7 +1,7 @@
 /**
  * TÜRKİYE İLLERİ — statik liste (81 il, alfabetik).
- * Google aday panelindeki "İl" seçiminin tamamını kapsar; ilçe listesi
- * veritabanındaki şehir kaydı (cities.districts) ile beslenir.
+ * İlçeler `trDistricts.ts` içindeki doğrulanmış 81 il / 973 ilçe verisinden,
+ * ayrıca veritabanındaki şehir kaydı (cities.districts) ile birleştirilir.
  */
 export const TR_ILLER: string[] = [
   "Adana",

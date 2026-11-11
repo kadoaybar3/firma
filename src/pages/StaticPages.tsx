@@ -1,7 +1,8 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { CheckCircle2, Compass, Mail, MapPin, Phone } from "lucide-react";
+import { CheckCircle2, Compass, Mail, MapPin, Phone, Sparkles } from "lucide-react";
 import { SEO } from "../components/SEO";
+import CategorySelect from "../components/CategorySelect";
 import { ErrorBanner, Field, InfoBanner } from "../components/ui";
 import { useAuth } from "../lib/auth";
 import { createPublicLead, listCategories, listCities } from "../lib/repo";
@@ -43,9 +44,7 @@ export function ContactPage() {
               <Mail size={18} strokeWidth={1.9} />
             </span>
             <h3>E-posta</h3>
-            <p>
-              <a href="mailto:info@firmarehberi.example.com">info@firmarehberi.example.com</a>
-            </p>
+            <p><a href="mailto:kadirayb@icloud.com">kadirayb@icloud.com</a></p>
           </div>
           <div className="how-card">
             <span className="how-card__icon" aria-hidden="true">
@@ -53,9 +52,7 @@ export function ContactPage() {
             </span>
             <h3>Telefon</h3>
             <p>
-              <a href="tel:08501234567">0850 123 45 67</a>
-              <br />
-              <span className="text-muted small">Hafta içi 09:00–18:00</span>
+              <a href="tel:05519759898">0551 975 98 98</a>
             </p>
           </div>
           <div className="how-card">
@@ -63,9 +60,50 @@ export function ContactPage() {
               <MapPin size={18} strokeWidth={1.9} />
             </span>
             <h3>Adres</h3>
-            <p>Merkez / Afyonkarahisar</p>
+            <p><strong>Afyoon Reklam</strong><br />Kurtuluş Caddesi No:45/3<br />Merkez / Afyon</p>
           </div>
         </div>
+
+        <section className="mt-18" aria-labelledby="contact-pricing-title">
+          <h3 id="contact-pricing-title" style={{ fontWeight: 800, marginBottom: 6 }}>
+            Firma üyelik paketleri
+          </h3>
+          <p className="text-muted small" style={{ marginBottom: 12 }}>
+            İşletmeniz için size uygun görünürlüğü seçin. Her iki pakette de firmanız rehberde
+            listelenir; Advance Paket, Öne Çıkanlar bölümünde ek görünürlük sağlar.
+          </p>
+          <div className="how-grid">
+            <article className="package-card" style={{ marginTop: 0, background: "var(--surface)" }}>
+              <div className="package-card__head">
+                <span className="package-card__icon" aria-hidden="true">
+                  <Compass size={18} strokeWidth={1.9} />
+                </span>
+                <h4 style={{ fontWeight: 750 }}>Standart Paket</h4>
+              </div>
+              <div className="package-card__price">1.000 TL</div>
+              <p className="text-muted small">
+                İşletmeniz Firma Rehberi'nde listelenir; ziyaretçiler firma profilinizi ve iletişim
+                bilgilerinizi görüntüleyebilir.
+              </p>
+            </article>
+            <article
+              className="package-card"
+              style={{ marginTop: 0, borderColor: "var(--primary)", background: "var(--surface)" }}
+            >
+              <div className="package-card__head">
+                <span className="package-card__icon" aria-hidden="true">
+                  <Sparkles size={18} strokeWidth={1.9} />
+                </span>
+                <h4 style={{ fontWeight: 750 }}>Advance Paket</h4>
+              </div>
+              <div className="package-card__price">2.000 TL</div>
+              <p className="text-muted small">
+                Standart Paket kapsamına ek olarak işletmeniz, ana sayfadaki Öne Çıkanlar
+                bölümünde gösterilir.
+              </p>
+            </article>
+          </div>
+        </section>
 
         <div className="card card__pad mt-18">
           <h3 style={{ fontWeight: 800, marginBottom: 6 }}>Firmanızı rehbere ekletin</h3>
@@ -139,14 +177,13 @@ export function ContactPage() {
                   />
                 </Field>
                 <Field label="Kategori">
-                  <select value={categoryId} onChange={(e) => setCategoryId(e.target.value)}>
-                    <option value="">Seçin (opsiyonel)</option>
-                    {categories.map((c) => (
-                      <option key={c.id} value={c.id}>
-                        {c.icon} {c.name}
-                      </option>
-                    ))}
-                  </select>
+                  <CategorySelect
+                    categories={categories}
+                    value={categoryId}
+                    onChange={setCategoryId}
+                    allLabel="Seçin (opsiyonel)"
+                    ariaLabel="Kategori"
+                  />
                 </Field>
                 <Field label="Şehir / ilçe">
                   <select value={cityId} onChange={(e) => setCityId(e.target.value)}>
@@ -199,8 +236,8 @@ export function ContactPage() {
         <div className="card card__pad mt-18">
           <h3 style={{ fontWeight: 800, marginBottom: 6 }}>Not</h3>
           <p className="text-muted small">
-            Form kayıtları platform içi aday listesinde denetimli tutulur; e-posta servisi
-            entegrasyonu sonraki sürümde devreye alınacaktır.
+            Firma bilgilerinizi ilettikten sonra başvurunuz ekibimiz tarafından incelenir; sonraki
+            adımlar hakkında verdiğiniz telefon numarasından sizinle iletişime geçilir.
           </p>
         </div>
       </div>
@@ -248,8 +285,8 @@ export function KvkkPage() {
         <div className="card card__pad">
           <h3 style={{ fontWeight: 800, marginBottom: 6 }}>1. Veri Sorumlusu</h3>
           <p className="text-muted" style={{ lineHeight: 1.65 }}>
-            Firma Rehberi platformu. Ticari marka/unvan kayıtları kurumsallaşma aşamasında
-            tamamlanacaktır.
+            Afyoon Reklam, Kurtuluş Caddesi No:45/3, Merkez / Afyon. Veri sorumlusuna
+            <a href="mailto:kadirayb@icloud.com">kadirayb@icloud.com</a> adresinden ulaşılabilir.
           </p>
           <h3 style={{ fontWeight: 800, margin: "16px 0 6px" }}>2. İşlenen Veriler</h3>
           <p className="text-muted" style={{ lineHeight: 1.65 }}>
@@ -260,9 +297,8 @@ export function KvkkPage() {
           </p>
           <h3 style={{ fontWeight: 800, margin: "16px 0 6px" }}>3. Kişisel Veri Talepleri</h3>
           <p className="text-muted" style={{ lineHeight: 1.65 }}>
-            KVKK m.11 kapsamındaki taleplerinizi{" "}
-            <a href="mailto:info@firmarehberi.example.com">info@firmarehberi.example.com</a>{" "}
-            üzerinden iletebilirsiniz; talepler 30 gün içinde yanıtlanır.
+            KVKK m.11 kapsamındaki taleplerinizi <a href="mailto:kadirayb@icloud.com">kadirayb@icloud.com</a>
+            adresine iletebilirsiniz; talepler 30 gün içinde yanıtlanır.
           </p>
         </div>
       </div>
@@ -318,7 +354,7 @@ export function NotFoundPage() {
 export function LoginPage() {
   const { user, login } = useAuth();
   const navigate = useNavigate();
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -365,7 +401,7 @@ export function LoginPage() {
               e.preventDefault();
               setPending(true);
               setError(null);
-              const res = await login(email, password);
+              const res = await login(identifier, password);
               setPending(false);
               if (res.ok) {
                 navigate(res.role === "admin" ? "/yonetim" : "/temsilci", { replace: true });
@@ -375,14 +411,14 @@ export function LoginPage() {
             }}
           >
             <label className="field">
-              <span className="field__label">E-posta</span>
+              <span className="field__label">E-posta veya telefon</span>
               <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                type="text"
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 autoComplete="username"
                 required
-                placeholder="ornek@demo.com"
+                placeholder="ornek@demo.com veya 0555 000 00 00"
               />
             </label>
             <label className="field">

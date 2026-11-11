@@ -27,3 +27,6 @@ dist-ssr
 *.sw?
 tsconfig.tsbuildinfo
 supabase/.temp/
+
+# Local Netlify folder
+.netlify

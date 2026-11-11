@@ -19,14 +19,16 @@ import {
 import { SEO } from "../components/SEO";
 import { FirmGrid } from "../components/FirmCard";
 import { CategoryGlyph } from "../components/CategoryGlyph";
+import CompanyLocationMap from "../components/CompanyLocationMap";
 import { EmptyState } from "../components/ui";
 import { getCompanyBySlug, getCityById, listCategories, listCompanies } from "../lib/repo";
 import { isOpenNow, mapLink } from "../lib/hours";
+import { normalizeCoordinates } from "../lib/coordinates";
+import { socialProfileUrl, whatsappHref, websiteHref } from "../lib/format";
 import {
   buildBreadcrumbJsonLd,
   buildLocalBusinessJsonLd,
   locationOriginSafe,
-  safeExternalUrl,
 } from "../lib/seo";
 
 /*
@@ -103,14 +105,24 @@ export default function FirmDetailPage() {
   const photos = photosOf(company.images);
   const coverPhoto = photos[0];
 
-  const waDigits = company.socials.whatsapp?.replace(/\D/g, "") ?? "";
-  // Veri koşulları — mevcut olmayan veri için bağlantı üretilmez
+  // Veri koşulları — mevcut olmayan veri için bağlantı üretilmez.
+  // Sosyal alanlar handle, @handle veya tam URL olarak girilebilir.
   const telHref = company.phone ? `tel:${company.phone.replace(/\s/g, "")}` : null;
-  const mapsHref = company.address
-    ? mapLink({ name: company.name, address: company.address })
-    : null;
-  const waHref = waDigits ? `https://wa.me/${waDigits}` : null;
-  const siteHref = safeExternalUrl(company.website);
+  // Öncelik: kayıtlı koordinat → açık adres → ad + ilçe + il araması.
+  const mapsHref = mapLink({
+    name: company.name,
+    address: company.address,
+    district: company.district,
+    province: city?.name,
+    latitude: company.latitude,
+    longitude: company.longitude,
+  });
+  const waHref = whatsappHref(company.socials.whatsapp);
+  const instagramHref = socialProfileUrl(company.socials.instagram, "instagram");
+  const facebookHref = socialProfileUrl(company.socials.facebook, "facebook");
+  const siteHref = websiteHref(company.website);
+  // Kayıtlı koordinat yoksa harita kartı gösterilmez (boş harita yok).
+  const hasCoords = Boolean(normalizeCoordinates(company.latitude, company.longitude));
   const locationText = city ? `${city.name} / ${company.district}` : company.district;
   const cleanSite = siteHref?.replace(/^https?:\/\//, "").replace(/\/$/, "");
 
@@ -133,9 +145,7 @@ export default function FirmDetailPage() {
     .slice(0, 3);
 
   const shareUrl = typeof window !== "undefined" ? window.location.href : "";
-  const hasSocials = Boolean(
-    waHref || company.socials.instagram || company.socials.facebook || siteHref,
-  );
+  const hasSocials = Boolean(waHref || instagramHref || facebookHref || siteHref);
 
   async function copyLink() {
     try {
@@ -301,6 +311,39 @@ export default function FirmDetailPage() {
               </section>
             )}
 
+            {hasCoords && (
+              <section className="firm-card firm-location" aria-labelledby="firm-location">
+                <div className="firm-card__head">
+                  <div className="firm-location__title">
+                    <MapPin size={17} strokeWidth={2} aria-hidden="true" />
+                    <h2 className="firm-card__title" id="firm-location">
+                      Konum
+                    </h2>
+                  </div>
+                  {mapsHref && (
+                    <a
+                      className="firm-location__link"
+                      href={mapsHref}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      Haritada Görüntüle
+                    </a>
+                  )}
+                </div>
+                <CompanyLocationMap
+                  address={company.address}
+                  district={company.district}
+                  province={city?.name}
+                  latitude={company.latitude}
+                  longitude={company.longitude}
+                  onChange={() => undefined}
+                  disabled
+                  autoGeocode={false}
+                />
+              </section>
+            )}
+
             {!company.description && !hasHours && photos.length === 0 && (
               <section className="firm-card">
                 <h2 className="firm-card__title">Firma bilgileri</h2>
@@ -319,18 +362,29 @@ export default function FirmDetailPage() {
 
               {company.phone && (
                 <div className="firm-contact__phone">
-                  <span className="firm-contact__label">Telefon</span>
-                  <a href={telHref ?? undefined}>{company.phone}</a>
+                  <span className="firm-contact__icon" aria-hidden="true">
+                    <Phone size={16} strokeWidth={1.9} aria-hidden="true" />
+                  </span>
+                  <div className="firm-contact__phone-body">
+                    <span className="firm-contact__label">Telefon</span>
+                    <a href={telHref ?? undefined}>{company.phone}</a>
+                  </div>
                 </div>
               )}
 
               <div className="firm-contact__rows">
-                {company.address && (
+                {(company.address || mapsHref) && (
                   <div className="firm-contact__row">
-                    <MapPin size={17} strokeWidth={1.9} aria-hidden="true" />
+                    <span className="firm-contact__icon" aria-hidden="true">
+                      <MapPin size={16} strokeWidth={1.9} aria-hidden="true" />
+                    </span>
                     <div>
-                      <span className="firm-contact__label">Adres</span>
-                      <span className="firm-contact__value">{company.address}</span>
+                      <span className="firm-contact__label">
+                        {company.address ? "Adres" : "Konum"}
+                      </span>
+                      <span className="firm-contact__value">
+                        {company.address || "Haritada kayıtlı konum"}
+                      </span>
                       {mapsHref && (
                         <a
                           className="firm-contact__link"
@@ -338,7 +392,7 @@ export default function FirmDetailPage() {
                           target="_blank"
                           rel="noopener noreferrer"
                         >
-                          Haritada gör
+                          Yol Tarifi
                         </a>
                       )}
                     </div>
@@ -347,7 +401,9 @@ export default function FirmDetailPage() {
 
                 {company.email && (
                   <div className="firm-contact__row">
-                    <Mail size={17} strokeWidth={1.9} aria-hidden="true" />
+                    <span className="firm-contact__icon" aria-hidden="true">
+                      <Mail size={16} strokeWidth={1.9} aria-hidden="true" />
+                    </span>
                     <div>
                       <span className="firm-contact__label">E-posta</span>
                       <a className="firm-contact__value" href={`mailto:${company.email}`}>
@@ -359,7 +415,9 @@ export default function FirmDetailPage() {
 
                 {siteHref && (
                   <div className="firm-contact__row">
-                    <Globe size={17} strokeWidth={1.9} aria-hidden="true" />
+                    <span className="firm-contact__icon" aria-hidden="true">
+                      <Globe size={16} strokeWidth={1.9} aria-hidden="true" />
+                    </span>
                     <div>
                       <span className="firm-contact__label">Web sitesi</span>
                       <a
@@ -383,29 +441,34 @@ export default function FirmDetailPage() {
                       href={waHref}
                       target="_blank"
                       rel="noopener noreferrer"
+                      aria-label={`WhatsApp ile iletişim kur: ${company.name}`}
                     >
                       <MessageCircle size={16} strokeWidth={1.9} aria-hidden="true" />
                       WhatsApp
                     </a>
                   )}
-                  {company.socials.instagram && (
+                  {instagramHref && (
                     <a
                       className="firm-social"
-                      href={`https://instagram.com/${company.socials.instagram}`}
+                      href={instagramHref}
                       target="_blank"
                       rel="noopener noreferrer"
+                      aria-label={`Instagram profili: ${company.name}`}
                     >
+                      {/* Lucide'da marka ikonu yok; fotoğraf/lens simgesi en uygun karşılık */}
                       <Camera size={16} strokeWidth={1.9} aria-hidden="true" />
                       Instagram
                     </a>
                   )}
-                  {company.socials.facebook && (
+                  {facebookHref && (
                     <a
                       className="firm-social"
-                      href={`https://facebook.com/${company.socials.facebook}`}
+                      href={facebookHref}
                       target="_blank"
                       rel="noopener noreferrer"
+                      aria-label={`Facebook profili: ${company.name}`}
                     >
+                      {/* Lucide'da marka ikonu yok; beğen simgesi en uygun karşılık */}
                       <ThumbsUp size={16} strokeWidth={1.9} aria-hidden="true" />
                       Facebook
                     </a>

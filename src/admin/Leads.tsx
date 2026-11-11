@@ -5,6 +5,7 @@ import { PanelHead } from "./AdminLayout";
 import { CompanyForm } from "./Companies";
 import { Badge, EmptyState, ErrorBanner, Field, StatCard } from "../components/ui";
 import { useActor } from "../lib/auth";
+import { useLiveDataRevision } from "../lib/liveData";
 import { formatDateTime } from "../lib/format";
 import {
   addVisit,
@@ -37,7 +38,7 @@ export default function AdminLeads() {
   return (
     <div className="panel-content">
       <PanelHead
-        title="Firma adayları"
+        title="Adaylar"
         desc="Temsilcilerin sahadan topladığı firma adayları ve görüşme kayıtları."
       />
       <LeadBoard actor={actor} />
@@ -47,15 +48,16 @@ export default function AdminLeads() {
 
 /** Aday tahtası — admin tümünü, temsilci yalnız kendi adaylarını görür */
 export function LeadBoard({ actor }: { actor: ReturnType<typeof useActor> }) {
+  useLiveDataRevision();
   const [expanded, setExpanded] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [, setTick] = useState(0);
   const leads = listLeads(actor);
 
-  function run(fn: () => void) {
+  async function run(fn: () => void | Promise<void>) {
     setError(null);
     try {
-      fn();
+      await fn();
       setTick((t) => t + 1); // Başarılı işlem sonrası satır verisini tazele (dönüşüm rozeti vb.)
     } catch (e) {
       setError(e instanceof Error ? e.message : "İşlem başarısız.");
@@ -112,7 +114,7 @@ function LeadRow({
   lead: ReturnType<typeof listLeads>[number];
   expanded: boolean;
   onToggle: () => void;
-  run: (fn: () => void) => void;
+  run: (fn: () => void | Promise<void>) => void;
   actor: ReturnType<typeof useActor>;
 }) {
   const [note, setNote] = useState(lead.note);
@@ -144,7 +146,9 @@ function LeadRow({
             style={{ padding: "6px 10px", width: "auto" }}
             value={lead.status}
             onChange={(e) =>
-              run(() => updateLeadStatus(lead.id, e.target.value as LeadStatus, undefined, actor))
+              run(() => {
+                updateLeadStatus(lead.id, e.target.value as LeadStatus, undefined, actor);
+              })
             }
           >
             {LEAD_STATUSES.map((s) => (
@@ -223,10 +227,28 @@ function LeadRow({
                 </Field>
                 <button
                   className="btn btn--sm btn--primary"
-                  onClick={() => run(() => updateLeadStatus(lead.id, lead.status, note, actor))}
+                  onClick={() =>
+                    run(() => {
+                      updateLeadStatus(lead.id, lead.status, note, actor);
+                    })
+                  }
                 >
                   Notu kaydet
                 </button>
+                {(lead.address || lead.latitude !== undefined) && (
+                  <div className="mt-14 small">
+                    {lead.address && (
+                      <p style={{ margin: "0 0 4px" }}>
+                        <strong>Adres:</strong> {lead.address}
+                      </p>
+                    )}
+                    {lead.latitude !== undefined && lead.longitude !== undefined && (
+                      <p className="text-muted" style={{ margin: 0 }}>
+                        Kayıtlı konum: {lead.latitude.toFixed(6)}, {lead.longitude.toFixed(6)}
+                      </p>
+                    )}
+                  </div>
+                )}
                 <div className="mt-14">
                   <StatCard
                     icon={<CalendarDays size={20} strokeWidth={1.9} />}
@@ -255,7 +277,7 @@ function ConvertLeadPanel({
   onClose,
 }: {
   lead: Lead;
-  run: (fn: () => void) => void;
+  run: (fn: () => void | Promise<void>) => void;
   actor: ReturnType<typeof useActor>;
   onClose: () => void;
 }) {
@@ -268,11 +290,13 @@ function ConvertLeadPanel({
     categoryId: lead.categoryId ?? categories[0]?.id ?? "",
     cityId: lead.cityId ?? cities[0]?.id ?? "",
     district: lead.district ?? "Merkez",
-    address: "",
+    address: lead.address ?? "",
+    latitude: lead.latitude,
+    longitude: lead.longitude,
     phone: lead.phone ?? "",
-    email: "",
+    email: lead.email ?? "",
     website: "",
-    socials: {},
+    socials: { ...lead.socials, whatsapp: lead.socials?.whatsapp ?? lead.phone ?? "" },
     description: lead.note,
     // hours verilmez → createCompany varsayılanını kullanır
     featured: false,
@@ -289,8 +313,8 @@ function ConvertLeadPanel({
       title={`Firmaya dönüştür: ${lead.companyName}`}
       onCancel={onClose}
       onSubmit={(draft) =>
-        run(() => {
-          convertLead(lead.id, draft, actor);
+        run(async () => {
+          await convertLead(lead.id, draft, actor);
           onClose();
         })
       }
@@ -304,7 +328,7 @@ function VisitForm({
   actor,
 }: {
   leadId: string;
-  run: (fn: () => void) => void;
+  run: (fn: () => void | Promise<void>) => void;
   actor: ReturnType<typeof useActor>;
 }) {
   const [note, setNote] = useState("");

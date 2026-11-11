@@ -1,6 +1,9 @@
 /**
  * TÜRKİYE İLÇELERİ — 81 il → ilçe adları (973 ilçe).
- * Kaynak: turkiye-api v2 static dataset (2025; MIT lisansı, github.com/ubeydeozdmr/turkiye-api).
+ * Kaynak: turkiye-api v2 static dataset
+ * (2025; MIT lisansı, github.com/ubeydeozdmr/turkiye-api).
+ * Doğrulama: datasets/2025/provinces.json + districts.json ile birebir
+ * karşılaştırıldı (81 il, 973 ilçe, eksik/fazla/tekrar yok).
  * Sıra: src/data/trCities.ts içindeki TR_ILLER ile aynıdır.
  * Not: Veritabanındaki şehir/ilçe kayıtlarıyla birleştirilir; ilçe-ad araması
  * normalizasyonda Türkçe duyarsızdır (normalizeSearch).

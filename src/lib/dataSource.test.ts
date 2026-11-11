@@ -87,7 +87,7 @@ describe("dataSource satır dönüşümleri", () => {
     expect(back.longitude).toBe(30.52);
   });
 
-  it("koordinatsız firmada satıra lat/lng key'i KONMAZ — DB kolonu yokken canlıya yazılmaz", () => {
+  it("koordinatsız firmada satıra lat/lng key'i KONMAZ", () => {
     const c: Company = {
       id: "c-nocoord",
       name: "Konumsuz",
@@ -109,6 +109,30 @@ describe("dataSource satır dönüşümleri", () => {
     const row = companyToRow(c);
     expect(Object.keys(row)).not.toContain("latitude");
     expect(Object.keys(row)).not.toContain("longitude");
+  });
+
+  it("companyFromRow: sayısal metin koordinatı sayıya çevirir", () => {
+    const back = companyFromRow({
+      id: "c-num",
+      name: "X",
+      slug: "x",
+      latitude: "38.754321",
+      longitude: "30.52",
+    });
+    expect(back.latitude).toBe(38.754321);
+    expect(back.longitude).toBe(30.52);
+  });
+
+  it("companyFromRow: geçersiz koordinatı yok sayar", () => {
+    const back = companyFromRow({
+      id: "c-bad",
+      name: "X",
+      slug: "x",
+      latitude: 120,
+      longitude: 30,
+    });
+    expect(back.latitude).toBeUndefined();
+    expect(back.longitude).toBeUndefined();
   });
 
   it("companyFromRow: koordinat kolonları yoksa undefined döner", () => {
@@ -188,6 +212,29 @@ describe("dataSource satır dönüşümleri", () => {
     expect(leadFromRow(l as Record<string, unknown>).categoryId).toBeUndefined();
   });
 
+  it("lead: adres/koordinat not işaretiyle taşınır, UI notu temiz kalır", () => {
+    const row = leadToRow({
+      id: "l3",
+      companyName: "Aday",
+      note: "Yetkili: Ayşe",
+      address: "Marulcu Mah., No:45, Merkez, Afyonkarahisar",
+      latitude: 38.754321,
+      longitude: 30.52,
+      status: "yeni",
+      visitCount: 0,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      source: "sahada",
+    });
+
+    expect(row.note).toContain("[FR-KONUM v1]");
+    const back = leadFromRow(row as Record<string, unknown>);
+    expect(back.note).toBe("Yetkili: Ayşe");
+    expect(back.address).toBe("Marulcu Mah., No:45, Merkez, Afyonkarahisar");
+    expect(back.latitude).toBe(38.754321);
+    expect(back.longitude).toBe(30.52);
+  });
+
   it("cities + city_districts → City[] birleştirme", () => {
     const cities = citiesFromRows(
       [
@@ -265,9 +312,14 @@ describe("dataSource satır dönüşümleri", () => {
     expect(categoryFromRow({ id: "k", name: "N", slug: "n", icon: null }).icon).toBe("🏢");
   });
 
-  it("settings: boş satır → migration varsayılanları (0001 seed değerleri)", () => {
+  it("settings: boş satır → migration varsayılanları (komisyon oranı %50)", () => {
     const s = settingsFromRow(null);
-    expect(s).toMatchObject({ membershipPrice: 1000, repCommission: 600, referralReward: 100, renewalCommission: 600 });
+    expect(s).toMatchObject({ membershipPrice: 1000, repCommission: 50, referralReward: 100, renewalCommission: 600 });
+  });
+
+  it("settings: eski TL değerli satır (>100) yüzde olarak yorumlanmaz; %50 sayılır", () => {
+    const s = settingsFromRow({ membership_price: 1000, rep_commission: 600, referral_reward: 100, renewal_commission: 600, updated_at: "" });
+    expect(s.repCommission).toBe(50);
   });
 });
 

@@ -1,4 +1,5 @@
 import type { Company, CompanyHours } from "./types";
+import { socialProfileUrl } from "./format";
 
 /*
  * SEO yapılandırılmış veri yardımcıları.
@@ -76,8 +77,8 @@ export function buildLocalBusinessJsonLd(opts: {
   const description = company.description?.replace(/\s+/g, " ").trim().slice(0, 160);
 
   const sameAs = [
-    company.socials.instagram && `https://instagram.com/${company.socials.instagram}`,
-    company.socials.facebook && `https://facebook.com/${company.socials.facebook}`,
+    socialProfileUrl(company.socials.instagram, "instagram"),
+    socialProfileUrl(company.socials.facebook, "facebook"),
   ].filter((v): v is string => Boolean(v));
 
   const node: Record<string, unknown> = {

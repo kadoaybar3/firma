@@ -2,8 +2,11 @@ import { useMemo, useState } from "react";
 import { BadgeCheck, Building2, CircleAlert, Search, Target } from "lucide-react";
 import { PanelHead } from "../admin/AdminLayout";
 import { Badge, EmptyState, ErrorBanner, Field, InfoBanner } from "../components/ui";
+import LocationSelect, { type LocationValue } from "../components/LocationSelect";
+import CompanyLocationMap from "../components/CompanyLocationMap";
 import { useActor } from "../lib/auth";
 import { LeadBoard } from "../admin/Leads";
+import { findCityByName } from "../lib/location";
 import { createLead, listCities, listCompanies } from "../lib/repo";
 
 const STEPS = ["Rehberde ara", "Mükerrer kontrolü", "Firma bilgileri"] as const;
@@ -24,12 +27,18 @@ export default function RepLeads() {
   const [q, setQ] = useState("");
   const [name, setName] = useState("");
   const [phone, setPhone] = useState("");
-  const [cityId, setCityId] = useState(listCities()[0]?.id ?? "");
-  const [district, setDistrict] = useState("Merkez");
+  const [address, setAddress] = useState("");
+  const [coords, setCoords] = useState<{ latitude: number; longitude: number } | null>(null);
+  const [location, setLocation] = useState<LocationValue>(() => {
+    const first = listCities()[0];
+    return { province: first?.name ?? "", district: first?.districts[0] ?? "" };
+  });
   const [note, setNote] = useState("");
-  const [fieldErrors, setFieldErrors] = useState<{ name?: string; phone?: string }>({});
+  const [fieldErrors, setFieldErrors] = useState<{ name?: string; phone?: string; address?: string }>({});
 
-  const city = listCities().find((c) => c.id === cityId);
+  const matchedCity = findCityByName(listCities(), location.province);
+  /** Seçilen il `cities` tablosunda yoksa konum kaydedilemez (şema sınırı). */
+  const missingCity = Boolean(location.province && !matchedCity);
   const normalizedPhone = phone.replace(/\D/g, "");
   const needle = q.trim().toLocaleLowerCase("tr");
 
@@ -57,6 +66,8 @@ export default function RepLeads() {
     setQ("");
     setName("");
     setPhone("");
+    setAddress("");
+    setCoords(null);
     setNote("");
     setFieldErrors({});
   }
@@ -64,15 +75,29 @@ export default function RepLeads() {
   function submit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
-    const errs: { name?: string; phone?: string } = {};
+    const errs: { name?: string; phone?: string; address?: string } = {};
     if (!name.trim()) errs.name = "Firma adı zorunludur.";
     if (!phone.trim()) errs.phone = "Telefon zorunludur (mevcut doğrulama kuralı).";
     else if (normalizedPhone.length < 10) errs.phone = "Geçerli bir telefon girin (en az 10 hane).";
+    if (!address.trim() && !coords) errs.address = "Konum bilgisi zorunludur. Adres girin veya haritada konum seçin.";
     setFieldErrors(errs);
     if (Object.keys(errs).length) return;
 
     try {
-      createLead({ companyName: name, categoryId: "", cityId, district, phone, note }, actor);
+      createLead(
+        {
+          companyName: name,
+          categoryId: "",
+          cityId: matchedCity?.id ?? "",
+          district: matchedCity ? location.district : "",
+          phone,
+          note,
+          address: address.trim(),
+          latitude: coords?.latitude,
+          longitude: coords?.longitude,
+        },
+        actor,
+      );
       setSaved(name.trim());
       resetForm();
     } catch (err) {
@@ -236,34 +261,30 @@ export default function RepLeads() {
                   aria-invalid={Boolean(fieldErrors.phone)}
                 />
               </Field>
-              <Field label="Şehir" required>
-                <select
+              <Field label="Adres" hint="Mahalle, cadde/ sokak, bina/kapi numarası">
+                <input
                   className="input"
-                  value={cityId}
-                  onChange={(e) => {
-                    setCityId(e.target.value);
-                    const first = listCities().find((c) => c.id === e.target.value)?.districts[0];
-                    setDistrict(first ?? "Merkez");
-                  }}
-                >
-                  {listCities().map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
+                  value={address}
+                  onChange={(e) => setAddress(e.target.value)}
+                  placeholder="Örn. Merkez, Afyonkarahisar Mah. Kurtuluş Cd. No:45"
+                />
               </Field>
-              <Field label="İlçe" required>
-                <select
-                  className="input"
-                  value={district}
-                  onChange={(e) => setDistrict(e.target.value)}
-                >
-                  {(city?.districts ?? []).map((d) => (
-                    <option key={d}>{d}</option>
-                  ))}
-                </select>
-              </Field>
+              <LocationSelect
+                className="address-location"
+                value={location}
+                onChange={setLocation}
+                required
+                extraDistricts={matchedCity?.districts ?? []}
+              />
+              <CompanyLocationMap
+                address={address}
+                district={location.district}
+                province={location.province}
+                latitude={coords?.latitude}
+                longitude={coords?.longitude}
+                onChange={(nextCoords) => setCoords(nextCoords)}
+                disabled={!location.province}
+              />
               <Field label="Görüşme notu" hint="Sahada not ettiğiniz bilgi (opsiyonel)">
                 <textarea
                   className="input"
@@ -274,6 +295,17 @@ export default function RepLeads() {
                 />
               </Field>
             </div>
+
+            {missingCity && (
+              <p className="notice-inline notice-inline--muted" role="note">
+                <CircleAlert size={16} strokeWidth={1.9} aria-hidden="true" />
+                <span>
+                  <strong>{location.province}</strong> henüz şehir kayıtlarında tanımlı değil.
+                  Aday firma bilgileriyle kaydedilecek; il/ilçe bilgisi yönetici onayında
+                  tamamlanacak.
+                </span>
+              </p>
+            )}
 
             {duplicates.length > 0 && (
               <p className="notice-inline notice-inline--muted" role="note">

@@ -28,7 +28,7 @@ export default function AdminReferrals() {
   return (
     <div className="panel-content">
       <PanelHead
-        title="Referans kayıtları"
+        title="Referanslar"
         desc="Doğrudan satışta dönüşen işletme referans ödülleri. Temsilciye ait kod, işletme doğrudan üye olduğunda ödüle dönüşür."
       />
       {error && <ErrorBanner message={error} />}

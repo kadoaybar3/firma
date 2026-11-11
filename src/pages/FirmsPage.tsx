@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { SearchX } from "lucide-react";
 import { SEO } from "../components/SEO";
+import CategorySelect from "../components/CategorySelect";
 import { FirmGrid } from "../components/FirmCard";
 import { EmptyState } from "../components/ui";
 import { districtCountsByCity, getCityBySlug, listCategories, listCities, listCompanies } from "../lib/repo";
@@ -149,19 +150,13 @@ export default function FirmsPage() {
             defaultValue={queryText}
             onChange={(e) => updateParamQ(e.target.value)}
           />
-          <select
-            className="input"
-            aria-label="Kategori"
+          <CategorySelect
+            categories={listCategories().map((c) => ({ id: c.slug, name: c.name }))}
             value={selectedCategory?.slug ?? ""}
-            onChange={(e) => updateParam("kategori", e.target.value)}
-          >
-            <option value="">Tüm kategoriler</option>
-            {listCategories().map((c) => (
-              <option key={c.id} value={c.slug}>
-                {c.name}
-              </option>
-            ))}
-          </select>
+            onChange={(slug) => updateParam("kategori", slug)}
+            allLabel="Tüm kategoriler"
+            ariaLabel="Kategori"
+          />
           <select
             className="input"
             aria-label="Şehir"

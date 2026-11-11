@@ -1,0 +1,18 @@
+/* Tek sütunlu kategori seçimi (LocationSelect görünümü yeniden kullanılır). */
+.cat-select {
+  grid-template-columns: minmax(0, 1fr);
+}
+
+.cat-select .loc-btn {
+  font-weight: 500;
+}
+
+.cat-select .loc-btn[aria-disabled="true"] {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: var(--surface-2, #f5f8fd);
+}
+
+.cat-select .loc-btn[aria-disabled="true"]:active {
+  transform: none;
+}

@@ -16,6 +16,8 @@
 | 4 | `0004_lead_source.sql` | `leads.source` ('sahada'/'web') | 0001 |
 | 5 | `0005_settings_admin_write.sql` | Ayarlar sayfası için admin UPDATE politikası (0001'de eksikti) | 0001 |
 | 6 | `0006_web_lead_rpc.sql` | `submit_web_lead` RPC (web formu) + IP-hash rate limit (10 dk/5) | 0001, 0004 |
+| 7 | `0007_companies_coordinates.sql` | `companies.latitude` / `companies.longitude` (nullable double precision) + -90..90 / -180..180 aralık kısıtları. RLS/policy/grant değişmez; mevcut satırlar NULL kalır. | 0001 |
+| 8 | `0008_commission_payouts.sql` | Temsilciye kısmi ödeme kayıt tablosu, eski tam ödenmiş komisyonların aktarımı, yönetici RPC'si ve temsilciye özel okuma politikaları. | 0001, 0002 |
 
 **Nasıl uygulanır:** Supabase Dashboard → SQL Editor → her dosyanın İÇERİĞİNİN TAMAMINI tek seferde
 yapıştır/kopyala → Run. Sırayla: 0001 sonra 0002 … (Hepsi `begin/commit` sarmalıdır; arada hata olursa
