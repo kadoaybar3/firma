@@ -1,0 +1,14 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "google-maps-scraper"
+version = "2.0.0"
+description = "Google Maps scraper - pure HTTP, no browser, no API key. Extract business data (phones, emails, ratings, hours) to CSV."
+readme = "README.md"
+requires-python = ">=3.11"
+dependencies = ["curl_cffi>=0.16"]
+
+[tool.setuptools]
+packages = ["google_maps_scraper"]

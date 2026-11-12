@@ -30,3 +30,9 @@ supabase/.temp/
 
 # Local Netlify folder
 .netlify
+
+# Google Maps Scraper (ayrı Python servisi; venv/veri commit edilmez)
+services/google-scraper/.venv/
+services/google-scraper/data/
+**/__pycache__/
+.pytest_cache/
