@@ -1,5 +1,6 @@
 import type { Company, CompanyHours } from "./types";
 import { socialProfileUrl } from "./format";
+import { slugify } from "./slug";
 
 /*
  * SEO yapılandırılmış veri yardımcıları.
@@ -107,8 +108,21 @@ export function buildLocalBusinessJsonLd(opts: {
   return node;
 }
 
+/** HTML-duyarlı karakterleri kaçırarak güvenli JSON-LD metni üretir. */
+export function serializeJsonLd(value: unknown): string {
+  return JSON.stringify(value)
+    .replace(/&/g, "\\u0026")
+    .replace(/</g, "\\u003c")
+    .replace(/>/g, "\\u003e")
+    .replace(/\u2028/g, "\\u2028")
+    .replace(/\u2029/g, "\\u2029");
+}
+
 /** Sayfa yol kırıntısı için BreadcrumbList JSON-LD. */
-export function buildBreadcrumbJsonLd(items: Array<{ name: string; path?: string }>): Record<string, unknown> {
+export function buildBreadcrumbJsonLd(
+  items: Array<{ name: string; path?: string }>,
+  origin: string = locationOriginSafe(),
+): Record<string, unknown> {
   return {
     "@context": "https://schema.org",
     "@type": "BreadcrumbList",
@@ -116,9 +130,45 @@ export function buildBreadcrumbJsonLd(items: Array<{ name: string; path?: string
       "@type": "ListItem",
       position: i + 1,
       name: item.name,
-      ...(item.path ? { item: `${locationOriginSafe()}${item.path}` } : {}),
+      ...(item.path ? { item: `${origin}${item.path}` } : {}),
     })),
   };
+}
+
+/**
+ * Liste sayfası (FirmsPage) dört sayfa türü için BreadcrumbList JSON-LD.
+ * Son öğe her zaman mevcut sayfanın yolunu gösterir.
+ */
+export type ListBreadcrumbPage =
+  | { kind: "firmalar" }
+  | { kind: "kategori"; name: string; slug: string }
+  | { kind: "sehir"; name: string; slug: string }
+  | { kind: "ilce"; cityName: string; citySlug: string; districtName: string };
+
+export function buildListBreadcrumbJsonLd(page: ListBreadcrumbPage, origin?: string): Record<string, unknown> {
+  const items: Array<{ name: string; path?: string }> = [{ name: "Ana Sayfa", path: "/" }];
+  switch (page.kind) {
+    case "firmalar":
+      items.push({ name: "Firmalar", path: "/firmalar" });
+      break;
+    case "kategori":
+      // "/kategori" indeks rotası yok (yalnız kategori/:catSlug); ara öğe
+      // 404'e işaret etmesin diye URL'siz bırakılıyor.
+      items.push({ name: "Kategoriler" });
+      items.push({ name: page.name, path: `/kategori/${page.slug}` });
+      break;
+    case "sehir":
+      items.push({ name: page.name, path: `/sehir/${page.slug}` });
+      break;
+    case "ilce":
+      items.push({ name: page.cityName, path: `/sehir/${page.citySlug}` });
+      items.push({
+        name: page.districtName,
+        path: `/sehir/${page.citySlug}/${slugify(page.districtName)}`,
+      });
+      break;
+  }
+  return buildBreadcrumbJsonLd(items, origin);
 }
 
 /** Node ortamında (test/vite config) location yoksa kullanılabilir kök adres. */

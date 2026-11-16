@@ -36,3 +36,6 @@ services/google-scraper/.venv/
 services/google-scraper/data/
 **/__pycache__/
 .pytest_cache/
+
+# SEO izole Python ortamı (Faz 2C; venv commit edilmez)
+.opencode/skills/seo/.venv/

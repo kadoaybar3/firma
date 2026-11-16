@@ -3,4 +3,4 @@ Allow: /
 Disallow: /yonetim
 Disallow: /temsilci
 
-# Site haritası eklenebilir: /sitemap.xml
+Sitemap: https://firma5.netlify.app/sitemap.xml

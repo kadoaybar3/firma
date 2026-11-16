@@ -1,0 +1,243 @@
+/*
+ * Faz 4E-1 testleri — build-time Supabase SEO veri katmanı.
+ * Tüm Supabase yanıtları MOCK'TUR; gerçek veritabanına istek gitmez.
+ */
+
+import { describe, expect, it } from "vitest";
+import { buildSitemapPages, fetchSeoData, renderSitemapXml } from "./seoFetch";
+import type { SeoSupabaseData } from "./seoFetch";
+import type { Company } from "./types";
+
+const BASE = "https://project.supabase.test";
+const KEY = "test-anon-key-DEĞERİ";
+const SITE = "https://firma5.netlify.app";
+
+type MockRoute = { rows: unknown[]; total?: number; status?: number; noRange?: boolean };
+
+/** Her isteğin signal taşıdığını da doğrular (timeout zorunlu). */
+function makeFetch(routes: Record<string, MockRoute>, log: string[] = []): typeof fetch {
+  return (async (input: RequestInfo | URL, init?: RequestInit) => {
+    const url = String(input);
+    log.push(url);
+    if (init?.signal == null) throw new Error("istekte signal yok — timeout eklenmemiş");
+    const path = url.split("/rest/v1/")[1] ?? "";
+    const key = Object.keys(routes).find((k) => path.startsWith(k));
+    if (!key) return new Response("{}", { status: 404 });
+    const r = routes[key];
+    if (r.status && r.status >= 400) return new Response("boom", { status: r.status });
+    const total = r.total ?? r.rows.length;
+    const range = r.rows.length === 0 ? `*/${total}` : `0-${r.rows.length - 1}/${total}`;
+    const headers: Record<string, string> = { "content-type": "application/json" };
+    if (!r.noRange) headers["content-range"] = range;
+    return new Response(JSON.stringify(r.rows), { status: 200, headers });
+  }) as typeof fetch;
+}
+
+const CITY = { id: "city-1", name: "Afyonkarahisar", slug: "afyonkarahisar", districts: [] };
+const CATEGORY = { id: "cat-1", name: "Kuyumculuk", slug: "kuyumculuk", icon: "💍" };
+
+function companyRow(over: Partial<Record<string, unknown>>): Record<string, unknown> {
+  return {
+    id: "c-1",
+    name: "Öz Miras Kuyumculuk",
+    slug: "oz-miras-kuyumculuk",
+    category_id: "cat-1",
+    city_id: "city-1",
+    district: "Merkez",
+    address: "Kale Mah. 1",
+    phone: "0272 212 88 03",
+    email: null,
+    website: null,
+    socials: { instagram: "https://instagram.com/x" },
+    description: "Açıklama metni",
+    images: [],
+    hours: { weekday: "09:00-18:00", saturday: "", sunday: "" },
+    featured: false,
+    published: true,
+    latitude: null,
+    longitude: null,
+    created_at: "2026-01-01T00:00:00Z",
+    updated_at: "2026-01-02T00:00:00Z",
+    ...over,
+  };
+}
+
+function baseRoutes(over: Record<string, MockRoute> = {}): Record<string, MockRoute> {
+  const merge = (base: MockRoute, o?: MockRoute): MockRoute => ({
+    ...o,
+    rows: o?.rows ?? base.rows,
+    ...(o?.total !== undefined ? { total: o.total } : {}),
+    ...(o?.status !== undefined ? { status: o.status } : {}),
+    ...(o?.noRange !== undefined ? { noRange: o.noRange } : {}),
+  });
+  return {
+    "companies?": merge({ rows: [companyRow({})] }, over.companies),
+    "categories?": merge({ rows: [CATEGORY] }, over.categories),
+    "cities?": merge({ rows: [CITY] }, over.cities),
+    "city_districts?": merge({ rows: [{ city_id: "city-1", district: "Emirdağ" }] }, over.city_districts),
+  };
+}
+
+function makeData(over: Partial<SeoSupabaseData> = {}): SeoSupabaseData {
+  const company: Company = {
+    id: "c-1",
+    name: "Öz Miras Kuyumculuk",
+    slug: "oz-miras-kuyumculuk",
+    categoryId: "cat-1",
+    cityId: "city-1",
+    district: "Merkez",
+    address: "Kale Mah. 1",
+    phone: "0272 212 88 03",
+    socials: {},
+    description: "Açıklama metni",
+    images: [],
+    hours: { weekday: "09:00-18:00", saturday: "", sunday: "" },
+    featured: false,
+    published: true,
+    createdAt: "2026-01-01T00:00:00Z",
+    updatedAt: "2026-01-02T00:00:00Z",
+  };
+  return {
+    companies: [company],
+    categories: [CATEGORY],
+    cities: [CITY],
+    districts: [{ city_id: "city-1", district: "Emirdağ" }],
+    ...over,
+  };
+}
+
+describe("fetchSeoData (mock)", () => {
+  it("anon SELECT yapar, published=eq.true ister ve unpublished firmayı elemez", async () => {
+    const log: string[] = [];
+    const fetchImpl = makeFetch(
+      baseRoutes({
+        companies: { rows: [companyRow({}), companyRow({ id: "c-2", slug: "gizli-firma", published: false })] },
+      }),
+      log,
+    );
+
+    const data = await fetchSeoData({ baseUrl: BASE, anonKey: KEY, fetchImpl });
+
+    const companyUrl = log.find((u) => u.includes("companies?")) ?? "";
+    expect(companyUrl).toContain("/rest/v1/companies?");
+    expect(companyUrl).toContain("published=eq.true");
+    // Çift filtre: sorgu + istemci tarafı
+    expect(data.companies.map((c) => c.slug)).toEqual(["oz-miras-kuyumculuk"]);
+    // Map'leme snake_case → Company
+    expect(data.companies[0].categoryId).toBe("cat-1");
+    expect(data.companies[0].hours.weekday).toBe("09:00-18:00");
+    expect(data.categories).toHaveLength(1);
+    expect(data.cities[0].districts).toEqual([]);
+    expect(data.districts).toEqual([{ city_id: "city-1", district: "Emirdağ" }]);
+  });
+
+  it("HTTP hatasında fırlatır ve anahtarı hata mesajına yazmaz", async () => {
+    const fetchImpl = makeFetch(baseRoutes({ companies: { rows: [], status: 503 } }));
+    await expect(fetchSeoData({ baseUrl: BASE, anonKey: KEY, fetchImpl })).rejects.toThrow(
+      /\[seo-fetch\] companies: HTTP 503/,
+    );
+    const err = await fetchSeoData({ baseUrl: BASE, anonKey: KEY, fetchImpl }).catch((e: Error) => e);
+    expect(err).toBeInstanceOf(Error);
+    expect((err as Error).message).not.toContain(KEY);
+    expect((err as Error).message).not.toContain(BASE);
+  });
+
+  it("ağ/timeout hatasında fırlatır (yalnız hata adı)", async () => {
+    const fetchImpl = (async () => {
+      const e = new Error("connect ETIMEDOUT https://project.supabase.test/rest/v1/x");
+      e.name = "TimeoutError";
+      throw e;
+    }) as typeof fetch;
+    const err = await fetchSeoData({ baseUrl: BASE, anonKey: KEY, fetchImpl }).catch((e: Error) => e);
+    expect((err as Error).message).toBe("[seo-fetch] companies isteği başarısız (TimeoutError)");
+    expect((err as Error).message).not.toContain(KEY);
+  });
+
+  it("kırpılmış yanıt (content-range toplamı uyuşmuyor) fırlatır", async () => {
+    const fetchImpl = makeFetch(baseRoutes({ companies: { rows: [companyRow({})], total: 5 } }));
+    await expect(fetchSeoData({ baseUrl: BASE, anonKey: KEY, fetchImpl })).rejects.toThrow(
+      /\[seo-fetch\] companies: yanıt eksik\/ kırpılmış \(1\/5\)/,
+    );
+  });
+
+  it("content-range başlığı yoksa fırlatır", async () => {
+    const fetchImpl = makeFetch(baseRoutes({ companies: { rows: [companyRow({})], noRange: true } }));
+    await expect(fetchSeoData({ baseUrl: BASE, anonKey: KEY, fetchImpl })).rejects.toThrow(
+      /\[seo-fetch\] companies: content-range toplamı okunamadı/,
+    );
+  });
+
+  it("her istekte timeout signal'i taşır (mock zorunlu kılar)", async () => {
+    const log: string[] = [];
+    // makeFetch signal yoksa fırlatır — sessizce geçerse signal vardı demektir.
+    await expect(
+      fetchSeoData({ baseUrl: BASE, anonKey: KEY, fetchImpl: makeFetch(baseRoutes(), log) }),
+    ).resolves.toBeTruthy();
+    expect(log).toHaveLength(4);
+  });
+});
+
+describe("buildSitemapPages", () => {
+  it("firma/kategori/şehir/ilçe rotalarını gerçek veriden üretir", () => {
+    const pages = buildSitemapPages(SITE, makeData());
+    const routes = pages.map((p) => p.route);
+
+    // 6 sabit rota
+    expect(routes).toContain("/");
+    expect(routes).toContain("/firmalar");
+    expect(routes).toContain("/iletisim");
+    expect(routes).toContain("/hakkimizda");
+    expect(routes).toContain("/kvkk");
+    expect(routes).toContain("/kullanim-kosullari");
+    // Gerçek veri rotaları
+    expect(routes).toContain("/kategori/kuyumculuk");
+    expect(routes).toContain("/sehir/afyonkarahisar");
+    expect(routes).toContain("/sehir/afyonkarahisar/emirdag");
+    expect(routes).toContain("/firma/oz-miras-kuyumculuk");
+    // 6 + 1 kategori + 1 şehir + 1 ilçe + 1 firma
+    expect(routes).toHaveLength(10);
+    // Her rota site-içi ve benzersiz
+    expect(new Set(routes).size).toBe(routes.length);
+    expect(routes.every((r) => r.startsWith("/"))).toBe(true);
+  });
+
+  it("ilçe slug'ları tek slugify kaynağından gelir (NFD 'i̇' yok)", () => {
+    const pages = buildSitemapPages(
+      SITE,
+      makeData({ districts: [{ city_id: "city-1", district: "İhsaniye" }] }),
+    );
+    const routes = pages.map((p) => p.route);
+    expect(routes).toContain("/sehir/afyonkarahisar/ihsaniye");
+    expect(routes.some((r) => r.includes("i̇"))).toBe(false);
+  });
+
+  it("yayımlanmamış firma rotaya girmez (çift filtre)", () => {
+    const data = makeData();
+    data.companies.push({ ...data.companies[0], id: "c-2", slug: "gizli-firma", published: false });
+    const routes = buildSitemapPages(SITE, data).map((p) => p.route);
+    expect(routes).not.toContain("/firma/gizli-firma");
+    expect(routes).toContain("/firma/oz-miras-kuyumculuk");
+  });
+
+  it("sitemap ve prerender aynı { route, seo } listesinden üretilir", () => {
+    const pages = buildSitemapPages(SITE, makeData());
+    const xml = renderSitemapXml(SITE, pages);
+    const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+    // Sitemap loc sayısı === prerender dosya sayısı (tek kaynak)
+    expect(locs).toHaveLength(pages.length);
+    expect(locs).toEqual(pages.map((p) => `${SITE}${p.route}`));
+    // XML biçimi korunur
+    expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
+    expect(xml.endsWith("\n")).toBe(true);
+  });
+
+  it("boş Supabase verisiyle yalnız 6 sabit rota üretilir", () => {
+    const routes = buildSitemapPages(
+      SITE,
+      makeData({ companies: [], categories: [], cities: [], districts: [] }),
+    ).map((p) => p.route);
+    expect(routes).toHaveLength(6);
+    expect(routes).toContain("/");
+    expect(routes).not.toContain("/firma/oz-miras-kuyumculuk");
+  });
+});

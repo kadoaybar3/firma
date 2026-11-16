@@ -12,6 +12,33 @@ describe("slugify", () => {
   it("boşluk ve sembolleri temizler", () => {
     expect(slugify("  A. B içecek &  toz  ")).toBe("a-b-icecek-toz");
   });
+
+  // İlçe slug normalizasyonu: sitemap üretimi (vite.config.ts) ve FirmsPage
+  // eşleştirmesi slugify üzerinden tek kaynağa bağlandı (Faz 3A).
+  it("ilçe slug'ları sitemap ve router için ASCII ve tutarlı", () => {
+    expect(slugify("İhsaniye")).toBe("ihsaniye");
+    expect(slugify("İscehisar")).toBe("iscehisar");
+    expect(slugify("Çay")).toBe("cay");
+    expect(slugify("Bolvadin")).toBe("bolvadin");
+    expect(slugify("Sandıklı")).toBe("sandikli");
+    // NFD "i̇" (i + U+0307) üretmez ve çift encode edilmez
+    expect(slugify("İhsaniye")).not.toContain("\u0307");
+    expect(encodeURIComponent(slugify("İhsaniye"))).toBe("ihsaniye");
+  });
+
+  it("ilçe slug'ları router decode'undan sonra da eşleşir", () => {
+    // Sitemap üretimi → URL → React Router decodePath (decodeURIComponent) →
+    // FirmsPage.slugify(d) === districtParam karşılaştırması.
+    const districts = [
+      "Merkez", "Bolvadin", "Çay", "Dinar", "Emirdağ", "İhsaniye",
+      "İscehisar", "Sandıklı", "Sinanpaşa", "Sultandağı", "Şuhut",
+    ];
+    for (const d of districts) {
+      const urlSlug = slugify(d);
+      const routerParam = decodeURIComponent(encodeURIComponent(urlSlug));
+      expect(districts.find((x) => slugify(x) === routerParam)).toBe(d);
+    }
+  });
 });
 
 describe("uniqueSlug", () => {

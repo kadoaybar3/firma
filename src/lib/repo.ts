@@ -22,6 +22,7 @@ import { uid, nowISO, log } from "./engine";
 import * as engine from "./engine";
 import { isSupabaseConfigured, supabase } from "./supabase";
 import { bindSyncBridge, emptyDB, flushNow, loadSnapshot, scheduleSync } from "./dataSource";
+import { scheduleSeoRebuild, companySeoSnapshot, seoRelevantChange } from "./seoRebuild";
 import { normalizeCoordinates } from "./coordinates";
 import { isValidPackageAmount, packageAmount } from "./packages";
 
@@ -261,7 +262,10 @@ export function createScraperCompany(draft: CompanyDraft, actor: Actor): Company
   if (draft.socials?.source !== "google-maps-scraper") {
     throw new Error("Scraper içe aktarma işareti gerekli.");
   }
-  return buildCompany(draft, actor, undefined, draft.published === true);
+  const company = buildCompany(draft, actor, undefined, draft.published === true);
+  // SEO tetikleme (4F): ilk kez yayında doğan firma yeni sitemap URL'i ekler.
+  if (company.published) scheduleSeoRebuild();
+  return company;
 }
 
 function buildCompany(draft: CompanyDraft, actor: Actor, internalId: string | undefined, published: boolean): Company {
@@ -336,6 +340,9 @@ export function updateCompany(id: string, patch: Partial<CompanyDraft>, actor: A
     );
   }
   const before = { featured: company.featured, published: company.published };
+  // SEO tetikleme (4F): değişiklik öncesi/sonrası snapshot — yalnız SEO
+  // çıktısını etkileyen alan farkında build tetiklenir.
+  const seoBefore = companySeoSnapshot(company);
   const coords = normalizedDraftCoordinates(patch);
   // İşaret yamalaması engeli: genel düzenleme kaynağı değiştiremez.
   if (patch.socials?.source !== undefined) {
@@ -350,12 +357,15 @@ export function updateCompany(id: string, patch: Partial<CompanyDraft>, actor: A
     // Ad değişse de slug korunur (bağlantı istikrarı); yalnızca ilk oluşturmada üretilir.
     company.name = patch.name.trim();
   }
+  const seoAffects = seoRelevantChange(seoBefore, companySeoSnapshot(company));
   log(db, actor, "firma_guncellendi", `Firma güncellendi: ${company.name}`, {
     companyId: id,
     patch,
     before,
   });
   persist();
+  // Yayın dışı firmada SEO alanı değişikliği sitemap'i değiştirmez (filter içinde).
+  if (seoAffects) scheduleSeoRebuild();
   return company;
 }
 
@@ -368,6 +378,8 @@ export function deleteCompany(id: string, actor: Actor): void {
   const hasActive = db.memberships.some((m) => m.companyId === id && m.status === "aktif");
   if (hasActive)
     throw new Error("Bu firmanın aktif bir üyeliği var. Seçili firmayı yayından kaldırabilirsiniz.");
+  // SEO tetikleme (4F): yayındaki firma silinirse sitemap'ten düşmeli.
+  const wasPublished = company.published;
   db.companies = db.companies.filter((c) => c.id !== id);
   // Dönüşüm işaretçisi asılmaz (FK on delete set null ile aynı davranış):
   // firması silinen aday yeniden dönüştürülebilir hale gelir.
@@ -379,6 +391,7 @@ export function deleteCompany(id: string, actor: Actor): void {
   }
   log(db, actor, "firma_silindi", `Firma silindi: ${company.name}`, { companyId: id });
   persist();
+  if (wasPublished) scheduleSeoRebuild();
 }
 
 /* ============ KATEGORİLER ============ */
@@ -410,6 +423,8 @@ export function createCategory(name: string, icon: string, actor: Actor): Catego
   db.categories.push(cat);
   log(db, actor, "kategori_eklendi", `Kategori eklendi: ${cat.name}`, { categoryId: cat.id });
   persist();
+  // SEO tetikleme (4F): yeni kategori sayfası sitemap'e girer.
+  scheduleSeoRebuild();
   return cat;
 }
 
@@ -422,6 +437,8 @@ export function deleteCategory(id: string, actor: Actor): void {
   db.categories = db.categories.filter((c) => c.id !== id);
   if (cat) log(db, actor, "kategori_silindi", `Kategori silindi: ${cat.name}`, { categoryId: id });
   persist();
+  // SEO tetikleme (4F): kategori sayfası sitemap'ten düşer.
+  scheduleSeoRebuild();
 }
 
 /* ============ ŞEHİR / İLÇE ============ */
@@ -477,6 +494,8 @@ export function addDistrict(cityId: string, name: string, actor: Actor): void {
   city.districts.push(district);
   log(db, actor, "ilce_eklendi", `İlçe eklendi: ${city.name}/${district}`, { cityId, district });
   persist();
+  // SEO tetikleme (4F): yeni ilçe sayfası sitemap'e girer.
+  scheduleSeoRebuild();
 }
 
 export function removeDistrict(cityId: string, name: string, actor: Actor): void {
@@ -489,6 +508,8 @@ export function removeDistrict(cityId: string, name: string, actor: Actor): void
   city.districts = city.districts.filter((d) => d !== name);
   log(db, actor, "ilce_kaldirildi", `İlçe kaldırıldı: ${city.name}/${name}`, { cityId, name });
   persist();
+  // SEO tetikleme (4F): ilçe sayfası sitemap'ten düşer.
+  scheduleSeoRebuild();
 }
 
 export function createCity(name: string, actor: Actor, districts: string[] = ["Merkez"]): City {
@@ -506,6 +527,8 @@ export function createCity(name: string, actor: Actor, districts: string[] = ["M
   db.cities.push(city);
   log(db, actor, "sehir_eklendi", `Şehir eklendi: ${city.name}`, { cityId: city.id });
   persist();
+  // SEO tetikleme (4F): yeni şehir sayfası sitemap'e girer.
+  scheduleSeoRebuild();
   return city;
 }
 

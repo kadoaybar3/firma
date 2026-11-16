@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import type { ReactNode } from "react";
+import { serializeJsonLd } from "../lib/seo";
 
 /*
  * SEO bileşeni: başlık, açıklama, canonical, OpenGraph, Twitter Card ve
@@ -28,16 +29,6 @@ export type SeoOptions = {
   /** Utility sayfaları için arama motoru indeksi iptali. */
   noindex?: boolean;
 };
-
-/** HTML-duyarlı karakterleri kaçırarak güvenli JSON-LD metni üretir. */
-export function serializeJsonLd(value: unknown): string {
-  return JSON.stringify(value)
-    .replace(/&/g, "\\u0026")
-    .replace(/</g, "\\u003c")
-    .replace(/>/g, "\\u003e")
-    .replace(/\u2028/g, "\\u2028")
-    .replace(/\u2029/g, "\\u2029");
-}
 
 /** Yolu mutlak adrese çevirir; site-içi / ile başlamayan veya origin kaçışı riskli değer reddedilir. */
 function absoluteUrl(path?: string): string | null {

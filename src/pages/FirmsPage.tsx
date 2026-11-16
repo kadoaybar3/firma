@@ -7,6 +7,8 @@ import { FirmGrid } from "../components/FirmCard";
 import { EmptyState } from "../components/ui";
 import { districtCountsByCity, getCityBySlug, listCategories, listCities, listCompanies } from "../lib/repo";
 import { slugProblem, slugProblemMessage } from "../lib/slugProblem";
+import { slugify } from "../lib/slug";
+import { buildListBreadcrumbJsonLd } from "../lib/seo";
 import type { Category } from "../lib/types";
 
 /**
@@ -34,10 +36,13 @@ export default function FirmsPage() {
   // URL'deki küçük harfli ilçe adını kanonik forma çevir (başlıkta doğru görünsün).
   // NOT: URLSearchParams.get zaten decode'lu değer döndürür; ek decodeURIComponent
   // yapılmaz — bare '%' içeren değerler (örn. ?ilce=100%) URIError'unu düşürürdü.
+  // İlçe slug'ı sitemap'teki ile aynı normalizasyon (slugify) ile eşleştirilir:
+  // toLocaleLowerCase("tr") İ→i verse de URL slug'ı ASCII olduğundan (i̇ değil)
+  // İhsaniye/İscehisar gibi İ harfli ilçeler eşleşmiyordu.
   const districtParam =
     params.district ?? searchParams.get("ilce") ?? undefined;
   const canonicalDistrict = city?.districts.find(
-    (d) => d.toLocaleLowerCase("tr") === districtParam,
+    (d) => slugify(d) === districtParam,
   );
 
   const queryText = searchParams.get("q") ?? "";
@@ -78,6 +83,29 @@ export default function FirmsPage() {
     [city],
   );
 
+  // Breadcrumb JSON-LD — yalnızca yol parametrelerine göre (sorgulu
+  // /firmalar?kategori=… sürümleri canonical olarak /firmalar'a bağlanır).
+  // Early return'den ÖNCE: hooks koşulsuz çağrılmalı.
+  const breadcrumbJsonLd = useMemo(() => {
+    if (params.catSlug && selectedCategory) {
+      return [buildListBreadcrumbJsonLd({ kind: "kategori", name: selectedCategory.name, slug: selectedCategory.slug })];
+    }
+    if (params.citySlug && params.district && canonicalDistrict && city) {
+      return [
+        buildListBreadcrumbJsonLd({
+          kind: "ilce",
+          cityName: city.name,
+          citySlug: city.slug,
+          districtName: canonicalDistrict,
+        }),
+      ];
+    }
+    if (params.citySlug && city) {
+      return [buildListBreadcrumbJsonLd({ kind: "sehir", name: city.name, slug: city.slug })];
+    }
+    return [buildListBreadcrumbJsonLd({ kind: "firmalar" })];
+  }, [params.catSlug, params.citySlug, params.district, selectedCategory, canonicalDistrict, city]);
+
   /* Tur 4: geçersiz slug → noindex "bulunamadı" (soft-404 engeli). */
   if (problem) {
     return (
@@ -117,7 +145,11 @@ export default function FirmsPage() {
   }
 
   return (
-    <SEO title={`${title} | Firma Rehberi`} description={`${title} — telefon, adres, çalışma saatleri ve yol tarifi bilgileriyle.`}>
+    <SEO
+      title={`${title} | Firma Rehberi`}
+      description={`${title} — telefon, adres, çalışma saatleri ve yol tarifi bilgileriyle.`}
+      jsonLd={breadcrumbJsonLd}
+    >
       {/* Yol kırıntısı */}
       <nav className="container breadcrumb" style={{ marginTop: 16 }} aria-label="Konum">
         <b>
@@ -130,7 +162,7 @@ export default function FirmsPage() {
       <section className="section container" style={{ paddingTop: 12 }}>
         <div className="section__head">
           <div>
-            <h2 className="section__title">{title}</h2>
+            <h1 className="section__title">{title}</h1>
             <p className="section__desc">
               Firma adı ya da hizmet adıyla arayın; kategori, şehir ve ilçe filtreleriyle daraltın.
             </p>
@@ -187,7 +219,7 @@ export default function FirmsPage() {
           >
             <option value="">Tüm ilçeler</option>
             {city?.districts.map((d) => (
-              <option key={d} value={d.toLowerCase()}>
+              <option key={d} value={slugify(d)}>
                 {d} ({districtCounts.get(d) ?? 0})
               </option>
             ))}

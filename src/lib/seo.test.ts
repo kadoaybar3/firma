@@ -1,11 +1,12 @@
-import { describe, expect, it } from "vitest";
-import { serializeJsonLd } from "../components/SEO";
+import { afterAll, beforeAll, describe, expect, it } from "vitest";
 import {
+  buildListBreadcrumbJsonLd,
   buildLocalBusinessJsonLd,
   businessSchemaType,
   openingHoursSpecs,
   parseTimeRange,
   safeExternalUrl,
+  serializeJsonLd,
 } from "./seo";
 import type { Company } from "./types";
 
@@ -127,5 +128,63 @@ describe("buildLocalBusinessJsonLd", () => {
     const noDesc = { ...base, description: "   " };
     const ld = buildLocalBusinessJsonLd({ company: noDesc, pageUrl: "https://x" });
     expect(ld).not.toHaveProperty("description");
+  });
+});
+
+type Crumb = { "@type": string; position: number; name: string; item?: string };
+
+function crumbs(node: Record<string, unknown>): Crumb[] {
+  return node.itemListElement as Crumb[];
+}
+
+describe("buildListBreadcrumbJsonLd", () => {
+  const prevLocation = globalThis.location;
+
+  beforeAll(() => {
+    // Node test ortamında location yok; mutlak URL üretimi için kök adres tanımla.
+    globalThis.location = { origin: "https://firma5.netlify.app" } as Location;
+  });
+
+  afterAll(() => {
+    if (prevLocation) globalThis.location = prevLocation;
+    else delete (globalThis as { location?: Location }).location;
+  });
+
+  it("/firmalar: Ana Sayfa → Firmalar", () => {
+    expect(crumbs(buildListBreadcrumbJsonLd({ kind: "firmalar" }))).toEqual([
+      { "@type": "ListItem", position: 1, name: "Ana Sayfa", item: "https://firma5.netlify.app/" },
+      { "@type": "ListItem", position: 2, name: "Firmalar", item: "https://firma5.netlify.app/firmalar" },
+    ]);
+  });
+
+  it("/kategori/:catSlug: Ana Sayfa → Kategoriler → Kategori adı", () => {
+    const c = crumbs(buildListBreadcrumbJsonLd({ kind: "kategori", name: "Kuyumculuk", slug: "kuyumculuk" }));
+    expect(c.map((x) => x.name)).toEqual(["Ana Sayfa", "Kategoriler", "Kuyumculuk"]);
+    expect(c[1].item).toBeUndefined(); // /kategori indeks rotası yok — 404'e bağlanmaz
+    expect(c[2].item).toBe("https://firma5.netlify.app/kategori/kuyumculuk");
+    expect(c.map((x) => x.position)).toEqual([1, 2, 3]);
+  });
+
+  it("/sehir/:citySlug: Ana Sayfa → Şehir adı", () => {
+    const c = crumbs(buildListBreadcrumbJsonLd({ kind: "sehir", name: "Afyonkarahisar", slug: "afyonkarahisar" }));
+    expect(c.map((x) => x.name)).toEqual(["Ana Sayfa", "Afyonkarahisar"]);
+    expect(c[1].item).toBe("https://firma5.netlify.app/sehir/afyonkarahisar");
+  });
+
+  it("/sehir/:citySlug/:district: Ana Sayfa → Şehir → İlçe, slug slugify ile", () => {
+    const c = crumbs(
+      buildListBreadcrumbJsonLd({ kind: "ilce", cityName: "Afyonkarahisar", citySlug: "afyonkarahisar", districtName: "İhsaniye" }),
+    );
+    expect(c.map((x) => x.name)).toEqual(["Ana Sayfa", "Afyonkarahisar", "İhsaniye"]);
+    expect(c[1].item).toBe("https://firma5.netlify.app/sehir/afyonkarahisar");
+    expect(c[2].item).toBe("https://firma5.netlify.app/sehir/afyonkarahisar/ihsaniye");
+  });
+
+  it("son öğe her zaman mevcut sayfanın URL'sidir; ikinci BreadcrumbList üretilmez", () => {
+    const one = buildListBreadcrumbJsonLd({ kind: "firmalar" });
+    expect(one["@type"]).toBe("BreadcrumbList");
+    expect(one["@context"]).toBe("https://schema.org");
+    // Tek düğüm döner — çağıran FirmsPage tek jsonLd array'i olarak basar
+    expect(Array.isArray(one.itemListElement)).toBe(true);
   });
 });

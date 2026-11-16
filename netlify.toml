@@ -23,6 +23,10 @@
 #   SUPABASE_URL              → (sunucu tarafı) Netlify Function'ların Supabase adresi
 #   SUPABASE_SERVICE_ROLE_KEY → (sunucu tarafı, YALNIZCA Netlify Function ortamı)
 #                               Personel hesabı oluşturma; istemciye/VITE_ değişkenine ASLA girmez
+#   NETLIFY_BUILD_HOOK_URL    → (sunucu tarafı, YALNIZCA Netlify Function ortamı)
+#                               Netlify Build Hook URL'si — /api/seo-rebuild
+#                               (seo-rebuild.mts) yayınlama sonrası yeniden build
+#                               tetikler; istemciye/VITE_ değişkenine ASLA girmez
 #
 # NOT: service_role anahtarı tarayıcı paketine girmez; yalnız Netlify Function
 # ortamında tanımlanır ve erişim istemcide RLS arkasındadır.
