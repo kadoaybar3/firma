@@ -17,6 +17,7 @@
 
 import type { Category, City, Company, CompanyHours } from "./types";
 import { slugify } from "./slug";
+import { seoPath } from "./seo";
 import {
   buildFirmDetailSeo,
   buildHomeSeo,
@@ -247,7 +248,8 @@ export function renderSitemapXml(siteUrl: string, pages: Array<{ route: string }
       '<?xml version="1.0" encoding="UTF-8"?>',
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
       ...pages.map(({ route }) =>
-        ["  <url>", `    <loc>${siteUrl}${route}</loc>`, "  </url>"].join("\n"),
+        // route dosya yolu olarak slashless kalır; yalnız URL metni seoPath'e girer.
+        ["  <url>", `    <loc>${siteUrl}${seoPath(route)}</loc>`, "  </url>"].join("\n"),
       ),
       "</urlset>",
     ].join("\n") + "\n"

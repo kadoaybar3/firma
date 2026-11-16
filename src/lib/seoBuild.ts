@@ -20,6 +20,7 @@ import {
   buildBreadcrumbJsonLd,
   buildListBreadcrumbJsonLd,
   buildLocalBusinessJsonLd,
+  seoPath,
 } from "./seo";
 import type { ListBreadcrumbPage } from "./seo";
 
@@ -75,7 +76,7 @@ export function buildListPageSeo(siteUrl: string, page: ListBreadcrumbPage): Pag
   return {
     title: `${base} | Firma Rehberi`,
     description: `${base} — telefon, adres, çalışma saatleri ve yol tarifi bilgileriyle.`,
-    canonicalPath: listPath(page),
+    canonicalPath: seoPath(listPath(page)),
     jsonLd: [buildListBreadcrumbJsonLd(page, origin(siteUrl))],
   };
 }
@@ -102,7 +103,8 @@ export function buildFirmDetailSeo(
   }
 
   const root = origin(siteUrl);
-  const canonicalPath = `/firma/${company.slug}`;
+  // Faz 4E-2: canonical + ondan üretilen pageUrl/breadcrumb hep seoPath'te.
+  const canonicalPath = seoPath(`/firma/${company.slug}`);
   const locationText = city ? `${city.name} / ${company.district}` : company.district;
 
   return {
@@ -177,5 +179,5 @@ const STATIC_PAGES: Record<string, { title: string; description?: string }> = {
 export function buildStaticPageSeo(path: string): PageSeo | null {
   const text = STATIC_PAGES[path];
   if (!text) return null;
-  return { ...text, canonicalPath: path, jsonLd: [] };
+  return { ...text, canonicalPath: seoPath(path), jsonLd: [] };
 }

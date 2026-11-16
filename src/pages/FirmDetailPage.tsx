@@ -29,6 +29,7 @@ import {
   buildBreadcrumbJsonLd,
   buildLocalBusinessJsonLd,
   locationOriginSafe,
+  seoPath,
 } from "../lib/seo";
 
 /*
@@ -57,7 +58,8 @@ export default function FirmDetailPage() {
   // durumları arasında hook sayısı sabit kalır (rotalar arası geçişte crash olmaz).
   const category = company ? listCategories().find((c) => c.id === company.categoryId) : undefined;
   const city = company ? getCityById(company.cityId) : undefined;
-  const canonicalPath = company ? `/firma/${company.slug}` : "";
+  // Faz 4E-2: canonical + pageUrl + breadcrumb son öğesi tek seoPath kaynağında.
+  const canonicalPath = company ? seoPath(`/firma/${company.slug}`) : "";
   const pageUrl = canonicalPath ? `${locationOriginSafe()}${canonicalPath}` : "";
 
   // JSON-LD düğümleri: yalnızca doğrulanmış veri; girdi değişmedikçe yeniden üretme

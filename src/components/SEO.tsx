@@ -36,7 +36,10 @@ function absoluteUrl(path?: string): string | null {
   if (!clean) return null;
   try {
     const u = new URL(clean, location.origin);
-    return u.origin === location.origin ? u.href : null;
+    if (u.origin !== location.origin) return null;
+    // Faz 4E-2: kök hariç URL'ler tek trailing slash ile biter — prerendered
+    // head ile hydration sonraki head aynı canonical'ı yazsın.
+    return u.pathname.endsWith("/") ? u.href : `${u.origin}${u.pathname}/`;
   } catch {
     return null;
   }

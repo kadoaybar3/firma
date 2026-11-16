@@ -7,6 +7,7 @@ import {
   parseTimeRange,
   safeExternalUrl,
   serializeJsonLd,
+  seoPath,
 } from "./seo";
 import type { Company } from "./types";
 
@@ -153,7 +154,7 @@ describe("buildListBreadcrumbJsonLd", () => {
   it("/firmalar: Ana Sayfa → Firmalar", () => {
     expect(crumbs(buildListBreadcrumbJsonLd({ kind: "firmalar" }))).toEqual([
       { "@type": "ListItem", position: 1, name: "Ana Sayfa", item: "https://firma5.netlify.app/" },
-      { "@type": "ListItem", position: 2, name: "Firmalar", item: "https://firma5.netlify.app/firmalar" },
+      { "@type": "ListItem", position: 2, name: "Firmalar", item: "https://firma5.netlify.app/firmalar/" },
     ]);
   });
 
@@ -161,14 +162,14 @@ describe("buildListBreadcrumbJsonLd", () => {
     const c = crumbs(buildListBreadcrumbJsonLd({ kind: "kategori", name: "Kuyumculuk", slug: "kuyumculuk" }));
     expect(c.map((x) => x.name)).toEqual(["Ana Sayfa", "Kategoriler", "Kuyumculuk"]);
     expect(c[1].item).toBeUndefined(); // /kategori indeks rotası yok — 404'e bağlanmaz
-    expect(c[2].item).toBe("https://firma5.netlify.app/kategori/kuyumculuk");
+    expect(c[2].item).toBe("https://firma5.netlify.app/kategori/kuyumculuk/");
     expect(c.map((x) => x.position)).toEqual([1, 2, 3]);
   });
 
   it("/sehir/:citySlug: Ana Sayfa → Şehir adı", () => {
     const c = crumbs(buildListBreadcrumbJsonLd({ kind: "sehir", name: "Afyonkarahisar", slug: "afyonkarahisar" }));
     expect(c.map((x) => x.name)).toEqual(["Ana Sayfa", "Afyonkarahisar"]);
-    expect(c[1].item).toBe("https://firma5.netlify.app/sehir/afyonkarahisar");
+    expect(c[1].item).toBe("https://firma5.netlify.app/sehir/afyonkarahisar/");
   });
 
   it("/sehir/:citySlug/:district: Ana Sayfa → Şehir → İlçe, slug slugify ile", () => {
@@ -176,8 +177,8 @@ describe("buildListBreadcrumbJsonLd", () => {
       buildListBreadcrumbJsonLd({ kind: "ilce", cityName: "Afyonkarahisar", citySlug: "afyonkarahisar", districtName: "İhsaniye" }),
     );
     expect(c.map((x) => x.name)).toEqual(["Ana Sayfa", "Afyonkarahisar", "İhsaniye"]);
-    expect(c[1].item).toBe("https://firma5.netlify.app/sehir/afyonkarahisar");
-    expect(c[2].item).toBe("https://firma5.netlify.app/sehir/afyonkarahisar/ihsaniye");
+    expect(c[1].item).toBe("https://firma5.netlify.app/sehir/afyonkarahisar/");
+    expect(c[2].item).toBe("https://firma5.netlify.app/sehir/afyonkarahisar/ihsaniye/");
   });
 
   it("son öğe her zaman mevcut sayfanın URL'sidir; ikinci BreadcrumbList üretilmez", () => {
@@ -186,5 +187,30 @@ describe("buildListBreadcrumbJsonLd", () => {
     expect(one["@context"]).toBe("https://schema.org");
     // Tek düğüm döner — çağıran FirmsPage tek jsonLd array'i olarak basar
     expect(Array.isArray(one.itemListElement)).toBe(true);
+  });
+});
+
+describe("seoPath (Faz 4E-2 trailing-slash standardı)", () => {
+  it("kök adres aynen kalır (çift slash olmaz)", () => {
+    expect(seoPath("/")).toBe("/");
+  });
+
+  it("slash'sız adrese tek trailing slash ekler", () => {
+    expect(seoPath("/firma/x")).toBe("/firma/x/");
+    expect(seoPath("/sehir/afyonkarahisar/ihsaniye")).toBe("/sehir/afyonkarahisar/ihsaniye/");
+  });
+
+  it("zaten slash'lı adres değişmez", () => {
+    expect(seoPath("/firma/x/")).toBe("/firma/x/");
+  });
+
+  it("birden fazla sondaki slash tek slash'a iner", () => {
+    expect(seoPath("/firma/x///")).toBe("/firma/x/");
+    expect(seoPath("//")).toBe("/");
+  });
+
+  it("iddempotenttir: iki kez uygulamak aynı sonucu verir", () => {
+    expect(seoPath(seoPath("/firma/x"))).toBe("/firma/x/");
+    expect(seoPath(seoPath("/"))).toBe("/");
   });
 });

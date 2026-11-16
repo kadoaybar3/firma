@@ -32,11 +32,11 @@ describe("buildListPageSeo", () => {
     expect(seo.description).toBe(
       "Tüm Firmalar — telefon, adres, çalışma saatleri ve yol tarifi bilgileriyle.",
     );
-    expect(seo.canonicalPath).toBe("/firmalar");
+    expect(seo.canonicalPath).toBe("/firmalar/");
     expect(seo.noindex).toBeUndefined();
     expect(crumbs(seo)).toEqual([
       { "@type": "ListItem", position: 1, name: "Ana Sayfa", item: `${SITE}/` },
-      { "@type": "ListItem", position: 2, name: "Firmalar", item: `${SITE}/firmalar` },
+      { "@type": "ListItem", position: 2, name: "Firmalar", item: `${SITE}/firmalar/` },
     ]);
   });
 
@@ -46,20 +46,20 @@ describe("buildListPageSeo", () => {
     expect(seo.description).toBe(
       "Kuyumculuk — Firmalar — telefon, adres, çalışma saatleri ve yol tarifi bilgileriyle.",
     );
-    expect(seo.canonicalPath).toBe("/kategori/kuyumculuk");
+    expect(seo.canonicalPath).toBe("/kategori/kuyumculuk/");
     const c = crumbs(seo);
     expect(c.map((x) => x.name)).toEqual(["Ana Sayfa", "Kategoriler", "Kuyumculuk"]);
     expect(c[1].item).toBeUndefined(); // /kategori indeks rotası yok — 404'e bağlanmaz
-    expect(c[2].item).toBe(`${SITE}/kategori/kuyumculuk`);
+    expect(c[2].item).toBe(`${SITE}/kategori/kuyumculuk/`);
   });
 
   it("/sehir/:citySlug: şehir adı", () => {
     const seo = buildListPageSeo(SITE, { kind: "sehir", name: "Afyonkarahisar", slug: "afyonkarahisar" });
     expect(seo.title).toBe("Afyonkarahisar Firmaları | Firma Rehberi");
-    expect(seo.canonicalPath).toBe("/sehir/afyonkarahisar");
+    expect(seo.canonicalPath).toBe("/sehir/afyonkarahisar/");
     const c = crumbs(seo);
     expect(c.map((x) => x.name)).toEqual(["Ana Sayfa", "Afyonkarahisar"]);
-    expect(c[1].item).toBe(`${SITE}/sehir/afyonkarahisar`);
+    expect(c[1].item).toBe(`${SITE}/sehir/afyonkarahisar/`);
   });
 
   it("/sehir/:citySlug/:district: slug slugify ile (İhsaniye → ihsaniye)", () => {
@@ -70,17 +70,17 @@ describe("buildListPageSeo", () => {
       districtName: "İhsaniye",
     });
     expect(seo.title).toBe("Afyonkarahisar / İhsaniye Firmaları | Firma Rehberi");
-    expect(seo.canonicalPath).toBe("/sehir/afyonkarahisar/ihsaniye");
+    expect(seo.canonicalPath).toBe("/sehir/afyonkarahisar/ihsaniye/");
     const c = crumbs(seo);
     expect(c.map((x) => x.name)).toEqual(["Ana Sayfa", "Afyonkarahisar", "İhsaniye"]);
-    expect(c[2].item).toBe(`${SITE}/sehir/afyonkarahisar/ihsaniye`);
+    expect(c[2].item).toBe(`${SITE}/sehir/afyonkarahisar/ihsaniye/`);
     // sahte origin asla sızmamalı — mutlak URL'ler yalnız siteUrl'den
     expect(JSON.stringify(seo)).not.toContain("yanlis-ornek.invalid");
   });
 
   it("siteUrl sondaki eğik çizgi normalize edilir (çift slash olmaz)", () => {
     const seo = buildListPageSeo(`${SITE}/`, { kind: "firmalar" });
-    expect(crumbs(seo)[1].item).toBe(`${SITE}/firmalar`);
+    expect(crumbs(seo)[1].item).toBe(`${SITE}/firmalar/`);
   });
 });
 
@@ -112,7 +112,7 @@ describe("buildFirmDetailSeo", () => {
     const seo = buildFirmDetailSeo(SITE, { company: base, category, city });
     expect(seo.title).toBe("Örnek Firma | Firma Rehberi");
     expect(seo.description).toBe("Örnek Firma — Kuyumculuk, Afyonkarahisar / Merkez. Telefon: 0272 000 00 00");
-    expect(seo.canonicalPath).toBe("/firma/ornek-firma");
+    expect(seo.canonicalPath).toBe("/firma/ornek-firma/");
     expect(seo.noindex).toBeUndefined();
   });
 
@@ -145,15 +145,15 @@ describe("buildFirmDetailSeo", () => {
 
     const local = seo.jsonLd[0] as Record<string, unknown>;
     expect(local["@type"]).toBeTruthy();
-    expect(local.url).toBe(`${SITE}/firma/ornek-firma`);
+    expect(local.url).toBe(`${SITE}/firma/ornek-firma/`);
 
     const c = crumbs(seo, 1);
     expect(c.map((x) => x.name)).toEqual(["Ana sayfa", "Afyonkarahisar", "Kuyumculuk", "Örnek Firma"]);
     expect(c.map((x) => x.item)).toEqual([
       `${SITE}/`,
-      `${SITE}/sehir/afyonkarahisar`,
-      `${SITE}/kategori/kuyumculuk`,
-      `${SITE}/firma/ornek-firma`,
+      `${SITE}/sehir/afyonkarahisar/`,
+      `${SITE}/kategori/kuyumculuk/`,
+      `${SITE}/firma/ornek-firma/`,
     ]);
   });
 
@@ -171,22 +171,22 @@ describe("buildStaticPageSeo", () => {
     expect(buildStaticPageSeo("/iletisim")).toEqual({
       title: "İletişim | Firma Rehberi",
       description: "Firmanızı rehbere ekletmek veya destek için bize ulaşın.",
-      canonicalPath: "/iletisim",
+      canonicalPath: "/iletisim/",
       jsonLd: [],
     });
     expect(buildStaticPageSeo("/hakkimizda")).toEqual({
       title: "Hakkımızda | Firma Rehberi",
-      canonicalPath: "/hakkimizda",
+      canonicalPath: "/hakkimizda/",
       jsonLd: [],
     });
     expect(buildStaticPageSeo("/kvkk")).toEqual({
       title: "KVKK Aydınlatma Metni | Firma Rehberi",
-      canonicalPath: "/kvkk",
+      canonicalPath: "/kvkk/",
       jsonLd: [],
     });
     expect(buildStaticPageSeo("/kullanim-kosullari")).toEqual({
       title: "Kullanım Koşulları | Firma Rehberi",
-      canonicalPath: "/kullanim-kosullari",
+      canonicalPath: "/kullanim-kosullari/",
       jsonLd: [],
     });
   });
@@ -225,7 +225,7 @@ describe("DOM'suz ortam", () => {
     // Bu describe boyunca location TANIMLI DEĞİL — çıktılar yine de siteUrl
     // parametresiyle mutlak üretiliyorsa katman bağımsızdır.
     const seo = buildListPageSeo(SITE, { kind: "firmalar" });
-    expect(crumbs(seo)[1].item).toBe(`${SITE}/firmalar`);
+    expect(crumbs(seo)[1].item).toBe(`${SITE}/firmalar/`);
     expect(typeof document).toBe("undefined");
     expect(typeof window).toBe("undefined");
   });

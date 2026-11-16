@@ -118,7 +118,19 @@ export function serializeJsonLd(value: unknown): string {
     .replace(/\u2029/g, "\\u2029");
 }
 
-/** Sayfa yol kırıntısı için BreadcrumbList JSON-LD. */
+/**
+ * SEO URL standardi (Faz 4E-2): kök `/` hariç tüm sayfa URL'leri tek
+ * trailing slash ile biter. Netlify Pretty URLs sayfaları `/` sonuna
+ * yönlendirir; sitemap, canonical, og:url ve JSON-LD aynı formu kullanır.
+ * İdempotenttir (`seoPath(seoPath(x)) === seoPath(x)`).
+ * UYARI: Dosya yolu/route üretiminde kullanılmaz — yalnız URL metinleri.
+ */
+export function seoPath(path: string): string {
+  const stripped = path.replace(/\/+$/, "");
+  return stripped === "" ? "/" : `${stripped}/`;
+}
+
+/** Sayfa yol kırıntısı için BreadcrumbList JSON-LD (URL'ler seoPath standardında). */
 export function buildBreadcrumbJsonLd(
   items: Array<{ name: string; path?: string }>,
   origin: string = locationOriginSafe(),
@@ -130,7 +142,7 @@ export function buildBreadcrumbJsonLd(
       "@type": "ListItem",
       position: i + 1,
       name: item.name,
-      ...(item.path ? { item: `${origin}${item.path}` } : {}),
+      ...(item.path ? { item: `${origin}${seoPath(item.path)}` } : {}),
     })),
   };
 }

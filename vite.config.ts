@@ -3,7 +3,7 @@ import { writeFileSync, mkdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
-import { serializeJsonLd } from "./src/lib/seo";
+import { seoPath, serializeJsonLd } from "./src/lib/seo";
 import { fetchSeoData, buildSitemapPages, renderSitemapXml } from "./src/lib/seoFetch";
 import type { PageSeo } from "./src/lib/seoBuild";
 
@@ -42,7 +42,10 @@ function injectSeoHead(template: string, seo: PageSeo, siteUrl: string): string 
     );
   }
 
-  const canonical = seo.canonicalPath && !seo.noindex ? `${siteUrl}${seo.canonicalPath}` : null;
+  // seoPath idempotent: seoBuild zaten normalize etti; buradaki tek nokta,
+  // gelecekteki yeni üreticilerin de standarda uymasını garantiler (Faz 4E-2).
+  const canonical =
+    seo.canonicalPath && !seo.noindex ? `${siteUrl}${seoPath(seo.canonicalPath)}` : null;
   const tags: string[] = [];
   if (canonical) {
     tags.push(`<link rel="canonical" href="${escapeHtml(canonical)}" data-seo="1" />`);
@@ -86,6 +89,12 @@ function assertSeoHtml(html: string, route: string, seo: PageSeo): void {
   if (count(/name="description"/g) !== 1) fail("tek meta description bekleniyordu");
   const wantCanonical = seo.canonicalPath && !seo.noindex ? 1 : 0;
   if (count(/rel="canonical"/g) !== wantCanonical) fail("canonical sayısı tutmuyor");
+  // Faz 4E-2 invariant: kök hariç canonical URL '/' ile biter — bir üretici
+  // seoPath'i atlarsa build burada durur, standartsız URL yayına girmez.
+  if (wantCanonical === 1) {
+    const href = html.match(/<link rel="canonical" href="([^"]*)"/)?.[1];
+    if (!href || !href.endsWith("/")) fail("canonical kök hariç '/' ile bitmeli (Faz 4E-2)");
+  }
   if (count(/application\/ld\+json/g) !== seo.jsonLd.length) fail("JSON-LD sayısı tutmuyor");
   if (!html.includes('<div id="root"></div>')) fail("#root boş kalmalı");
 

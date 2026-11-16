@@ -6,6 +6,7 @@
 import { describe, expect, it } from "vitest";
 import { buildSitemapPages, fetchSeoData, renderSitemapXml } from "./seoFetch";
 import type { SeoSupabaseData } from "./seoFetch";
+import { seoPath } from "./seo";
 import type { Company } from "./types";
 
 const BASE = "https://project.supabase.test";
@@ -225,7 +226,10 @@ describe("buildSitemapPages", () => {
     const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
     // Sitemap loc sayısı === prerender dosya sayısı (tek kaynak)
     expect(locs).toHaveLength(pages.length);
-    expect(locs).toEqual(pages.map((p) => `${SITE}${p.route}`));
+    // Faz 4E-2: route dosya yolu slashless kalır, <loc> her zaman seoPath'te
+    expect(locs).toEqual(pages.map((p) => `${SITE}${seoPath(p.route)}`));
+    // kök dahil tüm loc'lar trailing slash standardında
+    locs.forEach((loc) => expect(loc.endsWith("/")).toBe(true));
     // XML biçimi korunur
     expect(xml.startsWith('<?xml version="1.0" encoding="UTF-8"?>')).toBe(true);
     expect(xml.endsWith("\n")).toBe(true);
