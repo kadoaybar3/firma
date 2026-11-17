@@ -109,7 +109,7 @@ export function useSEO(options: SeoOptions): void {
     if (noindex) {
       const meta = document.createElement("meta");
       meta.setAttribute("name", "robots");
-      meta.setAttribute("content", "noindex");
+      meta.setAttribute("content", "noindex,follow");
       meta.setAttribute("data-seo", "1");
       document.head.appendChild(meta);
     }

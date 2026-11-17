@@ -23,6 +23,7 @@ import {
   buildHomeSeo,
   buildListPageSeo,
   buildStaticPageSeo,
+  categoryHasPublishedFirms,
 } from "./seoBuild";
 import type { PageSeo } from "./seoBuild";
 
@@ -195,13 +196,19 @@ export function buildSitemapPages(
   }
 
   for (const category of data.categories) {
+    const seo = buildListPageSeo(siteUrl, {
+      kind: "kategori",
+      name: category.name,
+      slug: category.slug,
+    });
+    // Faz 1: yayın firması olmayan kategori noindex — ama rota listede KALIR
+    // (prerender dosyası üretilir, sayfa site içinden erişilebilir). Sitemap
+    // üyeliği indexablePages() ile aynı seo.noindex kararından türetilir.
     pages.push({
       route: `/kategori/${category.slug}`,
-      seo: buildListPageSeo(siteUrl, {
-        kind: "kategori",
-        name: category.name,
-        slug: category.slug,
-      }),
+      seo: categoryHasPublishedFirms(data.companies, category.id)
+        ? seo
+        : { ...seo, noindex: true },
     });
   }
 
@@ -241,13 +248,23 @@ export function buildSitemapPages(
   return pages;
 }
 
+/** Sitemap'e giren sayfalar: noindex OLMAYAN subset (Faz 1) — TEK karar noktası. */
+export function indexablePages(
+  pages: ReadonlyArray<{ route: string; seo: PageSeo }>,
+): Array<{ route: string; seo: PageSeo }> {
+  return pages.filter(({ seo }) => !seo.noindex);
+}
+
 /** Aynı { route, seo } listesinden sitemap XML üretir (biçim 4B-3 ile aynı). */
-export function renderSitemapXml(siteUrl: string, pages: Array<{ route: string }>): string {
+export function renderSitemapXml(
+  siteUrl: string,
+  pages: ReadonlyArray<{ route: string; seo: PageSeo }>,
+): string {
   return (
     [
       '<?xml version="1.0" encoding="UTF-8"?>',
       '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-      ...pages.map(({ route }) =>
+      ...indexablePages(pages).map(({ route }) =>
         // route dosya yolu olarak slashless kalır; yalnız URL metni seoPath'e girer.
         ["  <url>", `    <loc>${siteUrl}${seoPath(route)}</loc>`, "  </url>"].join("\n"),
       ),

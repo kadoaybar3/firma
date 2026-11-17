@@ -1,5 +1,11 @@
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { buildFirmDetailSeo, buildHomeSeo, buildListPageSeo, buildStaticPageSeo } from "./seoBuild";
+import {
+  buildFirmDetailSeo,
+  buildHomeSeo,
+  buildListPageSeo,
+  buildStaticPageSeo,
+  categoryHasPublishedFirms,
+} from "./seoBuild";
 import type { PageSeo } from "./seoBuild";
 import type { Company } from "./types";
 
@@ -228,5 +234,26 @@ describe("DOM'suz ortam", () => {
     expect(crumbs(seo)[1].item).toBe(`${SITE}/firmalar/`);
     expect(typeof document).toBe("undefined");
     expect(typeof window).toBe("undefined");
+  });
+});
+
+describe("categoryHasPublishedFirms (Faz 1)", () => {
+  it("yalnız yayın=true firmayı sayar; başka kategori sayılmaz", () => {
+    expect(categoryHasPublishedFirms([], "cat-1")).toBe(false);
+    expect(categoryHasPublishedFirms([{ published: false, categoryId: "cat-1" }], "cat-1")).toBe(false);
+    expect(categoryHasPublishedFirms([{ published: true, categoryId: "cat-1" }], "cat-1")).toBe(true);
+    // Yayınlanmamış firma + başka kategori → yine false
+    expect(categoryHasPublishedFirms([{ published: false, categoryId: "cat-2" }], "cat-1")).toBe(false);
+    expect(categoryHasPublishedFirms([{ published: true, categoryId: "cat-2" }], "cat-1")).toBe(false);
+    // Karışık liste: tek yayın yeterli
+    expect(
+      categoryHasPublishedFirms(
+        [
+          { published: false, categoryId: "cat-1" },
+          { published: true, categoryId: "cat-1" },
+        ],
+        "cat-1",
+      ),
+    ).toBe(true);
   });
 });

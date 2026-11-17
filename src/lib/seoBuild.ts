@@ -38,6 +38,19 @@ function origin(siteUrl: string): string {
   return siteUrl.replace(/\/+$/, "");
 }
 
+/**
+ * Kategori indeks kuralı (Faz 1): yalnız YAYINDA olan firmalar sayılır.
+ * Sitemap üyeliği (seoFetch → seo.noindex) ve sayfa robots meta'sı
+ * (FirmsPage → <SEO noindex>) bu TEK kuraldan türetilir; iki katman
+ * asla ayrı karar veremez.
+ */
+export function categoryHasPublishedFirms(
+  companies: ReadonlyArray<Pick<Company, "published" | "categoryId">>,
+  categoryId: string,
+): boolean {
+  return companies.some((c) => c.published && c.categoryId === categoryId);
+}
+
 /** Liste sayfası başlık kalıbı — FirmsPage ile birebir aynı. */
 function listTitleBase(page: ListBreadcrumbPage): string {
   switch (page.kind) {

@@ -4,7 +4,7 @@
  */
 
 import { describe, expect, it } from "vitest";
-import { buildSitemapPages, fetchSeoData, renderSitemapXml } from "./seoFetch";
+import { buildSitemapPages, fetchSeoData, indexablePages, renderSitemapXml } from "./seoFetch";
 import type { SeoSupabaseData } from "./seoFetch";
 import { seoPath } from "./seo";
 import type { Company } from "./types";
@@ -243,5 +243,66 @@ describe("buildSitemapPages", () => {
     expect(routes).toHaveLength(6);
     expect(routes).toContain("/");
     expect(routes).not.toContain("/firma/oz-miras-kuyumculuk");
+  });
+});
+
+describe("Faz 1: boş kategori noindex kuralı", () => {
+  const EMPTY_CAT = { id: "cat-2", name: "Boş Kategori", slug: "bos-kategori", icon: "🏢" };
+
+  it("yayında firması olmayan kategori noindex olur ama rota listede kalır", () => {
+    // makeData(): cat-1'de yayın firması var → indexable; cat-2 boş → noindex.
+    const pages = buildSitemapPages(SITE, makeData({ categories: [CATEGORY, EMPTY_CAT] }));
+    const empty = pages.find((p) => p.route === "/kategori/bos-kategori");
+    expect(empty).toBeDefined();
+    expect(empty?.seo.noindex).toBe(true);
+    // Dolu kategori etkilenmez
+    expect(pages.find((p) => p.route === "/kategori/kuyumculuk")?.seo.noindex).toBeFalsy();
+  });
+
+  it("noindex kategori sitemap'ten çıkar; prerender listesi aynı kalır", () => {
+    const pages = buildSitemapPages(SITE, makeData({ categories: [CATEGORY, EMPTY_CAT] }));
+    const xml = renderSitemapXml(SITE, pages);
+    const locs = [...xml.matchAll(/<loc>([^<]+)<\/loc>/g)].map((m) => m[1]);
+    // Sitemap = indexable subset: bos-kategori yok, kuyumculuk var
+    expect(locs.some((l) => l.includes("/kategori/bos-kategori"))).toBe(false);
+    expect(locs.some((l) => l.includes("/kategori/kuyumculuk"))).toBe(true);
+    expect(locs).toHaveLength(indexablePages(pages).length);
+    // Prerender listesi (pages) dosya üretmeye devam eder — rota silinmedi
+    expect(pages.map((p) => p.route)).toContain("/kategori/bos-kategori");
+  });
+
+  it("sadece kategori sayfaları noindex olur; firma/şehir/sabit sayfalar etkilenmez", () => {
+    const pages = buildSitemapPages(SITE, makeData({ categories: [CATEGORY, EMPTY_CAT] }));
+    const noindexRoutes = pages.filter((p) => p.seo.noindex).map((p) => p.route);
+    expect(noindexRoutes).toEqual(["/kategori/bos-kategori"]);
+    for (const route of [
+      "/",
+      "/firmalar",
+      "/firma/oz-miras-kuyumculuk",
+      "/sehir/afyonkarahisar",
+      "/sehir/afyonkarahisar/emirdag",
+      "/iletisim",
+      "/kategori/kuyumculuk",
+    ]) {
+      expect(pages.find((p) => p.route === route)?.seo.noindex).toBeFalsy();
+    }
+  });
+
+  it("kategoride yalnız yayınlanmamış firma varsa da noindex (sadece published sayılır)", () => {
+    const data = makeData();
+    data.companies = data.companies.map((c) => ({ ...c, published: false }));
+    const pages = buildSitemapPages(SITE, data);
+    expect(pages.find((p) => p.route === "/kategori/kuyumculuk")?.seo.noindex).toBe(true);
+    // Firma rotası zaten üretilmiyor (çift published filtresi korunur)
+    expect(pages.map((p) => p.route)).not.toContain("/firma/oz-miras-kuyumculuk");
+  });
+
+  it("firma eklenince kategori otomatik indexable olur (firma published=true)", () => {
+    // Boş → dolu geçiş: aynı kural, ters sonuç — 4F build hook'u bu durumda
+    // yeniden build tetikler; burada kuralın tersine döndüğünü kanıtlar.
+    const empty = buildSitemapPages(SITE, makeData({ companies: [], categories: [CATEGORY] }));
+    expect(empty.find((p) => p.route === "/kategori/kuyumculuk")?.seo.noindex).toBe(true);
+    const filled = buildSitemapPages(SITE, makeData({ categories: [CATEGORY] }));
+    expect(filled.find((p) => p.route === "/kategori/kuyumculuk")?.seo.noindex).toBeFalsy();
   });
 });

@@ -9,6 +9,7 @@ import { districtCountsByCity, getCityBySlug, listCategories, listCities, listCo
 import { slugProblem, slugProblemMessage } from "../lib/slugProblem";
 import { slugify } from "../lib/slug";
 import { buildListBreadcrumbJsonLd } from "../lib/seo";
+import { categoryHasPublishedFirms } from "../lib/seoBuild";
 import type { Category } from "../lib/types";
 
 /**
@@ -136,6 +137,17 @@ export default function FirmsPage() {
         ? `${city.name} Firmaları`
         : "Tüm Firmalar";
 
+  /*
+   * Faz 1: yalnız YOL parametresiyle açılan kategori sayfası
+   * (/kategori/:catSlug) yayın firması yoksa noindex,follow — sitemap'teki
+   * seo.noindex kararıyla AYNI kural (categoryHasPublishedFirms). Sorgulu
+   * /firmalar/?kategori=… kapsam dışı: canonical /firmalar/ zaten indeksli.
+   */
+  const categoryNoindex =
+    !!params.catSlug &&
+    !!selectedCategory &&
+    !categoryHasPublishedFirms(listCompanies(), selectedCategory.id);
+
   function updateParam(kind: "kategori" | "sehir" | "ilce", value: string) {
     const next = new URLSearchParams(searchParams);
     if (value) next.set(kind, kind === "ilce" ? value.toLowerCase() : value);
@@ -148,6 +160,7 @@ export default function FirmsPage() {
     <SEO
       title={`${title} | Firma Rehberi`}
       description={`${title} — telefon, adres, çalışma saatleri ve yol tarifi bilgileriyle.`}
+      noindex={categoryNoindex}
       jsonLd={breadcrumbJsonLd}
     >
       {/* Yol kırıntısı */}

@@ -4,7 +4,7 @@ import { dirname, join } from "node:path";
 import { defineConfig, loadEnv, type Plugin } from "vite";
 import react from "@vitejs/plugin-react";
 import { seoPath, serializeJsonLd } from "./src/lib/seo";
-import { fetchSeoData, buildSitemapPages, renderSitemapXml } from "./src/lib/seoFetch";
+import { fetchSeoData, buildSitemapPages, renderSitemapXml, indexablePages } from "./src/lib/seoFetch";
 import type { PageSeo } from "./src/lib/seoBuild";
 
 /** HTML metin/özellik kaçışı — JSON-LD serializeJsonLd ile ayrıdır (çift kaçış olmasın). */
@@ -66,7 +66,7 @@ function injectSeoHead(template: string, seo: PageSeo, siteUrl: string): string 
     tags.push(`<meta name="twitter:description" content="${escapeHtml(description)}" data-seo="1" />`);
   }
   if (seo.noindex) {
-    tags.push(`<meta name="robots" content="noindex" data-seo="1" />`);
+    tags.push(`<meta name="robots" content="noindex,follow" data-seo="1" />`);
   }
   for (const node of seo.jsonLd) {
     tags.push(`<script type="application/ld+json" data-seo="1">${serializeJsonLd(node)}</script>`);
@@ -89,6 +89,14 @@ function assertSeoHtml(html: string, route: string, seo: PageSeo): void {
   if (count(/name="description"/g) !== 1) fail("tek meta description bekleniyordu");
   const wantCanonical = seo.canonicalPath && !seo.noindex ? 1 : 0;
   if (count(/rel="canonical"/g) !== wantCanonical) fail("canonical sayısı tutmuyor");
+  // Faz 1 invariant: robots meta'sı yalnız noindex sayfada ve tam 1 kez var;
+  // içerik "noindex,follow" (site erişilebilirliği korunur).
+  const wantRobots = seo.noindex ? 1 : 0;
+  const robots = html.match(/<meta name="robots" content="([^"]*)"/g) ?? [];
+  if (robots.length !== wantRobots) fail("robots meta sayısı tutmuyor (Faz 1)");
+  if (wantRobots === 1 && !robots[0].includes('content="noindex,follow"')) {
+    fail('robots içeriği "noindex,follow" olmalı (Faz 1)');
+  }
   // Faz 4E-2 invariant: kök hariç canonical URL '/' ile biter — bir üretici
   // seoPath'i atlarsa build burada durur, standartsız URL yayına girmez.
   if (wantCanonical === 1) {
@@ -118,9 +126,11 @@ function assertSeoHtml(html: string, route: string, seo: PageSeo): void {
  *  - Veri kaynağı build sırasında Supabase anon SELECT (Faz 4E-1); yalnız
  *    `published=true` firmalar okunur. Seed'e fallback YOK — erişim hatası
  *    build'i durdurur (bkz. src/lib/seoFetch.ts).
- *  - Prerender yalnızca sitemap'teki URL'lere dosya üretir (sitemap dışı URL'e
- *    hayır); mutlak URL'ler siteUrl açık parametresinden gelir (location shim'i
- *    kullanılmaz — seoBuild siteUrl'i zaten açık alır).
+ *  - Prerender { route, seo } listesinin TAMAMINA dosya üretir — noindex
+ *    (boş kategori) sayfalar sitemap dışıdır ama dosyaları üretilir (Faz 1,
+ *    site içinden erişilebilirlik korunur); mutlak URL'ler siteUrl açık
+ *    parametresinden gelir (location shim'i kullanılmaz — seoBuild siteUrl'i
+ *    zaten açık alır).
  *  - Yalnızca build'de çalışır (`apply: "build"`).
  */
 function sitemapPlugin(): Plugin {
@@ -161,9 +171,11 @@ function sitemapPlugin(): Plugin {
       // Tek SELECT katmanı: published firmalar + kategoriler + şehirler + ilçeler.
       const data = await fetchSeoData({ baseUrl: supabaseUrl, anonKey });
 
-      // TEK KAYNAK: her sitemap URL'i bir { route, seo } kaydıdır. Sitemap XML'i
-      // ve prerender dosyaları aynı listeden üretilir — böylece sitemap dışı bir
-      // dosya üretilemez, sitemap'teki URL'e dosya eksik kalamaz.
+      // TEK KAYNAK: her URL bir { route, seo } kaydıdır. Sitemap XML'i bu
+      // listeden indexablePages() (noindex olmayanlar) ile, prerender dosyaları
+      // ise TAM listeden üretilir — noindex kategoriler sitemap dışı ama
+      // dosyaları vardır (erişilebilir, Faz 1). Sitemap dışı bir dosya
+      // üretilemez, sitemap'teki URL'e dosya eksik kalamaz.
       // lastmod bilinçli olarak yazılmıyor: updatedAt içerik değişikliğini
       // yansıtmayabilir (yanıltıcı olurdu).
       const pages = buildSitemapPages(siteUrl, data);
@@ -171,7 +183,8 @@ function sitemapPlugin(): Plugin {
 
       mkdirSync(outDir, { recursive: true });
       writeFileSync(join(outDir, "sitemap.xml"), xml, "utf8");
-      console.log(`[sitemap] ${pages.length} URL ile dist/sitemap.xml üretildi (${siteUrl})`);
+      // Sitemap = indexable subset (Faz 1); prerender tüm listeyi üretir.
+      console.log(`[sitemap] ${indexablePages(pages).length} URL ile dist/sitemap.xml üretildi (${siteUrl})`);
 
       // Head-only prerender: şablonun <head>'ine SEO etiketleri enjekte edilir;
       // body/#root'a dokunulmaz. Kök "/" için hedef ana dist/index.html'in
