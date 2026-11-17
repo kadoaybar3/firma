@@ -186,7 +186,14 @@ export function buildSitemapPages(
 ): Array<{ route: string; seo: PageSeo }> {
   const pages: Array<{ route: string; seo: PageSeo }> = [
     { route: "/", seo: buildHomeSeo(siteUrl) },
-    { route: "/firmalar", seo: buildListPageSeo(siteUrl, { kind: "firmalar" }) },
+    {
+      route: "/firmalar",
+      seo: buildListPageSeo(
+        siteUrl,
+        { kind: "firmalar" },
+        data.companies.filter((c) => c.published).length,
+      ),
+    },
   ];
 
   for (const path of ["/iletisim", "/hakkimizda", "/kvkk", "/kullanim-kosullari"]) {
@@ -196,11 +203,19 @@ export function buildSitemapPages(
   }
 
   for (const category of data.categories) {
-    const seo = buildListPageSeo(siteUrl, {
-      kind: "kategori",
-      name: category.name,
-      slug: category.slug,
-    });
+    // Faz 2B: açıklama sayısı yalnız YAYINLI firmalardan (Faz 1 kuralı ile aynı).
+    const firmCount = data.companies.filter(
+      (c) => c.published && c.categoryId === category.id,
+    ).length;
+    const seo = buildListPageSeo(
+      siteUrl,
+      {
+        kind: "kategori",
+        name: category.name,
+        slug: category.slug,
+      },
+      firmCount,
+    );
     // Faz 1: yayın firması olmayan kategori noindex — ama rota listede KALIR
     // (prerender dosyası üretilir, sayfa site içinden erişilebilir). Sitemap
     // üyeliği indexablePages() ile aynı seo.noindex kararından türetilir.
@@ -213,19 +228,37 @@ export function buildSitemapPages(
   }
 
   for (const city of data.cities) {
+    const cityCount = data.companies.filter(
+      (c) => c.published && c.cityId === city.id,
+    ).length;
     pages.push({
       route: `/sehir/${city.slug}`,
-      seo: buildListPageSeo(siteUrl, { kind: "sehir", name: city.name, slug: city.slug }),
+      seo: buildListPageSeo(
+        siteUrl,
+        { kind: "sehir", name: city.name, slug: city.slug },
+        cityCount,
+      ),
     });
     for (const district of data.districts.filter((d) => d.city_id === city.id)) {
+      // İlçe eşleşmesi runtime listCompanies ile aynı kural (küçük harf duyarlı).
+      const districtCount = data.companies.filter(
+        (c) =>
+          c.published &&
+          c.cityId === city.id &&
+          c.district.toLocaleLowerCase("tr") === district.district.toLocaleLowerCase("tr"),
+      ).length;
       pages.push({
         route: `/sehir/${city.slug}/${slugify(district.district)}`,
-        seo: buildListPageSeo(siteUrl, {
-          kind: "ilce",
-          cityName: city.name,
-          citySlug: city.slug,
-          districtName: district.district,
-        }),
+        seo: buildListPageSeo(
+          siteUrl,
+          {
+            kind: "ilce",
+            cityName: city.name,
+            citySlug: city.slug,
+            districtName: district.district,
+          },
+          districtCount,
+        ),
       });
     }
   }

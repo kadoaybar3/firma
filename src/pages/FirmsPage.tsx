@@ -9,7 +9,8 @@ import { districtCountsByCity, getCityBySlug, listCategories, listCities, listCo
 import { slugProblem, slugProblemMessage } from "../lib/slugProblem";
 import { slugify } from "../lib/slug";
 import { buildListBreadcrumbJsonLd } from "../lib/seo";
-import { categoryHasPublishedFirms } from "../lib/seoBuild";
+import type { ListBreadcrumbPage } from "../lib/seo";
+import { categoryHasPublishedFirms, listSeoText } from "../lib/seoBuild";
 import type { Category } from "../lib/types";
 
 /**
@@ -138,6 +139,26 @@ export default function FirmsPage() {
         : "Tüm Firmalar";
 
   /*
+   * Faz 2B: SEO title/description — buildListPageSeo ile AYNI üreticiden
+   * (listSeoText); sayı yalnız yayın firmalarından (listCompanies published-only).
+   * `title` (H1/breadcrumb) DEĞİŞMEZ; sorgulu /firmalar/?kategori=… sürümlerinde
+   * kapsam listPage'e göre daralır, canonical /firmalar/ olarak kalır.
+   */
+  const listPage: ListBreadcrumbPage = selectedCategory
+    ? { kind: "kategori", name: selectedCategory.name, slug: selectedCategory.slug }
+    : canonicalDistrict && city
+      ? { kind: "ilce", cityName: city.name, citySlug: city.slug, districtName: canonicalDistrict }
+      : city
+        ? { kind: "sehir", name: city.name, slug: city.slug }
+        : { kind: "firmalar" };
+  const firmCount = listCompanies({
+    categoryId: selectedCategory?.id,
+    citySlug: city?.slug,
+    district: listPage.kind === "ilce" ? listPage.districtName : undefined,
+  }).length;
+  const seoText = listSeoText(listPage, firmCount);
+
+  /*
    * Faz 1: yalnız YOL parametresiyle açılan kategori sayfası
    * (/kategori/:catSlug) yayın firması yoksa noindex,follow — sitemap'teki
    * seo.noindex kararıyla AYNI kural (categoryHasPublishedFirms). Sorgulu
@@ -158,8 +179,8 @@ export default function FirmsPage() {
 
   return (
     <SEO
-      title={`${title} | Firma Rehberi`}
-      description={`${title} — telefon, adres, çalışma saatleri ve yol tarifi bilgileriyle.`}
+      title={seoText.title}
+      description={seoText.description}
       noindex={categoryNoindex}
       jsonLd={breadcrumbJsonLd}
     >

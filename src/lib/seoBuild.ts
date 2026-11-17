@@ -51,17 +51,85 @@ export function categoryHasPublishedFirms(
   return companies.some((c) => c.published && c.categoryId === categoryId);
 }
 
-/** Liste sayfası başlık kalıbı — FirmsPage ile birebir aynı. */
-function listTitleBase(page: ListBreadcrumbPage): string {
+/**
+ * Faz 2B: Liste sayfası title/description metinleri — build-time (prerender)
+ * ve runtime (FirmsPage) AYNI fonksiyonu çağırır; çıktı birebir aynı olmak
+ * zorunda. firmCount yalnız YAYINLI firmalardan sayılır (çağıran taraf sağlar).
+ */
+export function listSeoText(
+  page: ListBreadcrumbPage,
+  firmCount: number,
+): { title: string; description: string } {
+  return { title: listTitle(page), description: listDescription(page, firmCount) };
+}
+
+/** Liste sayfası SEO başlığı (Faz 2B) — H1/breadcrumb başlığı `title`'dan FARKLIDIR. */
+function listTitle(page: ListBreadcrumbPage): string {
+  const brand = " | Firma Rehberi";
   switch (page.kind) {
     case "firmalar":
-      return "Tüm Firmalar";
-    case "kategori":
-      return `${page.name} — Firmalar`;
+      return `Afyonkarahisar'daki Tüm Firmalar${brand}`;
+    case "kategori": {
+      const full = `${page.name} — Afyonkarahisar${brand}`;
+      // 60 karakter sınırı: uzun kategori adlarında konum başa alınır (Faz 2A tur örneği)
+      return full.length > 60 ? `Afyonkarahisar ${page.name}${brand}` : full;
+    }
     case "sehir":
-      return `${page.name} Firmaları`;
+      return `${page.name} Firmaları${brand}`;
     case "ilce":
-      return `${page.cityName} / ${page.districtName} Firmaları`;
+      return `${page.cityName} ${page.districtName} Firmaları${brand}`;
+  }
+}
+
+/**
+ * Faz 2B: Kategori başına özgün açıklama — sayı parametre olarak gelir;
+ * oto-tamir (20 firmada 1'siz adres) bilinçli olarak adres iddiası içermez.
+ */
+const CATEGORY_DESCRIPTIONS: Record<string, (n: number) => string> = {
+  "eczaneler": (n) =>
+    `Afyonkarahisar'da ${n} eczane listesi: adres, telefon ve çalışma saatleri bilgileriyle size en yakın eczaneyi hemen bulun.`,
+  "oto-tamir-ve-servis": (n) =>
+    `Afyonkarahisar'da ${n} oto tamir ve servis firması: telefon, çalışma saatleri ve yol tarifi bilgileriyle en yakın servisi seçin.`,
+  "fast-food": (n) =>
+    `Afyonkarahisar'da ${n} fast food noktası: adres, telefon ve çalışma saatleri bilgileriyle size en yakın şubeyi listeleyin.`,
+  "kasaplar": (n) =>
+    `Afyonkarahisar'da ${n} kasap: adres, telefon ve çalışma saatleri bilgileriyle size en yakın kasabı listeleyin ve yol tarifi alın.`,
+  "emlak-ofisleri": (n) =>
+    `Afyonkarahisar'da ${n} emlak ofisi: adres, telefon ve çalışma saatleri bilgileriyle gayrimenkul danışmanlarına hemen ulaşın.`,
+  "nakliye-ve-lojistik": (n) =>
+    `Afyonkarahisar'da ${n} nakliye ve kurye firması: adres, telefon ve çalışma saatleri bilgileriyle taşıma hizmeti veren firmaları bulun.`,
+  "oto-kaporta-ve-boya": () =>
+    "Afyonkarahisar Merkez'deki oto kaporta ve boya firması: adres, telefon ve çalışma saatleri bilgileriyle hemen iletişime geçin.",
+  "manavlar": () =>
+    "Afyonkarahisar Sandıklı'daki manav: taze meyve ve sebze alışverişi için telefon, adres ve çalışma saatleri bilgileri.",
+  "tur-ve-gezi-organizasyonlari": () =>
+    "Afyonkarahisar'daki tur ve gezi organizasyonu firması: hac, umre ve gezi turları için telefon, adres ve çalışma saatleri.",
+  "restoranlar": () =>
+    "Afyonkarahisar Merkez'deki restoran: telefon, adres ve çalışma saatleri bilgileriyle konum ve iletişim bilgilerine ulaşın.",
+  "guzellik-merkezleri": () =>
+    "Afyonkarahisar'daki güzellik merkezi: saç ekimi ve PRP hizmetleri için telefon, adres ve çalışma saatleri bilgileri.",
+};
+
+function listDescription(page: ListBreadcrumbPage, firmCount: number): string {
+  switch (page.kind) {
+    case "firmalar":
+      return `Afyonkarahisar ve ilçelerindeki ${firmCount} firmayı kategori ve ilçe filtreleriyle arayın; telefon, çalışma saatleri ve yol tarifi bilgilerine ulaşın.`;
+    case "kategori":
+      return (
+        CATEGORY_DESCRIPTIONS[page.slug] ??
+        ((n: number) =>
+          `${page.name} — Afyonkarahisar'da ${n} firma: telefon, adres, çalışma saatleri ve yol tarifi bilgileriyle.`)
+      )(firmCount);
+    case "sehir":
+      return `${page.name}'da ${firmCount} firma: kategori ve ilçelere göre filtreleyin; telefon ve yol tarifi bilgilerine kolayca ulaşın.`;
+    case "ilce": {
+      const where = `${page.cityName} ${page.districtName}`;
+      if (page.districtName === "Merkez")
+        return `${where}'de ${firmCount} firma: eczane, oto tamir, kasap ve fast food başta olmak üzere kategorilerde telefon ve yol tarifi.`;
+      if (page.districtName === "Sandıklı")
+        return `${where} ilçesinde ${firmCount} kayıtlı firma: telefon, adres ve çalışma saatleri bilgileriyle ilçe esnafına ulaşın.`;
+      return `${where} ilçesinde ${firmCount} firma: telefon, adres ve çalışma saatleri bilgileriyle firmalara ulaşın.`;
+    }
   }
 }
 
@@ -81,14 +149,19 @@ function listPath(page: ListBreadcrumbPage): string {
 
 /**
  * Liste sayfası (firmalar / kategori / şehir / ilçe) SEO verisi.
- * Başlık ve açıklama kalıpları FirmsPage ile; breadcrumb JSON-LD
- * buildListBreadcrumbJsonLd ile üretilir (mutlak item URL'leri siteUrl'den).
+ * Başlık/açıklama listSeoText ile (FirmsPage aynı fonksiyonu çağırır —
+ * build/runtime birebir aynı); breadcrumb JSON-LD buildListBreadcrumbJsonLd
+ * ile üretilir (mutlak item URL'leri siteUrl'den).
  */
-export function buildListPageSeo(siteUrl: string, page: ListBreadcrumbPage): PageSeo {
-  const base = listTitleBase(page);
+export function buildListPageSeo(
+  siteUrl: string,
+  page: ListBreadcrumbPage,
+  firmCount: number,
+): PageSeo {
+  const { title, description } = listSeoText(page, firmCount);
   return {
-    title: `${base} | Firma Rehberi`,
-    description: `${base} — telefon, adres, çalışma saatleri ve yol tarifi bilgileriyle.`,
+    title,
+    description,
     canonicalPath: seoPath(listPath(page)),
     jsonLd: [buildListBreadcrumbJsonLd(page, origin(siteUrl))],
   };

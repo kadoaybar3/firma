@@ -5,8 +5,10 @@ import {
   buildListPageSeo,
   buildStaticPageSeo,
   categoryHasPublishedFirms,
+  listSeoText,
 } from "./seoBuild";
 import type { PageSeo } from "./seoBuild";
+import type { ListBreadcrumbPage } from "./seo";
 import type { Company } from "./types";
 
 const SITE = "https://firma5.netlify.app";
@@ -32,11 +34,11 @@ describe("buildListPageSeo", () => {
     else delete (globalThis as { location?: Location }).location;
   });
 
-  it("/firmalar: Tüm Firmalar başlığı + Ana Sayfa → Firmalar", () => {
-    const seo = buildListPageSeo(SITE, { kind: "firmalar" });
-    expect(seo.title).toBe("Tüm Firmalar | Firma Rehberi");
+  it("/firmalar: lokasyonlu başlık + Ana Sayfa → Firmalar (Faz 2B)", () => {
+    const seo = buildListPageSeo(SITE, { kind: "firmalar" }, 84);
+    expect(seo.title).toBe("Afyonkarahisar'daki Tüm Firmalar | Firma Rehberi");
     expect(seo.description).toBe(
-      "Tüm Firmalar — telefon, adres, çalışma saatleri ve yol tarifi bilgileriyle.",
+      "Afyonkarahisar ve ilçelerindeki 84 firmayı kategori ve ilçe filtreleriyle arayın; telefon, çalışma saatleri ve yol tarifi bilgilerine ulaşın.",
     );
     expect(seo.canonicalPath).toBe("/firmalar/");
     expect(seo.noindex).toBeUndefined();
@@ -46,11 +48,12 @@ describe("buildListPageSeo", () => {
     ]);
   });
 
-  it("/kategori/:catSlug: kategori adı + Kategoriler ara öğesi URL'siz", () => {
-    const seo = buildListPageSeo(SITE, { kind: "kategori", name: "Kuyumculuk", slug: "kuyumculuk" });
-    expect(seo.title).toBe("Kuyumculuk — Firmalar | Firma Rehberi");
+  it("/kategori/:catSlug: kategori adı + lokasyon + Kategoriler ara öğesi URL'siz (Faz 2B)", () => {
+    const seo = buildListPageSeo(SITE, { kind: "kategori", name: "Kuyumculuk", slug: "kuyumculuk" }, 5);
+    expect(seo.title).toBe("Kuyumculuk — Afyonkarahisar | Firma Rehberi");
+    // Kuyumculuk harita dışı → düşen açıklama: sayı parametre olarak görünür
     expect(seo.description).toBe(
-      "Kuyumculuk — Firmalar — telefon, adres, çalışma saatleri ve yol tarifi bilgileriyle.",
+      "Kuyumculuk — Afyonkarahisar'da 5 firma: telefon, adres, çalışma saatleri ve yol tarifi bilgileriyle.",
     );
     expect(seo.canonicalPath).toBe("/kategori/kuyumculuk/");
     const c = crumbs(seo);
@@ -59,23 +62,33 @@ describe("buildListPageSeo", () => {
     expect(c[2].item).toBe(`${SITE}/kategori/kuyumculuk/`);
   });
 
-  it("/sehir/:citySlug: şehir adı", () => {
-    const seo = buildListPageSeo(SITE, { kind: "sehir", name: "Afyonkarahisar", slug: "afyonkarahisar" });
+  it("/sehir/:citySlug: şehir adı (Faz 2B)", () => {
+    const seo = buildListPageSeo(SITE, { kind: "sehir", name: "Afyonkarahisar", slug: "afyonkarahisar" }, 84);
     expect(seo.title).toBe("Afyonkarahisar Firmaları | Firma Rehberi");
+    expect(seo.description).toBe(
+      "Afyonkarahisar'da 84 firma: kategori ve ilçelere göre filtreleyin; telefon ve yol tarifi bilgilerine kolayca ulaşın.",
+    );
     expect(seo.canonicalPath).toBe("/sehir/afyonkarahisar/");
     const c = crumbs(seo);
     expect(c.map((x) => x.name)).toEqual(["Ana Sayfa", "Afyonkarahisar"]);
     expect(c[1].item).toBe(`${SITE}/sehir/afyonkarahisar/`);
   });
 
-  it("/sehir/:citySlug/:district: slug slugify ile (İhsaniye → ihsaniye)", () => {
-    const seo = buildListPageSeo(SITE, {
-      kind: "ilce",
-      cityName: "Afyonkarahisar",
-      citySlug: "afyonkarahisar",
-      districtName: "İhsaniye",
-    });
-    expect(seo.title).toBe("Afyonkarahisar / İhsaniye Firmaları | Firma Rehberi");
+  it("/sehir/:citySlug/:district: slug slugify ile (İhsaniye → ihsaniye) (Faz 2B)", () => {
+    const seo = buildListPageSeo(
+      SITE,
+      {
+        kind: "ilce",
+        cityName: "Afyonkarahisar",
+        citySlug: "afyonkarahisar",
+        districtName: "İhsaniye",
+      },
+      7,
+    );
+    expect(seo.title).toBe("Afyonkarahisar İhsaniye Firmaları | Firma Rehberi");
+    expect(seo.description).toBe(
+      "Afyonkarahisar İhsaniye ilçesinde 7 firma: telefon, adres ve çalışma saatleri bilgileriyle firmalara ulaşın.",
+    );
     expect(seo.canonicalPath).toBe("/sehir/afyonkarahisar/ihsaniye/");
     const c = crumbs(seo);
     expect(c.map((x) => x.name)).toEqual(["Ana Sayfa", "Afyonkarahisar", "İhsaniye"]);
@@ -85,7 +98,7 @@ describe("buildListPageSeo", () => {
   });
 
   it("siteUrl sondaki eğik çizgi normalize edilir (çift slash olmaz)", () => {
-    const seo = buildListPageSeo(`${SITE}/`, { kind: "firmalar" });
+    const seo = buildListPageSeo(`${SITE}/`, { kind: "firmalar" }, 84);
     expect(crumbs(seo)[1].item).toBe(`${SITE}/firmalar/`);
   });
 });
@@ -230,7 +243,7 @@ describe("DOM'suz ortam", () => {
   it("hiçbir üretici location/window/document'e bakmaz (Node'da mutlak URL üretir)", () => {
     // Bu describe boyunca location TANIMLI DEĞİL — çıktılar yine de siteUrl
     // parametresiyle mutlak üretiliyorsa katman bağımsızdır.
-    const seo = buildListPageSeo(SITE, { kind: "firmalar" });
+    const seo = buildListPageSeo(SITE, { kind: "firmalar" }, 84);
     expect(crumbs(seo)[1].item).toBe(`${SITE}/firmalar/`);
     expect(typeof document).toBe("undefined");
     expect(typeof window).toBe("undefined");
@@ -255,5 +268,75 @@ describe("categoryHasPublishedFirms (Faz 1)", () => {
         "cat-1",
       ),
     ).toBe(true);
+  });
+});
+
+describe("Faz 2B: 15 indekslenebilir liste sayfası metinleri", () => {
+  // Canlı veriyle birebir (Faz 2A sayımı): 84 firma; 11 kategori + 1 şehir + 2 ilçe.
+  const SITES: Array<{ page: ListBreadcrumbPage; count: number }> = [
+    { page: { kind: "firmalar" }, count: 84 },
+    { page: { kind: "kategori", name: "Eczaneler", slug: "eczaneler" }, count: 19 },
+    { page: { kind: "kategori", name: "Oto Tamir ve Servis", slug: "oto-tamir-ve-servis" }, count: 20 },
+    { page: { kind: "kategori", name: "Fast Food", slug: "fast-food" }, count: 18 },
+    { page: { kind: "kategori", name: "Kasaplar", slug: "kasaplar" }, count: 17 },
+    { page: { kind: "kategori", name: "Emlak Ofisleri", slug: "emlak-ofisleri" }, count: 3 },
+    { page: { kind: "kategori", name: "Nakliye ve Lojistik", slug: "nakliye-ve-lojistik" }, count: 2 },
+    { page: { kind: "kategori", name: "Oto Kaporta ve Boya", slug: "oto-kaporta-ve-boya" }, count: 1 },
+    { page: { kind: "kategori", name: "Manavlar", slug: "manavlar" }, count: 1 },
+    { page: { kind: "kategori", name: "Tur ve Gezi Organizasyonları", slug: "tur-ve-gezi-organizasyonlari" }, count: 1 },
+    { page: { kind: "kategori", name: "Restoranlar", slug: "restoranlar" }, count: 1 },
+    { page: { kind: "kategori", name: "Güzellik Merkezleri", slug: "guzellik-merkezleri" }, count: 1 },
+    { page: { kind: "sehir", name: "Afyonkarahisar", slug: "afyonkarahisar" }, count: 84 },
+    { page: { kind: "ilce", cityName: "Afyonkarahisar", citySlug: "afyonkarahisar", districtName: "Merkez" }, count: 83 },
+    { page: { kind: "ilce", cityName: "Afyonkarahisar", citySlug: "afyonkarahisar", districtName: "Sandıklı" }, count: 1 },
+  ];
+
+  it("15 description'ın tamamı tekil (şablon tekrarı yok)", () => {
+    const descs = SITES.map(({ page, count }) => listSeoText(page, count).description);
+    expect(descs).toHaveLength(15);
+    expect(new Set(descs).size).toBe(15);
+  });
+
+  it("15 title'ın tamamı 60 karakter altında", () => {
+    for (const { page, count } of SITES) {
+      const { title } = listSeoText(page, count);
+      expect(title.length, `${title} (${title.length})`).toBeLessThanOrEqual(60);
+    }
+    // tur kategorisi uzun adında konum başa alınır
+    expect(listSeoText({ kind: "kategori", name: "Tur ve Gezi Organizasyonları", slug: "tur-ve-gezi-organizasyonlari" }, 1).title).toBe(
+      "Afyonkarahisar Tur ve Gezi Organizasyonları | Firma Rehberi",
+    );
+  });
+
+  it("sayılar description'da görünür ve parametreden gelir", () => {
+    expect(
+      listSeoText({ kind: "kategori", name: "Eczaneler", slug: "eczaneler" }, 19).description,
+    ).toContain("19 eczane");
+    expect(
+      listSeoText({ kind: "sehir", name: "Afyonkarahisar", slug: "afyonkarahisar" }, 84).description,
+    ).toContain("84 firma");
+    // Aynı sayfa farklı sayıyla farklı metin üretir (sayı sabit değil)
+    expect(listSeoText({ kind: "sehir", name: "Afyonkarahisar", slug: "afyonkarahisar" }, 85).description).toContain("85 firma");
+  });
+
+  it("oto-tamir açıklaması adres iddiası İÇERMEZ (20 firmada 1'siz adres)", () => {
+    const { description } = listSeoText(
+      { kind: "kategori", name: "Oto Tamir ve Servis", slug: "oto-tamir-ve-servis" },
+      20,
+    );
+    expect(description).not.toContain("adres");
+    expect(description).toContain("20 oto tamir");
+    expect(description).toContain("telefon");
+    expect(description).toContain("yol tarifi");
+  });
+
+  it("tek firmalı sayfalarda abartılı/yanıltıcı ifade yok", () => {
+    const singles = SITES.filter((s) => s.count === 1).map(
+      ({ page, count }) => listSeoText(page, count).description,
+    );
+    expect(singles.length).toBeGreaterThanOrEqual(6);
+    for (const d of singles) {
+      expect(d).not.toMatch(/en güvenilir|en büyük|nöbetçi|7\/24|ücretsiz|her zaman/);
+    }
   });
 });

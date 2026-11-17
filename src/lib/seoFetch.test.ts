@@ -220,6 +220,24 @@ describe("buildSitemapPages", () => {
     expect(routes).toContain("/firma/oz-miras-kuyumculuk");
   });
 
+  it("Faz 2B: açıklama sayıları yalnız yayın firmalardan sayılır", () => {
+    const data = makeData();
+    // 1 yayın + 1 yayınlanmamış → sayı 1 olmalı (published-only, Faz 1 kuralı)
+    data.companies = [
+      ...data.companies,
+      { ...data.companies[0], id: "c-2", slug: "gizli-firma", published: false },
+    ];
+    const pages = buildSitemapPages(SITE, data);
+    const firmalar = pages.find((p) => p.route === "/firmalar")?.seo.description ?? "";
+    expect(firmalar).toContain("1 firmayı");
+    expect(firmalar).not.toContain("2 firmayı");
+    const kategori = pages.find((p) => p.route === "/kategori/kuyumculuk")?.seo.description ?? "";
+    expect(kategori).toContain("1 firma"); // düşen şablon: "…'da 1 firma: …"
+    expect(kategori).not.toContain("2 firma");
+    const sehir = pages.find((p) => p.route === "/sehir/afyonkarahisar")?.seo.description ?? "";
+    expect(sehir).toContain("1 firma");
+  });
+
   it("sitemap ve prerender aynı { route, seo } listesinden üretilir", () => {
     const pages = buildSitemapPages(SITE, makeData());
     const xml = renderSitemapXml(SITE, pages);
