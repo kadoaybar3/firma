@@ -1,0 +1,292 @@
+{
+  "url": "http://localhost:4400/",
+  "errors": [],
+  "failed": [],
+  "desktop": {
+    "loadMs": 92,
+    "loaderMs": null,
+    "settledMs": 2524,
+    "vitals": {
+      "lcpMs": 1028,
+      "lcpElement": "h1.hero__title",
+      "cls": 0
+    },
+    "height": 1982,
+    "overflowX": false,
+    "offenders": [],
+    "h1": [
+      "Doğru firmaya,\nkolayca ulaşın"
+    ],
+    "smallTargets": [
+      "Tüm kategoriler 127x19",
+      "Tümünü gör 102x19",
+      "BiPaket Kurye Hizmetleri 183x18",
+      "Nakliye ve Lojistik 109x15",
+      "05062776701 118x16",
+      "Profili gör 82x16",
+      "İnci Gayrimenkul 124x18",
+      "Emlak Ofisleri 84x15"
+    ],
+    "glHidden": [],
+    "title": "Firma Rehberi — Afyonkarahisar'daki Firmaları Kolayca Bulun",
+    "glOn": false,
+    "scrollFps": {
+      "fps": 60,
+      "worstFrameMs": 17
+    },
+    "nav": {
+      "href": "/firmalar",
+      "scrollYAfter": 0,
+      "title": "Afyonkarahisar'daki Tüm Firmalar | Firma Rehberi"
+    },
+    "idleMotion": false,
+    "idleAt": null
+  },
+  "mobile": {
+    "throttled": true,
+    "loadMs": 3455,
+    "loaderMs": null,
+    "settledMs": 5531,
+    "vitals": {
+      "lcpMs": 4760,
+      "lcpElement": "p.hero__subtitle",
+      "cls": 0
+    },
+    "height": 3859,
+    "overflowX": false,
+    "offenders": [],
+    "h1": [
+      "Doğru firmaya,\nkolayca ulaşın"
+    ],
+    "smallTargets": [
+      "Tüm kategoriler 127x19",
+      "Tümünü gör 102x19",
+      "BiPaket Kurye Hizmetleri 183x18",
+      "Nakliye ve Lojistik 109x15",
+      "05062776701 118x16",
+      "Profili gör 82x16",
+      "İnci Gayrimenkul 124x18",
+      "Emlak Ofisleri 84x15"
+    ],
+    "glHidden": [],
+    "title": "Firma Rehberi — Afyonkarahisar'daki Firmaları Kolayca Bulun",
+    "glOn": false,
+    "scrollFps": {
+      "fps": 60,
+      "worstFrameMs": 17
+    }
+  },
+  "files": [
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/d-00-firstpaint.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/d-01-hero.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/d-02-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/d-03-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/d-04-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/d-05-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/d-06-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/d-07-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/d-90-transition-a.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/d-90-transition-b.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/d-90-transition-c.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/d-91-after-nav.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/d-92-back.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/k-01-focus.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/k-02-focus.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/k-03-focus.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/k-04-focus.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/h-01-rest.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/h-01-hover.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/h-02-rest.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/h-02-hover.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/h-03-rest.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/h-03-hover.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/h-04-rest.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/h-04-hover.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/h-05-rest.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/h-05-hover.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/h-06-rest.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/h-06-hover.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/h-07-rest.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/h-07-hover.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/h-08-rest.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/h-08-hover.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/m-01-hero.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/m-02-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/m-03-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/m-04-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/m-05-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/m-06-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/r-01-hero.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/localhost-4400/shots/r-02-mid.png"
+  ],
+  "notes": [
+    "desktop FPS runs headless on a software GPU: treat it as a floor, not a measurement of real hardware",
+    "mobile runs at 4x CPU slowdown on slow 4G: mobile.vitals and mobile.scrollFps are the numbers that count",
+    "loadMs: ms from navigation to the load event, null if it had not fired after 30 s (desktop) or 60 s (phone); a heavy page takes long, while visitors see content at vitals.lcpMs. loaderMs: ms until the #loader ended, null when the page has none",
+    "settledMs: ms from navigation by which the first screen stopped changing, never before the fixed wait. null: still changing at the cap, either a long intro or continuous motion (a live shader, video); d-01-hero / m-01-hero tell which. reduced.moving: the screen was still changing 1.5 s after load with reduced motion on"
+  ],
+  "keyboard": {
+    "stops": [
+      "a \"Firma Rehberi\"",
+      "a \"Firmalar\"",
+      "a \"İletişim\"",
+      "a \"Firma arama\"",
+      "a \"Giriş\"",
+      "input \"Firma arama\"",
+      "div \"Tüm kategoriler\"",
+      "select \"Tüm iller Afyonkarahisar\"",
+      "button \"Ara\"",
+      "a \"Tüm kategoriler\"",
+      "a \"Oto Tamir ve Servis 20 firma\"",
+      "a \"Eczaneler 19 firma\""
+    ],
+    "skipLinkFirst": false,
+    "noVisibleFocus": [
+      "input \"Firma arama\"",
+      "select \"Tüm iller Afyonkarahisar\""
+    ],
+    "invisibleFocus": [],
+    "stuck": false
+  },
+  "hover": {
+    "targets": [
+      {
+        "shot": "h-01",
+        "label": "div \"Tüm kategoriler\"",
+        "interactive": true,
+        "primary": true,
+        "react": "color",
+        "changed": [
+          "borderColor"
+        ]
+      },
+      {
+        "shot": "h-02",
+        "label": "button \"Ara\"",
+        "interactive": true,
+        "primary": true,
+        "react": "color",
+        "changed": [
+          "backgroundColor"
+        ]
+      },
+      {
+        "shot": "h-03",
+        "label": "a \"Tüm kategoriler\"",
+        "interactive": true,
+        "primary": true,
+        "react": "moves",
+        "changed": [
+          "color",
+          "borderColor",
+          "textDecorationColor",
+          "transform"
+        ]
+      },
+      {
+        "shot": "h-04",
+        "label": "a \"Oto Tamir ve Servis 20 firma\"",
+        "interactive": true,
+        "primary": true,
+        "react": "moves",
+        "changed": [
+          "borderColor",
+          "boxShadow",
+          "color",
+          "textDecorationColor",
+          "transform"
+        ]
+      },
+      {
+        "shot": "h-05",
+        "label": "a \"BiPaket Kurye Hizmetleri\"",
+        "interactive": true,
+        "primary": true,
+        "react": "color",
+        "changed": [
+          "color",
+          "borderColor",
+          "textDecorationColor"
+        ]
+      },
+      {
+        "shot": "h-06",
+        "label": "a \"Nakliye ve Lojistik\"",
+        "interactive": true,
+        "primary": true,
+        "react": "color",
+        "changed": [
+          "color",
+          "borderColor",
+          "textDecorationColor"
+        ]
+      },
+      {
+        "shot": "h-07",
+        "label": "a \"05062776701\"",
+        "interactive": true,
+        "primary": true,
+        "react": "color",
+        "changed": [
+          "color",
+          "borderColor",
+          "textDecorationColor"
+        ]
+      },
+      {
+        "shot": "h-08",
+        "label": "a \"Profili gör\"",
+        "interactive": true,
+        "primary": true,
+        "react": "color",
+        "changed": [
+          "color",
+          "borderColor",
+          "textDecorationColor"
+        ]
+      }
+    ],
+    "noHoverChange": [],
+    "colorOnly": [
+      "h-01 div \"Tüm kategoriler\"",
+      "h-02 button \"Ara\"",
+      "h-05 a \"BiPaket Kurye Hizmetleri\"",
+      "h-06 a \"Nakliye ve Lojistik\"",
+      "h-07 a \"05062776701\"",
+      "h-08 a \"Profili gör\""
+    ],
+    "covered": [],
+    "cursorFollower": false
+  },
+  "reduced": {
+    "hiddenText": 0,
+    "moving": false
+  },
+  "a11y": {
+    "violations": [
+      {
+        "id": "color-contrast",
+        "impact": "serious",
+        "help": "Elements must meet minimum color contrast ratio thresholds",
+        "count": 6,
+        "nodes": [
+          "article:nth-child(1) > .firm-card__foot > .firm-status.is-closed (#7c8798 on #ffffff, 3.63:1, needs 4.5:1)",
+          "article:nth-child(2) > .firm-card__foot > .firm-status.is-closed (#7c8798 on #ffffff, 3.63:1, needs 4.5:1)",
+          "article:nth-child(3) > .firm-card__foot > .firm-status.is-closed (#7c8798 on #ffffff, 3.63:1, needs 4.5:1)",
+          "article:nth-child(4) > .firm-card__foot > .firm-status.is-closed (#7c8798 on #ffffff, 3.63:1, needs 4.5:1)"
+        ]
+      },
+      {
+        "id": "label-content-name-mismatch",
+        "impact": "serious",
+        "help": "Elements must have their visible text as part of their accessible name",
+        "count": 1,
+        "nodes": [
+          "#_r_0_-trigger"
+        ]
+      }
+    ],
+    "serious": 2,
+    "contrastNeedsReview": 6
+  }
+}

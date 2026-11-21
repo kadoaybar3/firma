@@ -6,6 +6,7 @@ import {
   MapPin,
   PlusCircle,
   Receipt,
+  Users,
   type LucideIcon,
 } from "lucide-react";
 import { useAuth } from "../lib/auth";
@@ -33,6 +34,12 @@ const NAV: Array<{ to: string; icon: LucideIcon; label: string; match: (path: st
     icon: Receipt,
     label: "Satışlarım",
     match: (p) => p.startsWith("/temsilci/satislarim"),
+  },
+  {
+    to: "/temsilci/ekipler",
+    icon: Users,
+    label: "Ekipler",
+    match: (p) => p.startsWith("/temsilci/ekipler"),
   },
 ];
 

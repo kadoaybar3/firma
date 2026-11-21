@@ -324,7 +324,7 @@ export default function AdminImport() {
           <h3 style={{ marginBottom: 10 }}>Firma Bul</h3>
           <label style={{ display: "flex", gap: 6, alignItems: "center", marginBottom: 12 }}>
             <input type="checkbox" checked={publish} onChange={(e) => setPublish(e.target.checked)} />
-            Aktarılan firmalar yayında olsun
+            Aktarılan firmalar yayında olsun (scraper istisnası: satış/ödeme gerekmez)
           </label>
           <GoogleScraperPanel
             onDone={(records) => loadGoogleCandidates(records)}

@@ -14,6 +14,7 @@ import {
   getCityById,
   listCategories,
   listCommissions,
+  listCommissionPayoutSummary,
   listCompanies,
   listReferrals,
   listReps,
@@ -328,9 +329,10 @@ function AdminReps() {
           icon={<Wallet size={20} strokeWidth={1.9} />}
           label="Ödenen komisyon toplamı"
           value={formatTRY(
-            listCommissions(actor)
-              .filter((c) => c.com.status === "odendi")
-              .reduce((s, c) => s + c.com.amount, 0),
+            // Kaynak: commission_payouts defteri. commissions.status ödeme
+            // kaydıyla güncellenmediği için oradan saymak her zaman 0 verir;
+            // payout'lar tek kaynak olduğundan çift sayım oluşmaz.
+            listCommissionPayoutSummary(actor).reduce((sum, row) => sum + row.paid, 0),
           )}
           tone="success"
         />

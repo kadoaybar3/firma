@@ -1,0 +1,251 @@
+{
+  "url": "http://localhost:4400/",
+  "errors": [],
+  "failed": [],
+  "desktop": {
+    "loadMs": 95,
+    "loaderMs": null,
+    "settledMs": 2264,
+    "vitals": {
+      "lcpMs": 1716,
+      "lcpElement": "h2#kategoriler.section__title",
+      "cls": 0
+    },
+    "height": 2641,
+    "overflowX": false,
+    "offenders": [],
+    "h1": [
+      "Doğru firmaya,\nkolayca ulaşın"
+    ],
+    "smallTargets": [],
+    "glHidden": [],
+    "title": "Firma Rehberi — Afyonkarahisar'daki Firmaları Kolayca Bulun",
+    "glOn": false,
+    "scrollFps": {
+      "fps": 60,
+      "worstFrameMs": 17
+    },
+    "idleMotion": true,
+    "idleAt": "top"
+  },
+  "mobile": {
+    "throttled": true,
+    "loadMs": 3470,
+    "loaderMs": null,
+    "settledMs": 6089,
+    "vitals": {
+      "lcpMs": 5228,
+      "lcpElement": "h1.hm-hero__title",
+      "cls": 0
+    },
+    "height": 4629,
+    "overflowX": false,
+    "offenders": [],
+    "h1": [
+      "Doğru firmaya,\nkolayca ulaşın"
+    ],
+    "smallTargets": [],
+    "glHidden": [],
+    "title": "Firma Rehberi — Afyonkarahisar'daki Firmaları Kolayca Bulun",
+    "glOn": false,
+    "scrollFps": {
+      "fps": 60,
+      "worstFrameMs": 17
+    }
+  },
+  "files": [
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/d-00-firstpaint.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/d-01-hero.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/d-02-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/d-03-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/d-04-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/d-05-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/d-06-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/d-07-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/k-01-focus.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/k-02-focus.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/k-03-focus.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/k-04-focus.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/h-01-rest.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/h-01-hover.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/h-02-rest.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/h-02-hover.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/h-03-rest.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/h-03-hover.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/h-04-rest.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/h-04-hover.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/h-05-rest.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/h-05-hover.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/h-06-rest.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/h-06-hover.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/h-07-rest.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/h-07-hover.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/h-08-rest.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/h-08-hover.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/m-01-hero.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/m-02-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/m-03-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/m-04-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/m-05-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/m-06-scroll.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/r-01-hero.png",
+    "/Users/kadiraybar/Documents/firma-rehberi/.jury/home-redesign/r-02-mid.png"
+  ],
+  "notes": [
+    "desktop FPS runs headless on a software GPU: treat it as a floor, not a measurement of real hardware",
+    "mobile runs at 4x CPU slowdown on slow 4G: mobile.vitals and mobile.scrollFps are the numbers that count",
+    "loadMs: ms from navigation to the load event, null if it had not fired after 30 s (desktop) or 60 s (phone); a heavy page takes long, while visitors see content at vitals.lcpMs. loaderMs: ms until the #loader ended, null when the page has none",
+    "settledMs: ms from navigation by which the first screen stopped changing, never before the fixed wait. null: still changing at the cap, either a long intro or continuous motion (a live shader, video); d-01-hero / m-01-hero tell which. reduced.moving: the screen was still changing 1.5 s after load with reduced motion on"
+  ],
+  "keyboard": {
+    "stops": [
+      "a \"İçeriğe geç\"",
+      "a \"Firma Rehberi\"",
+      "a \"Firmalar\"",
+      "a \"İletişim\"",
+      "a \"Firma arama\"",
+      "a \"Giriş\"",
+      "input \"Firma arama\"",
+      "div \"Tüm kategoriler\"",
+      "select \"Tüm iller Afyonkarahisar\"",
+      "button \"Ara\"",
+      "a \"BK BiPaket Kurye Hizmetleri Nakliye ve L\"",
+      "a \"İG İnci Gayrimenkul Emlak Ofisleri Merke\""
+    ],
+    "skipLinkFirst": false,
+    "noVisibleFocus": [],
+    "invisibleFocus": [],
+    "stuck": false
+  },
+  "hover": {
+    "targets": [
+      {
+        "shot": "h-01",
+        "label": "div \"Tüm kategoriler\"",
+        "interactive": true,
+        "primary": true,
+        "react": "moves",
+        "changed": [
+          "backgroundColor",
+          "borderColor",
+          "backgroundPosition",
+          "color",
+          "textDecorationColor",
+          "transform"
+        ]
+      },
+      {
+        "shot": "h-02",
+        "label": "button \"Ara\"",
+        "interactive": true,
+        "primary": true,
+        "react": "moves",
+        "changed": [
+          "backgroundColor",
+          "transform"
+        ]
+      },
+      {
+        "shot": "h-03",
+        "label": "a \"BiPaket Kurye Hizmetleri Nakliye ve Loji\"",
+        "interactive": true,
+        "primary": true,
+        "react": "moves",
+        "changed": [
+          "borderColor",
+          "transform",
+          "boxShadow",
+          "color",
+          "textDecorationColor",
+          "opacity"
+        ]
+      },
+      {
+        "shot": "h-04",
+        "label": "a \"İnci Gayrimenkul Emlak Ofisleri Merkez\"",
+        "interactive": true,
+        "primary": true,
+        "react": "moves",
+        "changed": [
+          "borderColor",
+          "transform",
+          "boxShadow",
+          "color",
+          "textDecorationColor",
+          "opacity"
+        ]
+      },
+      {
+        "shot": "h-05",
+        "label": "a \"İnci Saç Ekimi ve PRP Merkezi Güzellik M\"",
+        "interactive": true,
+        "primary": true,
+        "react": "moves",
+        "changed": [
+          "borderColor",
+          "transform",
+          "boxShadow",
+          "color",
+          "textDecorationColor",
+          "opacity"
+        ]
+      },
+      {
+        "shot": "h-06",
+        "label": "a \"Tüm kategoriler\"",
+        "interactive": true,
+        "primary": true,
+        "react": "moves",
+        "changed": [
+          "color",
+          "borderColor",
+          "textDecorationColor",
+          "transform"
+        ]
+      },
+      {
+        "shot": "h-07",
+        "label": "a \"Oto Tamir ve Servis 20 firma\"",
+        "interactive": true,
+        "primary": true,
+        "react": "moves",
+        "changed": [
+          "borderColor",
+          "transform",
+          "boxShadow",
+          "color",
+          "backgroundColor",
+          "textDecorationColor"
+        ]
+      },
+      {
+        "shot": "h-08",
+        "label": "a \"Emlak Ofisleri 3 firma\"",
+        "interactive": true,
+        "primary": true,
+        "react": "moves",
+        "changed": [
+          "borderColor",
+          "transform",
+          "boxShadow",
+          "color",
+          "backgroundColor",
+          "textDecorationColor"
+        ]
+      }
+    ],
+    "noHoverChange": [],
+    "colorOnly": [],
+    "covered": [],
+    "cursorFollower": false
+  },
+  "reduced": {
+    "hiddenText": 0,
+    "moving": false
+  },
+  "a11y": {
+    "violations": [],
+    "serious": 0,
+    "contrastNeedsReview": 24
+  }
+}

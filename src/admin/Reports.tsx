@@ -19,6 +19,8 @@ import {
   getSettings,
   listCategories,
   listCommissions,
+  listCommissionPayouts,
+  listCommissionPayoutSummary,
   listCompanies,
   listPayments,
   listReps,
@@ -86,6 +88,7 @@ export default function AdminReports() {
   const sales = listSales(actor);
   const payments = listPayments(actor);
   const commissions = listCommissions(actor);
+  const payouts = listCommissionPayouts(actor);
   const reps = listReps(actor);
   const settings = getSettings();
 
@@ -102,13 +105,22 @@ export default function AdminReports() {
   );
   const rangePayments = payments.filter((payment) => inRange(payment.createdAt));
   const rangeCommissions = commissions.filter(({ com }) => inRange(com.createdAt));
+  // Dönemde ÖDENEN komisyon: yalnız commission_payouts defteri, payout'un
+  // paidAt tarihi aralığa giren kayıtlar. Payout'lar tek tek komisyonlara
+  // bağlanmadığı için bu bir nakit çıkışıdır; "kazanılan − ödenen" farkı
+  // bekleyen bakiye yerine kullanılmaz. commissions.status ödeme kaydıyla
+  // güncellenmediğinden (0008) burada hiç okunmaz → çift sayım yok.
+  const rangePayouts = payouts.filter((payout) => inRange(payout.paidAt));
 
   const totalRevenue = confirmedSales.reduce((sum, sale) => sum + sale.amount, 0);
   const totalCommission = rangeCommissions.reduce((sum, { com }) => sum + com.amount, 0);
-  const paidCommission = rangeCommissions
-    .filter(({ com }) => com.status === "odendi")
-    .reduce((sum, { com }) => sum + com.amount, 0);
-  const pendingCommission = totalCommission - paidCommission;
+  const paidCommission = rangePayouts.reduce((sum, payout) => sum + payout.amount, 0);
+  // Güncel kalan hakediş: dönem filtresinden BAĞIMSIZ, defterin tamamından
+  // (Σ kazanılan − Σ payout). Reps/Commissions/Dashboard ile aynı kaynak.
+  const outstandingCommission = listCommissionPayoutSummary(actor).reduce(
+    (sum, row) => sum + row.outstanding,
+    0,
+  );
 
   const approvedPayments = rangePayments.filter((payment) => payment.status === "onaylandi");
   const collected = approvedPayments.reduce((sum, payment) => sum + payment.amount, 0);
@@ -269,7 +281,7 @@ export default function AdminReports() {
           icon={<Receipt size={20} strokeWidth={1.9} />}
           label="Komisyon toplamı"
           value={formatTRY(totalCommission)}
-          hint={`${formatTRY(pendingCommission)} ödeme bekliyor`}
+          hint={`Dönemde ödenen: ${formatTRY(paidCommission)}`}
         />
       </div>
 
@@ -421,10 +433,10 @@ export default function AdminReports() {
               <div className="adm-list__row">
                 <span className="adm-dot" aria-hidden="true" />
                 <span className="adm-list__main">
-                  <span className="adm-list__title">Ödenmemiş komisyon</span>
-                  <span className="adm-list__meta">Ödeme bekleyen kayıtlar</span>
+                  <span className="adm-list__title">Kalan hakediş (güncel)</span>
+                  <span className="adm-list__meta">Tüm dönemler · dönem filtresinden bağımsız</span>
                 </span>
-                <span className="adm-list__amount">{formatTRY(pendingCommission)}</span>
+                <span className="adm-list__amount">{formatTRY(outstandingCommission)}</span>
               </div>
             </div>
             <p className="text-muted small" style={{ marginTop: 10 }}>

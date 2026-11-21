@@ -28,6 +28,8 @@ import {
   listCities,
   listCompanies,
   listReps,
+  refreshPublishSnapshot,
+  setCompanyPublished,
   updateCompany,
 } from "../lib/repo";
 import type { CompanyDraft } from "../lib/repo";
@@ -147,11 +149,11 @@ export default function AdminCompanies() {
     setTick((t) => t + 1);
   }
 
-  async function handleAction(fn: () => void) {
+  async function handleAction(fn: () => void | Promise<void>) {
     setError(null);
     setNotice(null);
     try {
-      fn();
+      await fn();
       refresh();
     } catch (e) {
       setError(e instanceof Error ? e.message : "İşlem başarısız.");
@@ -179,31 +181,74 @@ export default function AdminCompanies() {
     setSelected(allSelected ? new Set() : new Set(companies.map((c) => c.id)));
   }
 
+  /**
+   * Toplu yayın/geri alma — her firma BAĞIMSIZ denenir: bir firmanın ödeme
+   * guard'ına takılması diğerlerinin işlenmesini durdurmaz. Sonuç, kaç firmanın
+   * değiştiği + başarısızların adı ve nedeniyle birlikte raporlanır.
+   */
+  async function applyPublished(
+    targets: ReturnType<typeof listCompanies>,
+    published: boolean,
+    verb: { done: string; failed: string },
+  ) {
+    const failed: Array<{ name: string; reason: string }> = [];
+    let ok = 0;
+    for (const c of targets) {
+      try {
+        // Yayın yalnız güvenli yola (canlıda 0016 RPC) gider; sunucu satış +
+        // onaylı ödeme şartını ve admin yetkisini kendisi doğrular.
+        await setCompanyPublished(c.id, published, actor, undefined, {
+          refreshSnapshot: false,
+        });
+        ok += 1;
+      } catch (err) {
+        failed.push({
+          name: c.name,
+          reason: err instanceof Error ? err.message : "bilinmeyen hata",
+        });
+      }
+    }
+    // Toplu iş: snapshot bir kez hizalanır (satır başına tam okuma yapılmaz).
+    if (ok > 0) await refreshPublishSnapshot();
+    setSelected(new Set());
+    setError(null);
+    setNotice(null);
+    if (failed.length) {
+      setNotice(ok ? `${ok} firma ${verb.done}.` : null);
+      setError(
+        `${ok ? `${ok} firma ${verb.done}; ` : ""}${failed.length} firma ${verb.failed} → ${failed
+          .map((f) => `${f.name} (${f.reason})`)
+          .join("; ")}`,
+      );
+    } else {
+      setNotice(`${ok} firma ${verb.done}.`);
+    }
+    refresh();
+  }
+
   /** Toplu değişiklik — yalnız durumun gerçekten değiştiği satırlara dokunulur. */
-  function bulkSetPublished(published: boolean) {
+  async function bulkSetPublished(published: boolean) {
     const targets = selectedRows.filter((c) => c.published !== published);
     if (!targets.length) {
       setNotice(published ? `Seçili ${selectedRows.length} firma zaten yayında.` : `Seçili ${selectedRows.length} firma zaten yayın dışında.`);
       return;
     }
-    handleAction(() => {
-      for (const c of targets) updateCompany(c.id, { published }, actor);
-      setSelected(new Set());
-      setNotice(`${targets.length} firma ${published ? "yayına alındı" : "yayından kaldırıldı"}.`);
-    });
+    await applyPublished(
+      targets,
+      published,
+      published
+        ? { done: "yayına alındı", failed: "yayına alınamadı" }
+        : { done: "yayından kaldırıldı", failed: "yayından kaldırılamadı" },
+    );
   }
 
   /** HEPSİNİ YAYINA AL — görüntülenen (filtrelenmiş) listedeki yayın-dışı firmalar. */
-  function publishAllVisible() {
+  async function publishAllVisible() {
     if (!unpublishedRows.length) {
       setNotice("Listede yayın dışı firma yok — her şey zaten yayında.");
       return;
     }
-    handleAction(() => {
-      for (const c of unpublishedRows) updateCompany(c.id, { published: true }, actor);
-      setSelected(new Set());
-      setNotice(`${unpublishedRows.length} firma tek hamlede yayına alındı.`);
-    });
+    await applyPublished(unpublishedRows, true, { done: "yayına alındı", failed: "yayına alınamadı" });
   }
 
   function bulkDelete() {
@@ -252,7 +297,7 @@ export default function AdminCompanies() {
         title="Firmalar"
         action={
           <div style={{ display: "flex", gap: 10 }}>
-            <button className="btn" onClick={publishAllVisible} disabled={creating || unpublishedRows.length === 0}>
+            <button className="btn" onClick={() => void publishAllVisible()} disabled={creating || unpublishedRows.length === 0}>
               <ArrowUpCircle size={16} strokeWidth={1.9} aria-hidden="true" />
               Hepsini yayına al{!creating && unpublishedRows.length ? ` (${unpublishedRows.length})` : ""}
             </button>
@@ -358,11 +403,11 @@ export default function AdminCompanies() {
       {!creating && selectedRows.length > 0 && (
         <div className="card card__pad mb-14" style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <strong>{selectedRows.length} firma seçili</strong>
-          <button className="btn btn--sm" onClick={() => bulkSetPublished(true)}>
+          <button className="btn btn--sm" onClick={() => void bulkSetPublished(true)}>
             <ArrowUpCircle size={15} strokeWidth={1.9} aria-hidden="true" />
             Yayına al ({selectedRows.filter((c) => !c.published).length})
           </button>
-          <button className="btn btn--sm" onClick={() => bulkSetPublished(false)}>
+          <button className="btn btn--sm" onClick={() => void bulkSetPublished(false)}>
             <ArrowDownCircle size={15} strokeWidth={1.9} aria-hidden="true" />
             Yayından al ({selectedRows.filter((c) => c.published).length})
           </button>
@@ -446,7 +491,7 @@ export default function AdminCompanies() {
                           <button
                             type="button"
                             onClick={() =>
-                              handleAction(() => updateCompany(co.id, { published: !co.published }, actor))
+                              handleAction(() => setCompanyPublished(co.id, !co.published, actor))
                             }
                           >
                             {co.published ? (
@@ -459,7 +504,9 @@ export default function AdminCompanies() {
                           <button
                             type="button"
                             onClick={() =>
-                              handleAction(() => updateCompany(co.id, { featured: !co.featured }, actor))
+                              handleAction(() => {
+                                updateCompany(co.id, { featured: !co.featured }, actor);
+                              })
                             }
                           >
                             {co.featured ? (
@@ -568,7 +615,7 @@ export function CompanyForm({
   categories: ReturnType<typeof listCategories>;
   cities: ReturnType<typeof listCities>;
   reps: ReturnType<typeof listReps>;
-  onSubmit: (draft: CompanyDraft) => void;
+  onSubmit: (draft: CompanyDraft) => void | Promise<void>;
   onCancel: () => void;
   /** Önceden dolu taslak (firma düzenleme, aday→firma dönüşümü). Verilmezse boş başlar. */
   initial?: CompanyDraft;
@@ -612,7 +659,7 @@ export function CompanyForm({
     <div className="card card__pad mb-14">
       <h3 style={{ fontWeight: 800, marginBottom: 14 }}>{title}</h3>
       <form
-        onSubmit={(e) => {
+        onSubmit={async (e) => {
           e.preventDefault();
           setError(null);
           const next: Record<string,string> = {};
@@ -655,7 +702,7 @@ export function CompanyForm({
                 addDistrict(city.id, draft.district, actor);
               }
             }
-            onSubmit(nextDraft);
+            await onSubmit(nextDraft);
           } catch (err) {
             setError(err instanceof Error ? err.message : "Kayıt başarısız.");
           }
@@ -808,14 +855,15 @@ export function CompanyForm({
           </Field>
         </div>
         <div className="form-row">
-          <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "0.9rem" }}>
-            <input
-              type="checkbox"
-              checked={draft.published ?? false}
-              onChange={(e) => setDraft({ ...draft, published: e.target.checked })}
-            />
-            Doğrudan yayına al
-          </label>
+          {/* Doğrudan yayınlama seçeneği bilinçli olarak YOK: firma bu formda
+              taslak (yayın dışı) doğar. Yayın yalnız satış + onaylı ödeme
+              sonrası updateCompany() guard'ından geçerek yapılır. Ödemesiz
+              yayının tek meşru yolu Google Scraper (createScraperCompany). */}
+          <p className="text-muted small" style={{ margin: 0, flex: 1, alignSelf: "center" }}>
+            Firma taslak olarak kaydedilir. Rehberde yayına alma, satış kaydı ve
+            yönetici tarafından onaylanmış ödeme sonrasında yapılır; ardından
+            firma satırından “Yayına al” ile yayınlanır.
+          </p>
           <label style={{ display: "flex", gap: 6, alignItems: "center", fontSize: "0.9rem" }}>
             <input
               type="checkbox"
@@ -900,10 +948,16 @@ function EditCompany({
         initial={draft}
         title="Firma bilgileri"
         onCancel={onCancel}
-        onSubmit={(draft) => {
+        onSubmit={async (draft) => {
           setError(null);
           try {
-            updateCompany(companyId, draft, actor);
+            // Yayın durumu ayrı ve güvenli yoldan değişir (form aynı değeri
+            // geri gönderdiğinde hiç çağrılmaz).
+            const { published, ...rest } = draft;
+            await updateCompany(companyId, rest, actor);
+            if (published !== undefined && published !== company.published) {
+              await setCompanyPublished(companyId, published, actor);
+            }
             onCancel();
           } catch (err) {
             setError(err instanceof Error ? err.message : "Güncelleme başarısız.");

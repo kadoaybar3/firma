@@ -4,11 +4,16 @@ import { useActor } from "../lib/auth";
 import { formatDateTime, formatTRY } from "../lib/format";
 import {
   getCompanyById,
+  getMyTeam,
+  getRepById,
   listCommissionPayouts,
   listCommissionPayoutSummary,
   listCommissions,
   listPayments,
   listSales,
+  listTeamCommissions,
+  listTeamCommissionPayouts,
+  listTeamCommissionSummary,
 } from "../lib/repo";
 import type { PaymentStatus, SaleStatus } from "../lib/types";
 
@@ -42,6 +47,14 @@ export default function RepMySales() {
   const confirmedTotal = confirmed.reduce((sum, s) => sum + s.amount, 0);
   const pendingCommission = commissionSummary?.outstanding ?? 0;
   const paidCommission = commissionSummary?.paid ?? 0;
+
+  // Ekip liderliği komisyonu (0014) — yalnız ekip lideri görür; temsilci
+  // komisyonlarından ayrı bakiye. Canlıda RLS zaten yalnız kendi satırını verir.
+  const myTeam = getMyTeam(actor);
+  const isTeamLeader = !!myTeam && myTeam.team.leaderRepId === actor.repId;
+  const teamSummary = listTeamCommissionSummary(actor)[0];
+  const teamRows = listTeamCommissions(actor);
+  const teamPayouts = listTeamCommissionPayouts(actor);
 
   return (
     <div className="rep-stack">
@@ -111,6 +124,86 @@ export default function RepMySales() {
           </ul>
         )}
       </section>
+
+      {isTeamLeader && (
+        <section className="rep-card">
+          <div className="rep-card__head">
+            <h2>Ekip Liderliği Komisyonu</h2>
+          </div>
+          <p className="text-muted small">
+            Ekibinizdeki personelin her yeni satışında, satış sonrası Firma Rehberi&apos;ne kalan
+            tutarın %20&apos;si hakedişinize yazılır. Temsilci komisyonlarınızdan ayrıdır.
+          </p>
+
+          <div className="rep-stats" aria-label="Ekip liderliği komisyon özeti">
+            <div className="rep-stat">
+              <span className="rep-stat__icon" aria-hidden="true">
+                <Receipt size={18} strokeWidth={2} />
+              </span>
+              <span className="rep-stat__label">Hakediş</span>
+              <span className="rep-stat__value">{formatTRY(teamSummary?.earned ?? 0)}</span>
+              <span className="rep-stat__hint">Ekip satışlarından kazanılan</span>
+            </div>
+            <div className="rep-stat">
+              <span className="rep-stat__icon rep-stat__icon--slate" aria-hidden="true">
+                <Wallet size={18} strokeWidth={2} />
+              </span>
+              <span className="rep-stat__label">Ödenen</span>
+              <span className="rep-stat__value">{formatTRY(teamSummary?.paid ?? 0)}</span>
+              <span className="rep-stat__hint">Hesabınıza geçen tutar</span>
+            </div>
+            <div className="rep-stat">
+              <span className="rep-stat__icon rep-stat__icon--amber" aria-hidden="true">
+                <Banknote size={18} strokeWidth={2} />
+              </span>
+              <span className="rep-stat__label">Kalan bakiye</span>
+              <span className="rep-stat__value">{formatTRY(teamSummary?.outstanding ?? 0)}</span>
+              <span className="rep-stat__hint">Henüz ödenmemiş tutar</span>
+            </div>
+          </div>
+
+          {teamRows.length === 0 ? (
+            <p className="text-muted small">Henüz ekip liderliği komisyonu oluşmadı.</p>
+          ) : (
+            <ul className="rep-list">
+              {teamRows.map((tc) => (
+                <li key={tc.id}>
+                  <div className="rep-row">
+                    <span className="rep-row__main">
+                      <strong>{formatDateTime(tc.createdAt)}</strong>
+                      <span>
+                        {getRepById(tc.repId)?.name ?? "Ekip üyesi"} · matrah{" "}
+                        {formatTRY(tc.baseAmount)} × %{tc.rate}
+                      </span>
+                    </span>
+                    <span className="rep-row__amount">{formatTRY(tc.amount)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+
+          {teamPayouts.length > 0 && (
+            <ul className="rep-list" style={{ marginTop: 8 }}>
+              {teamPayouts.map((payout) => (
+                <li key={payout.id}>
+                  <div className="rep-row">
+                    <span className="rep-row__main">
+                      <strong>Ödeme · {formatDateTime(payout.paidAt)}</strong>
+                      <span>
+                        {payout.referenceNo
+                          ? `Banka referans no: ${payout.referenceNo}`
+                          : "Banka referans no girilmedi"}
+                      </span>
+                    </span>
+                    <span className="rep-row__amount">{formatTRY(payout.amount)}</span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </section>
+      )}
 
       {sales.length === 0 ? (
         <section className="rep-card">

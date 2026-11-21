@@ -1,14 +1,14 @@
 import { useEffect, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { CheckCircle2, Compass, Mail, MapPin, Phone, Sparkles } from "lucide-react";
 import { SEO } from "../components/SEO";
 import CategorySelect from "../components/CategorySelect";
 import { ErrorBanner, Field, InfoBanner } from "../components/ui";
 import { useAuth } from "../lib/auth";
-import { createPublicLead, listCategories, listCities } from "../lib/repo";
+import { createPublicApplication, createPublicLead, listCategories, listCities } from "../lib/repo";
 import { isSupabaseConfigured } from "../lib/supabase";
 import { isPaymentProviderConfigured } from "../lib/payments";
-import { submitWebLead } from "../lib/dataSource";
+import { submitRepApplication, submitWebLead } from "../lib/dataSource";
 
 /* ============ İLETİŞİM ============ */
 
@@ -239,6 +239,157 @@ export function ContactPage() {
             Firma bilgilerinizi ilettikten sonra başvurunuz ekibimiz tarafından incelenir; sonraki
             adımlar hakkında verdiğiniz telefon numarasından sizinle iletişime geçilir.
           </p>
+        </div>
+      </div>
+    </SEO>
+  );
+}
+
+/* ============ PERSONEL BAŞVURUSU (referans bağlantısı) ============ */
+
+/**
+ * Halka açık personel başvuru formu (/basvuru?ref=AF-001).
+ * Referans kimliği URL'den okunur ve formda değiştirilemez; sunucu kodu
+ * yeniden çözerek personeli ve ekibini belirler (0012). Başvuru beklemede
+ * kaydedilir — onay ve hesap oluşturma yalnız yöneticidedir (sonraki aşama).
+ */
+export function BasvuruPage() {
+  const [searchParams] = useSearchParams();
+  const refCode = (searchParams.get("ref") ?? "").trim().toUpperCase();
+  const [sent, setSent] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [firstName, setFirstName] = useState("");
+  const [lastName, setLastName] = useState("");
+  const [phone, setPhone] = useState("");
+  const [email, setEmail] = useState("");
+  // Honeypot: bot doldurulursa başvuru YAPILMAYA ama başarı gibi görünür.
+  const [honeypot, setHoneypot] = useState("");
+
+  return (
+    <SEO title="Personel Başvurusu | Firma Rehberi" noindex>
+      <div className="section container" style={{ maxWidth: 720 }}>
+        <div className="page-head">
+          <h2>Personel Başvurusu</h2>
+          <p>
+            Bir personelimizin referans bağlantısıyla geldiyseniz başvuru formunu doldurun.
+            Başvurunuz değerlendirilmek üzere kaydedilir.
+          </p>
+        </div>
+
+        <div className="card card__pad">
+          {sent ? (
+            <div>
+              <p style={{ color: "var(--success)", margin: "10px 0 6px" }} aria-hidden="true">
+                <CheckCircle2 size={30} strokeWidth={1.8} />
+              </p>
+              <p style={{ fontWeight: 600, marginBottom: 6 }}>Başvurunuz alındı.</p>
+              <p className="text-muted small">
+                Başvurunuz incelenmek üzere kaydedildi. Değerlendirme sonucu hakkında size
+                dönüş yapılacaktır.
+              </p>
+            </div>
+          ) : !refCode ? (
+            <InfoBanner>
+              Bu sayfa bir personel referans bağlantısıyla açılmalıdır. Başvurunuzu davet
+              eden personele ulaşıp bağlantı isteyin.
+            </InfoBanner>
+          ) : (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                setError(null);
+                if (honeypot) {
+                  // Honeypot doldurdu → bot. Kayıt oluşturulmaz, başarı gibi görünür.
+                  setSent(true);
+                  return;
+                }
+                setSubmitting(true);
+                try {
+                  const data = { firstName, lastName, phone, email, refCode, honeypot };
+                  if (isSupabaseConfigured) {
+                    // Canlı mod: yazma yalnız 0012 submit_rep_application RPC'siyle —
+                    // referans personeli ve ekip SUNUCUDA çözülür.
+                    await submitRepApplication(data);
+                  } else {
+                    // Demo mod: aynı yerel doğrulama ve kayıt
+                    createPublicApplication(data);
+                  }
+                  setSent(true);
+                } catch (err) {
+                  setError(err instanceof Error ? err.message : "Başvuru kaydedilemedi.");
+                } finally {
+                  setSubmitting(false);
+                }
+              }}
+            >
+              {/* Referans personeli URL'den gelir; kullanıcı değiştiremez. */}
+              <p className="text-muted small" style={{ margin: "0 0 12px" }}>
+                Referans personel kodu: <strong>{refCode}</strong> — bağlantıyla
+                geldiğiniz için bu alan değiştirilemez.
+              </p>
+              <div className="form-grid">
+                <Field label="Ad" required>
+                  <input
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                    maxLength={50}
+                    placeholder="Adınız"
+                    autoComplete="given-name"
+                  />
+                </Field>
+                <Field label="Soyad" required>
+                  <input
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                    maxLength={50}
+                    placeholder="Soyadınız"
+                    autoComplete="family-name"
+                  />
+                </Field>
+                <Field label="Telefon" required>
+                  <input
+                    value={phone}
+                    onChange={(e) => setPhone(e.target.value)}
+                    required
+                    placeholder="0555 111 22 33"
+                    inputMode="tel"
+                    autoComplete="tel"
+                  />
+                </Field>
+                <Field label="E-posta" required>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    placeholder="ornek@eposta.com"
+                    autoComplete="email"
+                  />
+                </Field>
+              </div>
+              {/* Honeypot — görsel olarak gizli, sekme akışı dışı */}
+              <input
+                type="text"
+                value={honeypot}
+                onChange={(e) => setHoneypot(e.target.value)}
+                aria-hidden="true"
+                tabIndex={-1}
+                autoComplete="off"
+                style={{ position: "absolute", left: -9999, width: 1, height: 1 }}
+              />
+              {error && <ErrorBanner message={error} />}
+              <button className="btn btn--primary" type="submit" disabled={submitting}>
+                {submitting ? "Gönderiliyor…" : "Başvuruyu gönder"}
+              </button>
+              <p className="text-muted small" style={{ marginTop: 10 }}>
+                Başvuru, yönetici onayına kadar beklemede tutulur; gönderim kişisel bir
+                personel hesabı oluşturmaz.
+              </p>
+            </form>
+          )}
         </div>
       </div>
     </SEO>

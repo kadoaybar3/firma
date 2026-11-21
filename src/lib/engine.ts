@@ -7,6 +7,7 @@ import type {
   Payment,
   Sale,
   Settings,
+  TeamCommission,
 } from "./types";
 import { isSupabaseConfigured } from "./supabase";
 
@@ -164,6 +165,42 @@ export function confirmSale(
         repId: referral.repId,
         amount: s.referralReward,
       });
+    }
+  }
+
+  // Ekip liderliği komisyonu (0014_team_commissions) — confirm_sale SQL
+  // bloğunun JS aynası: matrah = satış − bu satış için oluşan tüm paylar;
+  // liderin kendi satışı, ekipte olmayan, doğrudan kanal ve yenileme hariç.
+  if (sale.channel === "temsilci" && sale.repId && !sale.renewalForMembershipId) {
+    const seller = db.reps.find((r) => r.id === sale.repId);
+    const team = seller?.teamId ? db.teams.find((t) => t.id === seller.teamId) : undefined;
+    const leaderId = team?.leaderRepId;
+    if (leaderId && leaderId !== sale.repId) {
+      const paidShares = db.commissions
+        .filter((c) => c.saleId === sale.id)
+        .reduce((sum, c) => sum + c.amount, 0);
+      const remaining = sale.amount - paidShares;
+      if (remaining > 0) {
+        const rate = 20;
+        const teamCommission: TeamCommission = {
+          id: uid(),
+          saleId: sale.id,
+          repId: sale.repId,
+          leaderRepId: leaderId,
+          baseAmount: remaining,
+          rate,
+          amount: Math.round((remaining * rate) / 100),
+          createdAt: startsAt,
+        };
+        db.teamCommissions ??= [];
+        db.teamCommissions.push(teamCommission);
+        log(db, actor, "ekip_liderligi_komisyonu", `Ekip liderliği komisyonu üretildi`, {
+          saleId: sale.id,
+          leaderRepId: leaderId,
+          baseAmount: remaining,
+          amount: teamCommission.amount,
+        });
+      }
     }
   }
 
@@ -423,8 +460,10 @@ export function approveEftPayment(db: DB, saleId: string, actor: Actor): Payment
       memberships: db.memberships,
       commissions: db.commissions,
       referrals: db.referrals,
+      teamCommissions: db.teamCommissions ?? [],
     }),
-  ) as Pick<DB, "sales" | "payments" | "memberships" | "commissions" | "referrals">;
+  ) as Pick<DB, "sales" | "payments" | "memberships" | "commissions" | "referrals"> &
+    Pick<DB, "teamCommissions">;
 
   let payment = pending;
   if (!payment) {
@@ -456,6 +495,7 @@ export function approveEftPayment(db: DB, saleId: string, actor: Actor): Payment
     db.memberships = before.memberships;
     db.commissions = before.commissions;
     db.referrals = before.referrals;
+    db.teamCommissions = before.teamCommissions;
     throw new BizError(err instanceof Error ? err.message : "EFT onayı tamamlanamadı.");
   }
 

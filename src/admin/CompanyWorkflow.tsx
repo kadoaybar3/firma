@@ -18,7 +18,7 @@ import {
   listPayments,
   listReps,
   listSales,
-  updateCompany,
+  setCompanyPublished,
 } from "../lib/repo";
 import type { CompanyDraft } from "../lib/repo";
 import type { Lead, Sale } from "../lib/types";
@@ -113,7 +113,7 @@ export default function CompanyWorkflow() {
         <div className="adm-panel__body">
           {publishReady.length === 0 ? <EmptyState icon={<BadgeCheck size={25} />} title="Yayına hazır firma yok" /> : publishReady.map(({ sale, company }) => company && <article className="adm-workflow__row" key={sale.id}>
             <div><strong>{company.name}</strong><div className="adm-workflow__meta">{formatTRY(sale.amount)} · Ödeme onaylandı · {company.phone}</div></div>
-            <button className="btn btn--primary btn--sm" type="button" disabled={busy === `publish-${company.id}`} onClick={() => void run(`publish-${company.id}`, async () => { updateCompany(company.id, { published: true }, actor); setMessage(`${company.name} rehberde yayına alındı.`); })}>{busy === `publish-${company.id}` ? <Loader2 size={15} /> : <Check size={15} />} Yayına al</button>
+            <button className="btn btn--primary btn--sm" type="button" disabled={busy === `publish-${company.id}`} onClick={() => void run(`publish-${company.id}`, async () => { await setCompanyPublished(company.id, true, actor); setMessage(`${company.name} rehberde yayına alındı.`); })}>{busy === `publish-${company.id}` ? <Loader2 size={15} /> : <Check size={15} />} Yayına al</button>
           </article>)}
         </div>
       </section>

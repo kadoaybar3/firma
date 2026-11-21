@@ -1,0 +1,9 @@
+FAIL  /                             0 <h1> elements (want exactly 1)
+FAIL  /                             no <main> landmark
+WARN  /                             missing og:image
+WARN  /                             only 0 words of visible text (thin content)
+WARN  site                          404 page has no <h1> (design it: a way back, in the site voice)
+
+1 pages crawled from http://localhost:4400/
+heaviest page /: ~83 KB | html 1 | JS 72 (gz) | CSS 10 (gz) | fonts 0 | images 0
+2 FAIL, 3 WARN

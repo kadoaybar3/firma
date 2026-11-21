@@ -1,28 +1,22 @@
 import { useEffect, useState } from "react";
-import { Link, NavLink, Outlet, useLocation, useNavigate } from "react-router-dom";
+import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
-  BadgeCheck,
   Bell,
   ChartLine,
+  ChevronDown,
   ChevronRight,
   ClipboardList,
-  CreditCard,
-  Download,
   ExternalLink,
   FolderTree,
   LayoutDashboard,
   type LucideIcon,
   LogOut,
-  Map,
   MapPin,
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
   Receipt,
   Settings2,
-  Store,
-  Target,
-  Ticket,
   Users,
   Wallet,
   Workflow,
@@ -37,7 +31,6 @@ import "./admin.css";
 interface SectionTab {
   to: string;
   label: string;
-  icon?: LucideIcon;
 }
 
 interface NavSection {
@@ -47,94 +40,109 @@ interface NavSection {
   icon: LucideIcon;
   /** Bu bölüme bağlı tüm yollar (aktiflik ve kırıntı için). */
   paths: string[];
-  tabs: SectionTab[];
+  /** Bölümün alt sayfaları — boşsa bölüm tek bağlantıdır. */
+  children: SectionTab[];
 }
 
 /**
- * Yönetim bilgi mimarisi — dokuz temel bölüm.
- * Alt sayfalar yeni rota uydurmadan, bölüm içi sekmelerle korunur.
+ * Yönetim bilgi mimarisi — yedi ana bölüm.
+ * Alt sayfalar yeni rota uydurmadan, mevcut rotalar korunarak bağlanır.
  */
-const SECTIONS: NavSection[] = [
+const MAIN_SECTIONS: NavSection[] = [
   {
-    id: "overview",
-    label: "Genel Bakış",
+    id: "today",
+    label: "Bugün",
     to: "/yonetim",
     icon: LayoutDashboard,
     paths: ["/yonetim"],
-    tabs: [],
+    children: [],
   },
   {
-    id: "company-workflow",
-    label: "Firma Akışı",
+    id: "company-line",
+    label: "Firma Hattı",
     to: "/yonetim/firma-akisi",
     icon: Workflow,
-    paths: ["/yonetim/firma-akisi"],
-    tabs: [],
-  },
-  {
-    id: "companies",
-    label: "Firma Yönetimi",
-    to: "/yonetim/firmalar",
-    icon: Store,
-    paths: ["/yonetim/firmalar", "/yonetim/adaylar", "/yonetim/ice-aktar"],
-    tabs: [
-      { to: "/yonetim/firmalar", label: "Firmalar", icon: Store },
-      { to: "/yonetim/adaylar", label: "Adaylar", icon: Target },
-      { to: "/yonetim/ice-aktar", label: "İçe Aktarma", icon: Download },
+    paths: [
+      "/yonetim/firma-akisi",
+      "/yonetim/adaylar",
+      "/yonetim/firmalar",
+      "/yonetim/ice-aktar",
+    ],
+    children: [
+      { to: "/yonetim/firma-akisi", label: "Firma Hattı" },
+      { to: "/yonetim/adaylar", label: "Adaylar" },
+      { to: "/yonetim/firmalar", label: "Firmalar" },
+      { to: "/yonetim/ice-aktar", label: "İçe Aktarma" },
     ],
   },
   {
     id: "sales",
-    label: "Satış ve Ödemeler",
+    label: "Satış ve Tahsilat",
     to: "/yonetim/satislar",
     icon: Wallet,
-    paths: [
-      "/yonetim/satislar",
-      "/yonetim/uyelikler",
-      "/yonetim/komisyonlar",
-      "/yonetim/referanslar",
-    ],
-    tabs: [
-      { to: "/yonetim/satislar", label: "Satışlar", icon: Wallet },
-      { to: "/yonetim/uyelikler", label: "Üyelikler", icon: BadgeCheck },
-      { to: "/yonetim/komisyonlar", label: "Temsilci Ödemeleri", icon: Receipt },
-      { to: "/yonetim/referanslar", label: "Referanslar", icon: Ticket },
+    paths: ["/yonetim/satislar", "/yonetim/odemeler", "/yonetim/uyelikler"],
+    children: [
+      { to: "/yonetim/satislar", label: "Satışlar" },
+      { to: "/yonetim/odemeler", label: "Ödeme Onayları" },
+      { to: "/yonetim/uyelikler", label: "Üyelikler" },
     ],
   },
   {
-    id: "payment-approvals",
-    label: "Ödeme Onayları",
-    to: "/yonetim/odemeler",
-    icon: CreditCard,
-    paths: ["/yonetim/odemeler"],
-    tabs: [],
+    id: "commissions",
+    label: "Hakediş",
+    to: "/yonetim/komisyonlar",
+    icon: Receipt,
+    paths: ["/yonetim/komisyonlar"],
+    children: [],
   },
   {
-    id: "team",
-    label: "Personel Yönetimi",
+    id: "staff",
+    label: "Kadro",
     to: "/yonetim/temsilciler",
     icon: Users,
-    paths: ["/yonetim/temsilciler"],
-    tabs: [],
+    paths: [
+      "/yonetim/temsilciler",
+      "/yonetim/ekipler",
+      "/yonetim/basvurular",
+      "/yonetim/referanslar",
+    ],
+    children: [
+      { to: "/yonetim/temsilciler", label: "Personel" },
+      { to: "/yonetim/ekipler", label: "Ekipler" },
+      { to: "/yonetim/basvurular", label: "Başvurular" },
+      { to: "/yonetim/referanslar", label: "Referanslar" },
+    ],
   },
   {
-    id: "categories",
-    label: "Kategoriler",
+    id: "showcase",
+    label: "Vitrin",
     to: "/yonetim/kategoriler",
     icon: FolderTree,
     paths: ["/yonetim/kategoriler", "/yonetim/sehirler"],
-    tabs: [
-      { to: "/yonetim/kategoriler", label: "Kategoriler", icon: FolderTree },
-      { to: "/yonetim/sehirler", label: "Şehir ve İlçeler", icon: Map },
+    children: [
+      { to: "/yonetim/kategoriler", label: "Kategoriler" },
+      { to: "/yonetim/sehirler", label: "Şehir ve İlçeler" },
     ],
   },
   {
-    id: "reports",
-    label: "Raporlar",
+    id: "analysis",
+    label: "Analiz",
     to: "/yonetim/raporlar",
     icon: ChartLine,
     paths: ["/yonetim/raporlar"],
-    tabs: [],
+    children: [],
+  },
+];
+
+/** Ana menünün altında, ince ayırıcıyla ayrılan sistem bölümleri. */
+const SYSTEM_SECTIONS: NavSection[] = [
+  {
+    id: "settings",
+    label: "Ayarlar",
+    to: "/yonetim/ayarlar",
+    icon: Settings2,
+    paths: ["/yonetim/ayarlar"],
+    children: [],
   },
   {
     id: "audit",
@@ -142,19 +150,14 @@ const SECTIONS: NavSection[] = [
     to: "/yonetim/denetim",
     icon: ClipboardList,
     paths: ["/yonetim/denetim"],
-    tabs: [],
-  },
-  {
-    id: "settings",
-    label: "Ayarlar",
-    to: "/yonetim/ayarlar",
-    icon: Settings2,
-    paths: ["/yonetim/ayarlar"],
-    tabs: [],
+    children: [],
   },
 ];
 
+const ALL_SECTIONS: NavSection[] = [...MAIN_SECTIONS, ...SYSTEM_SECTIONS];
+
 const RAIL_KEY = "ff.admin.sidebarRail";
+const NAV_OPEN_KEY = "adm.nav.open";
 
 function matchesPath(pathname: string, path: string): boolean {
   if (path === "/yonetim") return pathname === "/yonetim";
@@ -163,17 +166,41 @@ function matchesPath(pathname: string, path: string): boolean {
 
 /** Aktif bölüm — en uzun yol eşleşmesi kazanır. */
 function activeSection(pathname: string): NavSection | undefined {
-  return SECTIONS.find((section) =>
-    section.paths.some((path) => matchesPath(pathname, path)),
-  );
+  let best: NavSection | undefined;
+  let bestLength = -1;
+  for (const section of ALL_SECTIONS) {
+    for (const path of section.paths) {
+      if (matchesPath(pathname, path) && path.length > bestLength) {
+        best = section;
+        bestLength = path.length;
+      }
+    }
+  }
+  return best;
 }
 
-/** Aktif sekme — bölüm içindeki en uzun eşleşme. */
-function activeTab(section: NavSection | undefined, pathname: string): SectionTab | undefined {
+/** Aktif alt sayfa — varsayılan sayfayla aynıysa ayrıca gösterilmez. */
+function activeTab(
+  section: NavSection | undefined,
+  pathname: string,
+): SectionTab | undefined {
   if (!section) return undefined;
-  return [...section.tabs]
+  return [...section.children]
     .sort((a, b) => b.to.length - a.to.length)
     .find((tab) => matchesPath(pathname, tab.to));
+}
+
+function readOpenGroups(): string[] {
+  try {
+    const raw = localStorage.getItem(NAV_OPEN_KEY);
+    if (!raw) return [];
+    const parsed: unknown = JSON.parse(raw);
+    return Array.isArray(parsed)
+      ? parsed.filter((value): value is string => typeof value === "string")
+      : [];
+  } catch {
+    return [];
+  }
 }
 
 export function AdminLayout() {
@@ -190,10 +217,11 @@ export function AdminLayout() {
     }
   });
   const [drawer, setDrawer] = useState(false);
+  const [openGroups, setOpenGroups] = useState<string[]>(readOpenGroups);
 
   const section = activeSection(pathname);
   const tab = activeTab(section, pathname);
-  const pageLabel = tab?.label ?? section?.label ?? "Panel";
+  const subPage = section && tab && tab.to !== section.to ? tab : undefined;
 
   // Rota değişince mobil çekmece kapanır.
   useEffect(() => {
@@ -224,6 +252,33 @@ export function AdminLayout() {
     }
   }, [rail]);
 
+  // Açık grup tercihleri — yalnızca arayüz durumu.
+  useEffect(() => {
+    try {
+      localStorage.setItem(NAV_OPEN_KEY, JSON.stringify(openGroups));
+    } catch {
+      /* gizli mod — tercih saklanamaz */
+    }
+  }, [openGroups]);
+
+  // Rota değiştiğinde aktif grup otomatik açılır.
+  useEffect(() => {
+    if (!section || section.children.length === 0) return;
+    const id = section.id;
+    setOpenGroups((current) =>
+      current.includes(id) ? current : [...current, id],
+    );
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [section?.id]);
+
+  const toggleGroup = (id: string) => {
+    setOpenGroups((current) =>
+      current.includes(id)
+        ? current.filter((value) => value !== id)
+        : [...current, id],
+    );
+  };
+
   // Yetki koruması — asıl sınır sunucu tarafındaki RLS'dir.
   if (!user) {
     return (
@@ -235,6 +290,74 @@ export function AdminLayout() {
     );
   }
   if (user.role !== "admin") return <RoleError expected="yönetici" />;
+
+  const renderSection = (item: NavSection) => {
+    const Icon = item.icon;
+    const isActive = section?.id === item.id;
+    const hasChildren = item.children.length > 0;
+    const isOpen = hasChildren && openGroups.includes(item.id);
+    return (
+      <li
+        key={item.id}
+        className={`adm-navgroup ${isActive ? "is-active" : ""} ${isOpen ? "is-open" : ""}`}
+      >
+        <div className="adm-navgroup__row">
+          <Link
+            to={item.to}
+            title={item.label}
+            className="adm-navlink"
+            aria-current={pathname === item.to ? "page" : undefined}
+            onClick={() => setDrawer(false)}
+          >
+            <Icon size={18} strokeWidth={1.85} aria-hidden="true" />
+            <span className="adm-navlink__label">{item.label}</span>
+          </Link>
+          {hasChildren && (
+            <button
+              type="button"
+              className="adm-navgroup__toggle"
+              aria-expanded={isOpen}
+              aria-controls={`adm-nav-${item.id}`}
+              aria-label={
+                isOpen
+                  ? `${item.label} alt sayfalarını kapat`
+                  : `${item.label} alt sayfalarını aç`
+              }
+              title={isOpen ? "Alt sayfaları kapat" : "Alt sayfaları aç"}
+              onClick={() => toggleGroup(item.id)}
+            >
+              <ChevronDown size={15} strokeWidth={2.1} aria-hidden="true" />
+            </button>
+          )}
+        </div>
+        {hasChildren && (
+          <div
+            id={`adm-nav-${item.id}`}
+            className="adm-navgroup__panel"
+            inert={!isOpen}
+          >
+            <ul className="adm-navgroup__children">
+              {item.children.map((child) => {
+                const childActive = matchesPath(pathname, child.to);
+                return (
+                  <li key={child.to}>
+                    <Link
+                      to={child.to}
+                      className={`adm-navlink adm-navlink--sub ${childActive ? "is-active" : ""}`}
+                      aria-current={childActive ? "page" : undefined}
+                      onClick={() => setDrawer(false)}
+                    >
+                      <span className="adm-navlink__label">{child.label}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+            </ul>
+          </div>
+        )}
+      </li>
+    );
+  };
 
   return (
     <div
@@ -271,24 +394,11 @@ export function AdminLayout() {
 
         <div className="adm-sidebar__scroll">
           <div className="adm-navlabel">Yönetim</div>
-          <nav className="adm-nav">
-            {SECTIONS.map(({ to, icon: Icon, label, paths }) => {
-              const isActive = paths.some((path) => matchesPath(pathname, path));
-              return (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end={to === "/yonetim"}
-                  title={label}
-                  className={`adm-navlink ${isActive ? "is-active" : ""}`}
-                  onClick={() => setDrawer(false)}
-                >
-                  <Icon size={18} strokeWidth={1.85} aria-hidden="true" />
-                  <span className="adm-navlink__label">{label}</span>
-                </NavLink>
-              );
-            })}
-          </nav>
+          <ul className="adm-nav">{MAIN_SECTIONS.map(renderSection)}</ul>
+
+          <div className="adm-nav__divider" aria-hidden="true" />
+          <div className="adm-navlabel">Sistem</div>
+          <ul className="adm-nav">{SYSTEM_SECTIONS.map(renderSection)}</ul>
         </div>
 
         <div className="adm-sidebar__foot">
@@ -346,7 +456,7 @@ export function AdminLayout() {
 
             <nav className="adm-crumbs" aria-label="Sayfa konumu">
               <span>Yönetim</span>
-              {section && section.id !== "overview" && (
+              {section && (
                 <>
                   <ChevronRight
                     className="adm-crumbs__sep"
@@ -354,16 +464,28 @@ export function AdminLayout() {
                     strokeWidth={2.2}
                     aria-hidden="true"
                   />
-                  <span className="adm-crumbs__section">{section.label}</span>
+                  <span
+                    className={
+                      subPage ? "adm-crumbs__section" : "adm-crumbs__page"
+                    }
+                  >
+                    {section.label}
+                  </span>
+                </>
+              )}
+              {subPage && (
+                <>
                   <ChevronRight
                     className="adm-crumbs__sep"
                     size={13}
                     strokeWidth={2.2}
                     aria-hidden="true"
                   />
+                  <span className="adm-crumbs__page" aria-current="page">
+                    {subPage.label}
+                  </span>
                 </>
               )}
-              <span className="adm-crumbs__page">{pageLabel}</span>
             </nav>
           </div>
 
@@ -398,22 +520,6 @@ export function AdminLayout() {
         )}
 
         <main className="adm-content">
-          {section && section.tabs.length > 0 && (
-            <nav className="adm-tabs" aria-label={`${section.label} bölümleri`}>
-              {section.tabs.map(({ to, label, icon: Icon }) => (
-                <NavLink
-                  key={to}
-                  to={to}
-                  end
-                  className={({ isActive }) => `adm-tab ${isActive ? "is-active" : ""}`}
-                >
-                  {Icon && <Icon size={14} strokeWidth={1.9} aria-hidden="true" />}
-                  {label}
-                </NavLink>
-              ))}
-            </nav>
-          )}
-
           <SyncBanner />
           <Outlet />
         </main>

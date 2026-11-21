@@ -1,18 +1,27 @@
+import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
   Building2,
+  Check,
   CheckCircle2,
   Clock3,
+  Copy,
   FileText,
+  Link2,
   Plus,
   Receipt,
+  Users,
   Wallet,
 } from "lucide-react";
 import { useActor, useAuth } from "../lib/auth";
 import { formatDate, formatDateTime, formatTRY } from "../lib/format";
 import {
+  createTeam,
   getCompanyById,
+  getMyTeam,
+  getRepById,
+  getSettings,
   listCommissionPayoutSummary,
   listLeads,
   listPayments,
@@ -27,6 +36,43 @@ export default function RepDashboard() {
   const sales = listSales(actor);
   const payments = listPayments(actor);
   const commissionSummary = listCommissionPayoutSummary(actor)[0];
+
+  const myTeam = getMyTeam(actor);
+  const teamCapacity = getSettings().teamCapacity;
+  const [teamName, setTeamName] = useState("");
+  const [teamError, setTeamError] = useState<string | null>(null);
+  const [teamBusy, setTeamBusy] = useState(false);
+
+  // Referans başvuru bağlantısı: kendi personel kodumdan /basvuru?ref=…
+  const myRep = actor.repId ? getRepById(actor.repId) : undefined;
+  const referralUrl = myRep
+    ? `${window.location.origin}/basvuru?ref=${encodeURIComponent(myRep.code)}`
+    : "";
+  const [copied, setCopied] = useState(false);
+
+  async function copyReferral() {
+    try {
+      await navigator.clipboard.writeText(referralUrl);
+      setCopied(true);
+      window.setTimeout(() => setCopied(false), 2000);
+    } catch {
+      // Pano erişimi yoksa (http vb.) kullanıcı alanı elle seçip kopyalayabilir.
+    }
+  }
+
+  async function handleCreateTeam(e: FormEvent) {
+    e.preventDefault();
+    setTeamError(null);
+    setTeamBusy(true);
+    try {
+      await createTeam(teamName, actor);
+      setTeamName("");
+    } catch (err) {
+      setTeamError(err instanceof Error ? err.message : "Ekip kurulamadı.");
+    } finally {
+      setTeamBusy(false);
+    }
+  }
 
   const drafts = leads.filter(isDraft);
   const pendingDrafts = drafts.filter((l) => !isLocked(l));
@@ -253,6 +299,124 @@ export default function RepDashboard() {
           </div>
         </section>
       </div>
+
+      {/* Ekibim */}
+      <section className="rep-card">
+        <div className="rep-card__head">
+          <h2>
+            <Users size={17} strokeWidth={2} aria-hidden="true" /> Ekibim
+          </h2>
+        </div>
+
+        {teamError && <div className="error-banner">{teamError}</div>}
+
+        {myTeam ? (
+          <>
+            <div className="rep-row" style={{ paddingBottom: 6 }}>
+              <span className="rep-row__main">
+                <strong>{myTeam.team.name}</strong>
+                <span>
+                  {myTeam.members.length}/{teamCapacity} üye · lider:{" "}
+                  {myTeam.members.find((m) => m.id === myTeam.team.leaderRepId)?.name ?? "—"}
+                </span>
+              </span>
+            </div>
+            <ul className="rep-list">
+              {myTeam.members.map((m) => (
+                <li key={m.id}>
+                  <div className="rep-row">
+                    <span className="rep-row__main">
+                      <strong>{m.name}</strong>
+                      <span>{m.code}</span>
+                    </span>
+                    <span className="rep-row__side">
+                      {m.id === myTeam.team.leaderRepId ? (
+                        <span className="rep-badge rep-badge--amber">Lider</span>
+                      ) : m.id === actor.repId ? (
+                        <span className="rep-badge rep-badge--green">Siz</span>
+                      ) : null}
+                    </span>
+                  </div>
+                </li>
+              ))}
+            </ul>
+            <div className="rep-note" style={{ marginTop: 12 }}>
+              <Users size={16} strokeWidth={1.9} aria-hidden="true" />
+              <span>
+                Ekip üyelik değişiklikleri yönetici onayıyla yapılır; kendi ekibinizi kurmak
+                dışında başka bir ekibe geçiş yapamazsınız.
+              </span>
+            </div>
+          </>
+        ) : (
+          <form className="rep-stack" onSubmit={handleCreateTeam}>
+            <p className="text-muted small">
+              Kendi ekibinizi kurabilirsiniz: lider siz olursunuz ve ekibiniz {teamCapacity}
+              kişiyle sınırlıdır (lider dahil). Kurduğunuzda mevcut ekip üyeliğiniz sona erer.
+            </p>
+            <label className="field">
+              <span className="field__label">Ekip adı</span>
+              <input
+                type="text"
+                value={teamName}
+                onChange={(e) => setTeamName(e.target.value)}
+                placeholder="Örn: Afyon Merkez Ekibi"
+                maxLength={60}
+                required
+              />
+              <span className="field__hint">2-60 karakter</span>
+            </label>
+            <div>
+              <button
+                className="rep-btn rep-btn--primary"
+                type="submit"
+                disabled={teamBusy || teamName.trim().length < 2}
+              >
+                <Plus size={16} strokeWidth={2.2} aria-hidden="true" />
+                {teamBusy ? "Kuruluyor…" : "Ekip kur"}
+              </button>
+            </div>
+          </form>
+        )}
+
+        {myRep && (
+          <div className="rep-note" style={{ marginTop: 12, display: "block" }}>
+            <span style={{ display: "flex", alignItems: "flex-start", gap: 9 }}>
+              <Link2 size={16} strokeWidth={1.9} aria-hidden="true" style={{ flexShrink: 0, marginTop: 2 }} />
+              <span style={{ display: "block", width: "100%" }}>
+                <strong style={{ display: "block", marginBottom: 2 }}>
+                  Referans başvuru bağlantınız
+                </strong>
+                <span className="text-muted small" style={{ display: "block", marginBottom: 6 }}>
+                  Bağlantıyı paylaştığınız kişi başvurusunu sizin ve ekibinizin adına yapar;
+                  başvuru beklemede kaydedilir, onay yalnız yöneticiye aittir.
+                </span>
+                <span style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <input
+                    readOnly
+                    value={referralUrl}
+                    aria-label="Referans başvuru bağlantısı"
+                    onFocus={(e) => e.currentTarget.select()}
+                    style={{ flex: "1 1 220px", minWidth: 0, fontSize: 12 }}
+                  />
+                  <button
+                    className="rep-btn rep-btn--ghost rep-btn--sm"
+                    type="button"
+                    onClick={() => void copyReferral()}
+                  >
+                    {copied ? (
+                      <Check size={14} strokeWidth={2.2} aria-hidden="true" />
+                    ) : (
+                      <Copy size={14} strokeWidth={2.2} aria-hidden="true" />
+                    )}
+                    {copied ? "Kopyalandı" : "Kopyala"}
+                  </button>
+                </span>
+              </span>
+            </span>
+          </div>
+        )}
+      </section>
 
       {/* Kısa yol */}
       <section className="rep-card">

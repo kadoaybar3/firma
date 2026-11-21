@@ -85,7 +85,9 @@ export default function CategorySelect({
             className={`loc-btn ${open ? "open" : ""}`}
             aria-expanded={open}
             aria-haspopup="listbox"
-            aria-label={ariaLabel}
+            // aria-label bilinçli yok: erişilebilir ad görünür metinden gelsin
+            // (aria-label "Kategori seç" iken görünen "Tüm kategoriler" axe
+            // label-content-name-mismatch veriyordu; seçim değişince ad da değişir).
             aria-disabled={disabled || undefined}
             onClick={() => {
               if (disabled) return;

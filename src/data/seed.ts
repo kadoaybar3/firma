@@ -30,6 +30,8 @@ export const defaultSettings: Settings = {
   repCommission: 50,
   referralReward: 100,
   renewalCommission: 600,
+  /** Genel ekip kapasitesi (kişi, lider dahil) */
+  teamCapacity: 15,
   updatedAt: new Date().toISOString(),
 };
 
@@ -435,6 +437,8 @@ export function seedDB(): DB {
     cities: [city],
     companies,
     reps,
+    // Demo veri seti ekip içermez; ekipler kullanıcı tarafından kurulur.
+    teams: [],
     leads,
     visits,
     sales: [sale, sale2],
@@ -453,6 +457,8 @@ export function seedDB(): DB {
     ],
     commissionPayouts: [],
     referrals,
+    // Demo başvurular yalnız yerelde tutulur; onay akışı sonraki aşamada.
+    repApplications: [],
     settings,
     audit: [],
     // kullanıcı listesi DB içinde değil; demoUsers ayrı tutuluyor

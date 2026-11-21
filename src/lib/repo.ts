@@ -12,9 +12,15 @@ import type {
   Membership,
   Payment,
   Referral,
+  RepApplication,
   Sale,
   SalesRep,
   Settings,
+  Team,
+  TeamCommission,
+  TeamCommissionPayout,
+  TeamJoinApplication,
+  TeamOverview,
 } from "./types";
 import { seedDB } from "../data/seed";
 import { normalizeSearch, slugify, uniqueSlug } from "./slug";
@@ -74,6 +80,10 @@ export function getDB(): DB {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (raw) {
         cache = JSON.parse(raw) as DB;
+        // Eski demo kayıtları (0011 öncesi) ekip alanı içermez → yüklemede tamamla.
+        if (!Array.isArray(cache.teams)) cache.teams = [];
+        if (!(cache.settings?.teamCapacity >= 2))
+          cache.settings = { ...cache.settings, teamCapacity: 15 } as DB["settings"];
         return cache;
       }
     } catch {
@@ -324,6 +334,18 @@ export function updateCompany(id: string, patch: Partial<CompanyDraft>, actor: A
   const db = getDB();
   const company = db.companies.find((c) => c.id === id);
   if (!company) throw new Error("Firma bulunamadı.");
+  // Canlı modda yayın durumu yalnız `setCompanyPublished` (0016 sunucu RPC'si)
+  // ile değişir. Diğer alanların düzenlenmesi published'a dokunmaz; bu yüzden
+  // yalnız gerçek bir geçiş isteği reddedilir (form aynı değeri geri gönderir).
+  if (
+    patch.published !== undefined &&
+    patch.published !== company.published &&
+    isSupabaseConfigured
+  ) {
+    throw new Error(
+      "Yayın durumu yalnızca güvenli yayınlama işlemiyle değiştirilebilir.",
+    );
+  }
   // GÜVENLİK: yayına alma, firmanın satışı ve o satışa bağlı ONAYLI ödeme
   // kaydı olmadan yapılamaz. İSTİSNA (dar): zaten işaretli scraper firmalar
   // admin tarafından ödemesiz yayına alınabilir. İşaret burada yasaklanan
@@ -367,6 +389,93 @@ export function updateCompany(id: string, patch: Partial<CompanyDraft>, actor: A
   // Yayın dışı firmada SEO alanı değişikliği sitemap'i değiştirmez (filter içinde).
   if (seoAffects) scheduleSeoRebuild();
   return company;
+}
+
+/* ============ FİRMA YAYINI (TEK GÜVENLİ YOL) ============ */
+
+/**
+ * Firma yayın durumunu değiştirir — yayınlama/geri alma için TEK yol.
+ *
+ * CANLI (Supabase): 0016 `set_company_published` SECURITY DEFINER RPC'si
+ * çağrılır. RPC yalnız admin kapısı, satır kilidi ve idempotency uygular;
+ * kesinleşmiş (`odendi`) satış + ona bağlı `onaylandi` ödeme şartını ve
+ * `log_audit` kaydını sunucudaki `guard_company_publish` trigger'ı uygular.
+ * İstemcideki ödeme kontrolü yalnız erken geri bildirimdir; asıl sınır
+ * sunucudadır (doğrudan PostgREST UPDATE'i de aynı trigger'dan geçer).
+ *
+ * `note` yalnız DEMO audit'inde kullanılır; canlıda audit'i trigger yazdığı
+ * için RPC'ye taşınmaz (0016 imzası: uuid, boolean).
+ *
+ * SCRAPER İSTİSNASI: `socials.source === "google-maps-scraper"` firmalar
+ * ödemesiz yayınlanabilir. Sunucu bunu `firma_yayinlandi_scraper` eylemiyle
+ * ayrı kaydeder; normal firmalarla karışmaz.
+ *
+ * DEMO: aynı karar yerelde uygulanır ve audit kaydı yazılır (Supabase modunda
+ * audit istemciden yazılamaz; 0002).
+ */
+export async function setCompanyPublished(
+  companyId: string,
+  published: boolean,
+  actor: Actor,
+  note?: string,
+  options: { refreshSnapshot?: boolean } = {},
+): Promise<void> {
+  requireAdmin(actor);
+  const db = getDB();
+  const company = db.companies.find((c) => c.id === companyId);
+  if (!company) throw new Error("Firma bulunamadı.");
+  // Idempotent: istenen durum zaten geçerliyse hiçbir şey yazılmaz.
+  if (company.published === published) return;
+
+  const scraper = company.socials?.source === "google-maps-scraper";
+  if (published && !scraper && !companyHasConfirmedPayment(companyId)) {
+    throw new Error(
+      "Firma yayına alınamaz: kesinleşmiş satış ve onaylanmış ödeme kaydı bulunmuyor.",
+    );
+  }
+
+  if (isSupabaseConfigured) {
+    await flushPending("Firma yayın durumu değiştirilmeden");
+    if (!supabase) throw new Error("Supabase istemcisi yok.");
+    const { error } = await supabase.rpc("set_company_published", {
+      p_company_id: companyId,
+      p_published: published,
+    });
+    if (error) throw new Error(error.message || "Yayın durumu değiştirilemedi.");
+    if (options.refreshSnapshot !== false) await refreshFromServer();
+    // SEO: yayın durumu sitemap'i etkiler (updateCompany'daki davranış korunur).
+    scheduleSeoRebuild();
+    return;
+  }
+
+  company.published = published;
+  company.updatedAt = nowISO();
+  const cleanNote = note?.trim() || undefined;
+  log(
+    db,
+    actor,
+    published
+      ? scraper
+        ? "firma_yayinlandi_scraper"
+        : "firma_yayinlandi"
+      : "firma_yayindan_kaldirildi",
+    published
+      ? `${company.name} ${scraper ? "scraper kaynağından ödemesiz " : ""}yayına alındı`
+      : `${company.name} yayından kaldırıldı`,
+    { companyId, published, scraper, note: cleanNote },
+  );
+  persist();
+  scheduleSeoRebuild();
+}
+
+/**
+ * Toplu yayın/geri alma sonrası yerel görünümü sunucuyla TEK seferde hizalar.
+ * `setCompanyPublished` her satır için RPC çağırır; snapshot yenilemesi
+ * çağrı başına tekrarlanmasın diye döngüde kapatılır ve burada bir kez yapılır.
+ */
+export async function refreshPublishSnapshot(): Promise<void> {
+  if (!isSupabaseConfigured) return;
+  await refreshFromServer();
 }
 
 export function deleteCompany(id: string, actor: Actor): void {
@@ -693,6 +802,181 @@ export function createPublicLead(
   });
   persist();
   return lead;
+}
+
+/**
+ * Referans bağlantısıyla gelen personel başvurusu — DEMO mod (0012 aynası).
+ * Referans kodu ve ekip burada da çözülür: istemciden yalnız açık kod
+ * (AF-001) gelir; ekip, başvuruyu alan personelin o anki team_id'sidir.
+ * Başvuru BEKLEMEDE kalır; hesap oluşturma YOK (onay yalnız yönetici).
+ * Spam katmanı arayüzde (honeypot) ve canlıda RPC'de çalışır; bu katman
+ * yalnızca doğrulama ve kayıt yapar.
+ */
+export function createPublicApplication(data: {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  refCode: string;
+}): RepApplication {
+  const firstName = data.firstName.trim();
+  const lastName = data.lastName.trim();
+  const phone = data.phone.trim();
+  const email = data.email.trim().toLowerCase();
+  const refCode = data.refCode.trim().toUpperCase();
+  if (firstName.length < 2 || firstName.length > 50) throw new Error("Ad 2-50 karakter olmalıdır.");
+  if (lastName.length < 2 || lastName.length > 50)
+    throw new Error("Soyad 2-50 karakter olmalıdır.");
+  const digits = phone.replace(/\D/g, "");
+  if (digits.length < 7 || digits.length > 15)
+    throw new Error("Geçerli bir telefon numarası girin.");
+  if (email.length < 5 || email.length > 120 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email))
+    throw new Error("Geçerli bir e-posta adresi girin.");
+
+  const db = getDB();
+  const rep = db.reps.find((r) => r.code.toUpperCase() === refCode && r.status === "aktif");
+  if (!rep) throw new Error("Geçersiz referans bağlantısı.");
+
+  const dup = db.repApplications.find(
+    (a) =>
+      a.status === "beklemede" &&
+      (a.email.trim().toLowerCase() === email || a.phone.replace(/\D/g, "") === digits),
+  );
+  if (dup) throw new Error("Bu bilgilerle zaten bekleyen bir başvurunuz var.");
+
+  const app: RepApplication = {
+    id: uid(),
+    firstName,
+    lastName,
+    phone,
+    email,
+    referralRepId: rep.id,
+    teamId: rep.teamId, // başvuru anındaki ekip görüntüsü (sunucuda RPC aynı yapar)
+    status: "beklemede",
+    createdAt: nowISO(),
+  };
+  db.repApplications.push(app);
+  log(db, { role: "sistem" }, "personel_basvurusu", `Personel başvurusu: ${firstName} ${lastName}`, {
+    applicationId: app.id,
+    referralRepId: rep.id,
+  });
+  persist();
+  return app;
+}
+
+/* ============ BAŞVURU İNCELEME / ONAY / RED (0013) ============ */
+
+/**
+ * Başvuru listesi. Yalnız yönetici görür (canlıda 0013 RLS zaten
+ * `admin read rep applications` ile kısıtlı; demo modda bu filtre korunur).
+ */
+export function listRepApplications(actor?: Actor): RepApplication[] {
+  const db = getDB();
+  if (actor && actor.role !== "admin") return [];
+  return db.repApplications;
+}
+
+/**
+ * Demo mod onay aynası (0013 approve_rep_application RPC'siyle aynı kurallar):
+ * referans personeli + ekip yeniden doğrulanır, kapasite yeniden kontrol
+ * edilir, yeni personel kaydı ve 'onaylandi' birlikte yazılır.
+ * Canlıda hesap oluşturma Netlify Function + tek transaction RPC'dir.
+ */
+export async function approveRepApplication(
+  applicationId: string,
+  password: string,
+  actor: Actor,
+): Promise<void> {
+  assertAdminActor(actor);
+
+  if (!isSupabaseConfigured) {
+    const db = getDB();
+    const app = db.repApplications.find((a) => a.id === applicationId);
+    if (!app) throw new Error("Başvuru bulunamadı.");
+    if (app.status !== "beklemede")
+      throw new Error(`Bu başvuru zaten sonuçlandırılmış (durum: ${app.status}).`);
+    if (password.length < 6) throw new Error("Personel şifresi en az 6 karakter olmalıdır.");
+
+    const ref = db.reps.find((r) => r.id === app.referralRepId && r.status === "aktif");
+    if (!ref) throw new Error("Referans personeli doğrulanamadı (kayıt yok veya pasif).");
+    if (app.teamId) {
+      if (!db.teams.some((t) => t.id === app.teamId)) {
+        throw new Error("Başvurunun bağlı olduğu ekip artık yok.");
+      }
+      if (ref.teamId !== app.teamId) {
+        throw new Error("Referans personelin ekibi değişmiş; başvuru yeniden değerlendirilmelidir.");
+      }
+      const cap = db.settings.teamCapacity;
+      const count = db.reps.filter((r) => r.teamId === app.teamId).length;
+      if (count + 1 > cap)
+        throw new Error(`Ekip kapasitesi dolu: kapasite ${cap} kişi (lider dahil). Onay yapılamaz.`);
+    }
+
+    const rep: SalesRep = {
+      id: uid(),
+      name: `${app.firstName} ${app.lastName}`.trim(),
+      phone: app.phone,
+      code: uniqueRepCode(db),
+      status: "aktif",
+      teamId: app.teamId,
+      createdAt: nowISO(),
+    };
+    db.reps.push(rep);
+    app.status = "onaylandi";
+    log(
+      db,
+      actor,
+      "personel_basvurusu_onaylandi",
+      `Personel başvurusu onaylandı: ${rep.name} (${rep.code})`,
+      { applicationId: app.id, repId: rep.id, referralRepId: app.referralRepId, teamId: app.teamId },
+    );
+    persist();
+    return;
+  }
+
+  // Canlı: Auth hesabı + onay tek function'da (0013 ile hizalı temizlik).
+  if (!supabase) throw new Error("Supabase istemcisi yok.");
+  const { data } = await supabase.auth.getSession();
+  const token = data.session?.access_token;
+  if (!token) throw new Error("Oturum bulunamadı; yeniden giriş yapın.");
+  const res = await fetch("/api/approve-rep-application", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+    body: JSON.stringify({ applicationId, password }),
+  });
+  const body = (await res.json().catch(() => ({}))) as { message?: string };
+  if (!res.ok) throw new Error(body.message || "Başvuru onaylanamadı.");
+  await refreshFromServer();
+}
+
+/** Red: yalnız yönetici; kayıt silinmez, 'reddedildi' olarak kalır. */
+export async function rejectRepApplication(applicationId: string, actor: Actor): Promise<void> {
+  assertAdminActor(actor);
+
+  if (!isSupabaseConfigured) {
+    const db = getDB();
+    const app = db.repApplications.find((a) => a.id === applicationId);
+    if (!app) throw new Error("Başvuru bulunamadı.");
+    if (app.status !== "beklemede")
+      throw new Error(`Bu başvuru zaten sonuçlandırılmış (durum: ${app.status}).`);
+    app.status = "reddedildi";
+    log(
+      db,
+      actor,
+      "personel_basvurusu_reddedildi",
+      `Personel başvurusu reddedildi: ${app.firstName} ${app.lastName}`,
+      { applicationId: app.id, referralRepId: app.referralRepId },
+    );
+    persist();
+    return;
+  }
+
+  if (!supabase) throw new Error("Supabase istemcisi yok.");
+  const { error } = await supabase.rpc("reject_rep_application", {
+    p_application_id: applicationId,
+  });
+  if (error) throw new Error(error.message || "Başvuru reddedilemedi.");
+  await refreshFromServer();
 }
 
 /** Temsilci yalnızca KENDİ adayının durumunu değiştirebilir. */
@@ -1041,6 +1325,126 @@ export async function recordCommissionPayout(
     amount,
     referenceNo: normalizedReference,
   });
+  persist();
+}
+
+/* ============ EKİP LİDERLİĞİ KOMİSYONU (0014) ============ */
+
+export interface TeamCommissionSummary {
+  leader: SalesRep;
+  earned: number;
+  paid: number;
+  outstanding: number;
+}
+
+/**
+ * Ekip liderliği komisyonları — temsilci komisyonlarından AYRI defter.
+ * Canlıda RLS zaten yalnız admin'in tümünü ve liderin kendi satırını
+ * okumasına izin verir; bu filtre aynı sınırı demo modda korur.
+ */
+export function listTeamCommissions(actor: Actor): TeamCommission[] {
+  const db = getDB();
+  const rows = db.teamCommissions ?? [];
+  const visible =
+    actor.role === "temsilci" ? rows.filter((tc) => tc.leaderRepId === actor.repId) : rows;
+  return [...visible].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/** Ekip liderliği komisyonu ödemeleri (0008 deseni, ayrı defter). */
+export function listTeamCommissionPayouts(actor: Actor): TeamCommissionPayout[] {
+  const db = getDB();
+  const rows = db.teamCommissionPayouts ?? [];
+  const visible =
+    actor.role === "temsilci" ? rows.filter((p) => p.leaderRepId === actor.repId) : rows;
+  return [...visible].sort((a, b) => b.paidAt.localeCompare(a.paidAt));
+}
+
+/** Lider bazında hakediş / ödenen / kalan bakiye. */
+export function listTeamCommissionSummary(actor: Actor): TeamCommissionSummary[] {
+  const db = getDB();
+  const commissions = listTeamCommissions(actor);
+  const payouts = listTeamCommissionPayouts(actor);
+  const leaderIds = new Set([
+    ...commissions.map((c) => c.leaderRepId),
+    ...payouts.map((p) => p.leaderRepId),
+  ]);
+  return db.reps
+    .filter((rep) => leaderIds.has(rep.id))
+    .map((rep) => {
+      const earnedCents = commissions
+        .filter((c) => c.leaderRepId === rep.id)
+        .reduce((sum, c) => sum + Math.round(c.amount * 100), 0);
+      const paidCents = payouts
+        .filter((p) => p.leaderRepId === rep.id)
+        .reduce((sum, p) => sum + Math.round(p.amount * 100), 0);
+      return {
+        leader: rep,
+        earned: earnedCents / 100,
+        paid: paidCents / 100,
+        outstanding: Math.max(0, earnedCents - paidCents) / 100,
+      };
+    });
+}
+
+/**
+ * Ekip liderliği komisyonu ödemesi (yalnız yönetici). Temsilci komisyon
+ * bakiyesine DOKUNMAZ; canlıda 0014 `record_team_commission_payout` RPC'si
+ * sunucuda bakiye sınırını uygular.
+ */
+export async function recordTeamCommissionPayout(
+  leaderId: string,
+  amount: number,
+  referenceNo: string,
+  actor: Actor,
+): Promise<void> {
+  if (actor.role !== "admin") throw new Error("Yalnızca yönetici ödeme kaydedebilir.");
+  if (
+    !Number.isFinite(amount) ||
+    amount <= 0 ||
+    Math.round((amount + Number.EPSILON) * 100) / 100 !== amount
+  ) {
+    throw new Error("Ödeme tutarı sıfırdan büyük ve en fazla iki ondalık basamaklı olmalıdır.");
+  }
+  const db = getDB();
+  const summary = listTeamCommissionSummary(actor).find((row) => row.leader.id === leaderId);
+  if (!summary) throw new Error("Ekip lideri bulunamadı.");
+  if (amount > summary.outstanding)
+    throw new Error("Ödeme tutarı ekip liderinin kalan alacağından fazla olamaz.");
+  const payoutId = uid();
+  const normalizedReference = referenceNo.trim() || undefined;
+
+  if (isSupabaseConfigured) {
+    await flushPending("Ekip liderliği ödemesi kaydedilmeden");
+    if (!supabase) throw new Error("Supabase istemcisi yok.");
+    const { error } = await supabase.rpc("record_team_commission_payout", {
+      p_payout_id: payoutId,
+      p_team_leader_rep_id: leaderId,
+      p_amount: amount,
+      p_reference_no: normalizedReference ?? null,
+    });
+    if (error) throw new Error(`Ekip liderliği ödemesi kaydedilemedi: ${error.message}`);
+    await refreshFromServer();
+    return;
+  }
+
+  const payout: TeamCommissionPayout = {
+    id: payoutId,
+    leaderRepId: leaderId,
+    amount,
+    referenceNo: normalizedReference,
+    paidAt: nowISO(),
+    createdAt: nowISO(),
+    createdBy: actor.userId,
+  };
+  db.teamCommissionPayouts ??= [];
+  db.teamCommissionPayouts.push(payout);
+  log(
+    db,
+    actor,
+    "ekip_liderligi_odeme_kaydedildi",
+    `${summary.leader.name} adına ekip liderliği ödemesi kaydedildi`,
+    { payoutId, leaderId, amount, referenceNo: normalizedReference },
+  );
   persist();
 }
 
@@ -1553,6 +1957,323 @@ export function createReferralCode(repId: string, actor: Actor): Referral {
   return referral;
 }
 
+/* ============ EKİPLER (0011_teams.sql) ============ */
+
+/**
+ * Ekip listesi. Temsilci yalnız kendi ekibini görür (canlıda RLS zaten
+ * daraltır; demo modda bu filtre korunur). Admin tümünü görür.
+ */
+export function listTeams(actor?: Actor): Team[] {
+  const db = getDB();
+  if (actor && actor.role === "temsilci" && actor.repId) {
+    const me = db.reps.find((r) => r.id === actor.repId);
+    return db.teams.filter((t) => t.id === me?.teamId);
+  }
+  return db.teams;
+}
+
+/** Oturum temsilcisinin ekibi ve doğrudan üyeleri (Dashboard "Ekibim"). */
+export function getMyTeam(actor: Actor): { team: Team; members: SalesRep[] } | null {
+  const db = getDB();
+  if (!actor.repId) return null;
+  const me = db.reps.find((r) => r.id === actor.repId);
+  const team = me?.teamId ? db.teams.find((t) => t.id === me.teamId) : undefined;
+  if (!team) return null;
+  return { team, members: db.reps.filter((r) => r.teamId === team.id) };
+}
+
+function assertTeamName(name: string): string {
+  const v = name.trim();
+  if (v.length < 2 || v.length > 60) throw new Error("Ekip adı 2-60 karakter olmalıdır.");
+  return v;
+}
+
+/** Kapasite kontrolü — SQL trigger'ının (enforce_team_capacity) aynası. */
+function assertTeamCapacity(db: DB, teamId: string, excludeRepId: string): void {
+  const cap = db.settings.teamCapacity;
+  const count = db.reps.filter((r) => r.teamId === teamId && r.id !== excludeRepId).length;
+  if (count + 1 > cap) throw new Error(`Ekip kapasitesi doldu: kapasite ${cap} kişi (lider dahil).`);
+}
+
+/**
+ * Personel kendi ekibini kurar: lider olur ve eski ekip üyeliğinden ayrılır.
+ * Canlıda 0011 `create_team` RPC'si — üyelik ataması sunucuda tetikleyicidir.
+ */
+export async function createTeam(name: string, actor: Actor): Promise<Team> {
+  const trimmed = assertTeamName(name);
+  if (actor.role !== "temsilci" || !actor.repId)
+    throw new Error("Bu işlem yalnızca temsilci tarafından yapılabilir.");
+
+  if (!isSupabaseConfigured) {
+    const db = getDB();
+    if (db.teams.some((t) => t.leaderRepId === actor.repId))
+      throw new Error("Zaten bir ekibin liderisiniz.");
+    const me = db.reps.find((r) => r.id === actor.repId);
+    if (!me) throw new Error("Temsilci kaydı bulunamadı.");
+    const team: Team = { id: uid(), name: trimmed, leaderRepId: actor.repId, createdAt: nowISO() };
+    db.teams.push(team);
+    me.teamId = team.id; // eski ekip üyeliği tek atamada düşer (tek ekip kuralı)
+    log(db, actor, "ekip_kuruldu", `Ekip kuruldu: ${team.name}`, { teamId: team.id });
+    persist();
+    return team;
+  }
+
+  if (!supabase) throw new Error("Supabase istemcisi yok.");
+  const { error } = await supabase.rpc("create_team", { p_name: trimmed });
+  if (error) throw new Error(`Ekip kurulamadı: ${error.message}`);
+  await refreshFromServer();
+  const team = getDB().teams.find((t) => t.leaderRepId === actor.repId);
+  if (!team) throw new Error("Ekip kaydı okunamadı.");
+  return team;
+}
+
+/**
+ * Personelin ekip bağlantısını yönetir / ekipler arası transfer (YALNIZ admin).
+ * Canlıda doğrudan sunucuya yazar; kapasite aşımı ve liderlik kuralları
+ * 0011 trigger'larından anında hata döner.
+ */
+export async function setRepTeam(repId: string, teamId: string | null, actor: Actor): Promise<void> {
+  assertAdminActor(actor);
+
+  if (!isSupabaseConfigured) {
+    const db = getDB();
+    const rep = db.reps.find((r) => r.id === repId);
+    if (!rep) throw new Error("Temsilci bulunamadı.");
+    if (teamId && !db.teams.some((t) => t.id === teamId)) throw new Error("Ekip bulunamadı.");
+    const leads = db.teams.find((t) => t.leaderRepId === repId);
+    if (leads && leads.id !== teamId)
+      throw new Error("Ekip lideri kendi ekibinden ayrılamaz; önce ekip liderliğini değiştirin.");
+    if (teamId && rep.teamId !== teamId) assertTeamCapacity(db, teamId, repId);
+    rep.teamId = teamId ?? undefined;
+    log(
+      db,
+      actor,
+      "ekip_baglantisi",
+      teamId ? `Personel ekebağlandı: ${rep.name}` : `Personel ekipten çıkarıldı: ${rep.name}`,
+      { repId, teamId },
+    );
+    persist();
+    return;
+  }
+
+  await flushPending("Ekip bağlantısı güncellenmeden");
+  const { data, error } = await supabase!
+    .from("sales_reps")
+    .update({ team_id: teamId })
+    .eq("id", repId)
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(`Ekip bağlantısı güncellenemedi: ${error.message}`);
+  if (!data) throw new Error("Temsilci bulunamadı.");
+  await refreshFromServer();
+}
+
+/**
+ * Ekip liderliğini değiştirir (YALNIZ admin): yeni lider ekibe katılır,
+ * eski lider üye olarak kalır. Liderlik aktarımı transferin ön koşuludur
+ * (bir personel aynı anda yalnız bir ekibin lideri olabilir).
+ */
+export async function setTeamLeader(teamId: string, repId: string, actor: Actor): Promise<void> {
+  assertAdminActor(actor);
+
+  if (!isSupabaseConfigured) {
+    const db = getDB();
+    const team = db.teams.find((t) => t.id === teamId);
+    if (!team) throw new Error("Ekip bulunamadı.");
+    const rep = db.reps.find((r) => r.id === repId);
+    if (!rep) throw new Error("Temsilci bulunamadı.");
+    if (db.teams.some((t) => t.leaderRepId === repId && t.id !== teamId))
+      throw new Error("Bu personel zaten başka bir ekibin lideri.");
+    if (rep.teamId !== teamId) assertTeamCapacity(db, teamId, repId);
+    team.leaderRepId = repId;
+    rep.teamId = teamId; // SQL trigger aynası: lider her zaman kendi ekibinin üyesi
+    log(db, actor, "ekip_lideri", `Ekip lideri değiştirildi: ${team.name} → ${rep.name}`, {
+      teamId,
+      repId,
+    });
+    persist();
+    return;
+  }
+
+  await flushPending("Ekip lideri değiştirilmeden");
+  const { data, error } = await supabase!
+    .from("teams")
+    .update({ leader_rep_id: repId })
+    .eq("id", teamId)
+    .select("id")
+    .maybeSingle();
+  if (error) throw new Error(`Ekip lideri değiştirilemedi: ${error.message}`);
+  if (!data) throw new Error("Ekip bulunamadı.");
+  await refreshFromServer();
+}
+
+/* ============ EKİP BULMA / KATILIM BAŞVURUSU (0015) ============ */
+
+/**
+ * Tüm ekiplerin özeti (lider adı, üye sayısı, kapasite) — ekipler herkes
+ * tarafından görüntülenebilir. Canlıda 0015 `teams_overview` görünümünden
+ * snapshot'a gelir (anon'a kapalı); demo modda aynı hesap yerelde yapılır.
+ */
+export function listTeamsOverview(): TeamOverview[] {
+  const db = getDB();
+  if (db.teamOverviews) return db.teamOverviews;
+  const capacity = db.settings.teamCapacity;
+  return db.teams.map((team) => ({
+    teamId: team.id,
+    teamName: team.name,
+    leaderRepId: team.leaderRepId,
+    leaderName: db.reps.find((r) => r.id === team.leaderRepId)?.name ?? "—",
+    memberCount: db.reps.filter((r) => r.teamId === team.id).length,
+    capacity,
+  }));
+}
+
+/**
+ * Ekip katılım başvuruları — yönetici tümünü, personel yalnız KENDİ
+ * başvurusunu görür (canlıda RLS zaten aynı sınırı uygular; demo aynası).
+ */
+export function listTeamJoinApplications(actor?: Actor): TeamJoinApplication[] {
+  const db = getDB();
+  const rows = db.teamJoinApplications ?? [];
+  const visible =
+    actor && actor.role === "admin"
+      ? rows
+      : actor && actor.repId
+        ? rows.filter((a) => a.repId === actor.repId)
+        : [];
+  return [...visible].sort((a, b) => b.createdAt.localeCompare(a.createdAt));
+}
+
+/**
+ * Ekibe katılım başvurusu (yalnız personel) — 0015
+ * `submit_team_join_application` RPC'sinin demo aynası: tek ekip üyeliği,
+ * tekrar (beklemede) başvuru ve kapasite burada da kontrol edilir.
+ * Başvuru BEKLEMEDE kalır; üyelik/ekip bağlantısı YARATMAZ (onay ayrıdır).
+ */
+export async function submitTeamJoinApplication(teamId: string, actor: Actor): Promise<void> {
+  if (actor.role !== "temsilci" || !actor.repId)
+    throw new Error("Bu işlem yalnızca temsilci tarafından yapılabilir.");
+
+  if (!isSupabaseConfigured) {
+    const db = getDB();
+    const me = db.reps.find((r) => r.id === actor.repId);
+    if (!me) throw new Error("Temsilci kaydı bulunamadı.");
+    if (me.teamId)
+      throw new Error("Zaten bir ekipte olduğunuz için başka bir ekibe başvuru yapamazsınız.");
+    if (!db.teams.some((t) => t.id === teamId)) throw new Error("Ekip bulunamadı.");
+    if (db.teamJoinApplications?.some((a) => a.repId === me.id && a.status === "beklemede"))
+      throw new Error("Zaten bekleyen bir ekip başvurunuz var.");
+    const cap = db.settings.teamCapacity;
+    const count = db.reps.filter((r) => r.teamId === teamId).length;
+    if (count + 1 > cap)
+      throw new Error(`Ekip kapasitesi dolu: kapasite ${cap} kişi (lider dahil). Başvuru yapılamaz.`);
+
+    const app: TeamJoinApplication = {
+      id: uid(),
+      repId: me.id,
+      teamId,
+      status: "beklemede",
+      createdAt: nowISO(),
+    };
+    db.teamJoinApplications ??= [];
+    db.teamJoinApplications.push(app);
+    log(db, actor, "ekip_katilim_basvurusu", `Ekip katılım başvurusu: ${teamNameOf(db, teamId)}`, {
+      applicationId: app.id,
+      teamId,
+    });
+    persist();
+    return;
+  }
+
+  if (!supabase) throw new Error("Supabase istemcisi yok.");
+  const { error } = await supabase.rpc("submit_team_join_application", {
+    p_team_id: teamId,
+  });
+  if (error) throw new Error(error.message || "Ekip başvurusu gönderilemedi.");
+  await refreshFromServer();
+}
+
+function teamNameOf(db: DB, teamId: string): string {
+  return db.teams.find((t) => t.id === teamId)?.name ?? teamId;
+}
+
+/**
+ * Başvuru onayı (YALNIZ yönetici) — 0015 `approve_team_join_application`
+ * RPC'sinin demo aynası: beklemede kilidi, başka ekip bağlılık kontrolü ve
+ * kapasite ONAY ANINDA yeniden kontrol edilir; üyelik ancak onayda kurulur.
+ */
+export async function approveTeamJoinApplication(applicationId: string, actor: Actor): Promise<void> {
+  assertAdminActor(actor);
+
+  if (!isSupabaseConfigured) {
+    const db = getDB();
+    const app = db.teamJoinApplications?.find((a) => a.id === applicationId);
+    if (!app) throw new Error("Başvuru bulunamadı.");
+    if (app.status !== "beklemede")
+      throw new Error(`Bu başvuru zaten sonuçlandırılmış (durum: ${app.status}).`);
+    const rep = db.reps.find((r) => r.id === app.repId);
+    if (!rep) throw new Error("Personel kaydı bulunamadı.");
+    if (rep.teamId)
+      throw new Error("Personel zaten bir ekibe bağlı; başvuru onaylanamaz.");
+    if (!db.teams.some((t) => t.id === app.teamId))
+      throw new Error("Başvurunun ekibi artık yok.");
+    const cap = db.settings.teamCapacity;
+    const count = db.reps.filter((r) => r.teamId === app.teamId).length;
+    if (count + 1 > cap)
+      throw new Error(`Ekip kapasitesi dolu: kapasite ${cap} kişi (lider dahil). Onay yapılamaz.`);
+
+    rep.teamId = app.teamId; // tek transaction'ın demo aynası: üyelik + durum birlikte
+    app.status = "onaylandi";
+    app.decidedAt = nowISO();
+    app.decidedBy = actor.userId;
+    log(db, actor, "ekip_katilim_onaylandi", `Ekip katılım başvurusu onaylandı: ${rep.name}`, {
+      applicationId: app.id,
+      repId: rep.id,
+      teamId: app.teamId,
+    });
+    persist();
+    return;
+  }
+
+  await flushPending("Ekip katılım onayından önce");
+  if (!supabase) throw new Error("Supabase istemcisi yok.");
+  const { error } = await supabase.rpc("approve_team_join_application", {
+    p_application_id: applicationId,
+  });
+  if (error) throw new Error(error.message || "Başvuru onaylanamadı.");
+  await refreshFromServer();
+}
+
+/** Başvuru reddi (YALNIZ yönetici) — kayıt silinmez, 'reddedildi' kalır. */
+export async function rejectTeamJoinApplication(applicationId: string, actor: Actor): Promise<void> {
+  assertAdminActor(actor);
+
+  if (!isSupabaseConfigured) {
+    const db = getDB();
+    const app = db.teamJoinApplications?.find((a) => a.id === applicationId);
+    if (!app) throw new Error("Başvuru bulunamadı.");
+    if (app.status !== "beklemede")
+      throw new Error(`Bu başvuru zaten sonuçlandırılmış (durum: ${app.status}).`);
+    app.status = "reddedildi";
+    app.decidedAt = nowISO();
+    app.decidedBy = actor.userId;
+    log(db, actor, "ekip_katilim_reddedildi", "Ekip katılım başvurusu reddedildi", {
+      applicationId: app.id,
+      repId: app.repId,
+      teamId: app.teamId,
+    });
+    persist();
+    return;
+  }
+
+  if (!supabase) throw new Error("Supabase istemcisi yok.");
+  const { error } = await supabase.rpc("reject_team_join_application", {
+    p_application_id: applicationId,
+  });
+  if (error) throw new Error(error.message || "Başvuru reddedilemedi.");
+  await refreshFromServer();
+}
+
 /* ============ AYARLAR ============ */
 
 export function getSettings(): Settings {
@@ -1561,7 +2282,9 @@ export function getSettings(): Settings {
 
 /** Komisyon/ödül kuralları yönetici tarafından değiştirilebilir; her değişiklik denetim kaydına işlenir. */
 export function updateSettings(
-  patch: Partial<Pick<Settings, "membershipPrice" | "repCommission" | "referralReward" | "renewalCommission">>,
+  patch: Partial<
+    Pick<Settings, "membershipPrice" | "repCommission" | "referralReward" | "renewalCommission" | "teamCapacity">
+  >,
   actor: Actor,
 ): Settings {
   if (actor.role !== "admin") throw new Error("Bu işlem yalnızca yönetici tarafından yapılabilir.");
@@ -1569,7 +2292,8 @@ export function updateSettings(
   const before = { ...db.settings };
   for (const [key, value] of Object.entries(patch)) {
     const n = Number(value);
-    if (!Number.isFinite(n) || n < 0)
+    // teamCapacity: SQL check (>=2) ile aynı sınır — lider dahil en az 2 kişi.
+    if (!Number.isFinite(n) || n < 0 || (key === "teamCapacity" && n < 2))
       throw new Error(`Geçersiz değer: ${key}`);
   }
   Object.assign(db.settings, patch, { updatedAt: nowISO() });

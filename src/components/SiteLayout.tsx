@@ -5,8 +5,11 @@ import { useAuth, useActor } from "../lib/auth";
 export function SiteLayout() {
   return (
     <div style={{ display: "flex", flexDirection: "column", minHeight: "100vh" }}>
+      <a className="skip-link" href="#main">
+        İçeriğe geç
+      </a>
       <SiteHeader />
-      <main style={{ flex: 1 }}>
+      <main id="main" style={{ flex: 1 }}>
         <Outlet />
       </main>
       <SiteFooter />

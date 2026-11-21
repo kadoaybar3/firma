@@ -14,6 +14,7 @@ import {
   getCompanyById,
   listCompanies,
   listCommissions,
+  listCommissionPayoutSummary,
   listMemberships,
   listPayments,
   listSales,
@@ -52,6 +53,9 @@ function RepSales({ actor }: { actor: ReturnType<typeof useActor> }) {
   );
   const companies = listCompanies().filter((c) => !activeCompanyIds.has(c.id));
   const membershipPrice = getSettings().membershipPrice;
+  // Ödenen/bekleyen kazanç commission_payouts defterinden gelir (temsilci
+  // yalnız kendi satırını görür); commissions.status ödeme ile güncellenmez.
+  const commissionSummary = listCommissionPayoutSummary(actor)[0];
 
   function run(fn: () => void) {
     setError(null);
@@ -72,17 +76,13 @@ function RepSales({ actor }: { actor: ReturnType<typeof useActor> }) {
         <StatCard
           icon={<Receipt size={20} strokeWidth={1.9} />}
           label="Bekleyen kazanç"
-          value={formatTRY(
-            commissions.filter((c) => c.com.status !== "odendi").reduce((s, c) => s + c.com.amount, 0),
-          )}
+          value={formatTRY(commissionSummary?.outstanding ?? 0)}
           tone="warning"
         />
         <StatCard
           icon={<Banknote size={20} strokeWidth={1.9} />}
           label="Ödenmiş kazanç"
-          value={formatTRY(
-            commissions.filter((c) => c.com.status === "odendi").reduce((s, c) => s + c.com.amount, 0),
-          )}
+          value={formatTRY(commissionSummary?.paid ?? 0)}
           tone="success"
         />
       </div>

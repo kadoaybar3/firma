@@ -20,6 +20,7 @@ const settings: Settings = {
   repCommission: 50,
   referralReward: 100,
   renewalCommission: 600,
+  teamCapacity: 15,
   updatedAt: new Date().toISOString(),
 };
 
@@ -29,6 +30,7 @@ function freshDB(): DB {
     cities: [],
     companies: [{ id: "co-1", name: "Test", slug: "test", categoryId: "", cityId: "", district: "", address: "", phone: "", socials: {}, description: "", images: [], hours: { weekday: "", saturday: "", sunday: "" }, featured: false, published: true, createdAt: "", updatedAt: "" }] as DB["companies"],
     reps: [{ id: "rep-1", name: "Rep", phone: "", code: "AF-001", status: "aktif", createdAt: "" }],
+    teams: [],
     leads: [],
     visits: [],
     sales: [],
@@ -36,6 +38,7 @@ function freshDB(): DB {
     memberships: [],
     commissions: [],
     referrals: [{ id: "ref-1", code: "AF-1001", repId: "rep-1", createdAt: "" }],
+    repApplications: [],
     settings: { ...settings },
     audit: [],
   };

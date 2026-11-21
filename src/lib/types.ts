@@ -84,6 +84,20 @@ export interface SalesRep {
   status: RepStatus;
   /** Bu temsilci için özel komisyon oranı (%) — boşsa genel ayarlardan hesaplanır */
   customCommissionRate?: number;
+  /** Üyeliği olduğu ekip (tek ekip kuralı — null/undefined = ekipte değil) */
+  teamId?: string;
+  createdAt: string;
+}
+
+/**
+ * Bağımsız ekip — ana sisteme doğrudan bağlıdır; üst/alt ekip kolonu YOKTUR
+ * (hiyerarşi imkânsız). Lider de ekibin üyesidir (sales_reps.team_id).
+ */
+export interface Team {
+  id: string;
+  name: string;
+  /** Ekibin tek lideri (UNIQUE — bir personel aynı anda tek ekibin lideri) */
+  leaderRepId: string;
   createdAt: string;
 }
 
@@ -212,6 +226,70 @@ export interface CommissionPayout {
   createdBy?: string;
 }
 
+/**
+ * Ekip katılım başvurusu (0015_team_join_applications) — yazım yalnız
+ * sunucu RPC'lerindedir (onay/reddeden bağımsız olarak istemcinin bu
+ * tabloya yazma yetkisi yoktur); okuma RLS ile personel yalnız kendi
+ * başvurusunu, yönetici tümünü görür.
+ */
+export interface TeamJoinApplication {
+  id: string;
+  /** Başvuru sahibi personel */
+  repId: string;
+  /** Katılınmak istenen ekip */
+  teamId: string;
+  status: "beklemede" | "onaylandi" | "reddedildi";
+  createdAt: string;
+  decidedAt?: string;
+  decidedBy?: string;
+}
+
+/**
+ * Ekip özeti görünümü (0015 `teams_overview`) — lider adı, üye sayısı ve
+ * kapasite tek yerden okunur; personelin diğer ekiplerin üye satırlarını
+ * (telefon vb.) görmesi gerekmez.
+ */
+export interface TeamOverview {
+  teamId: string;
+  teamName: string;
+  leaderRepId: string;
+  leaderName: string;
+  memberCount: number;
+  capacity: number;
+}
+
+/**
+ * Ekip liderliği komisyonu (0014_team_commissions) — `commissions`
+ * tablosundan AYRIDIR (aynı satışa ikinci komisyon satırı eklenmez).
+ * Matrah, satış sonrası Firma Rehberi'ne kalan tutardır; lider ve tutar
+ * satış anında sunucuda hesaplanıp anlık görüntü olarak saklanır.
+ */
+export interface TeamCommission {
+  id: string;
+  saleId: string;
+  /** Satışı yapan doğrudan ekip üyesi */
+  repId: string;
+  /** Satış anındaki ekip lideri (sonradan değişmez) */
+  leaderRepId: string;
+  /** Paylar sonrası Firma Rehberi'ne kalan matrah */
+  baseAmount: number;
+  /** Oran (%) — kesin iş modeli: 20 */
+  rate: number;
+  amount: number;
+  createdAt: string;
+}
+
+/** Ekip liderliği komisyonu için yönetici ödeme kaydı (0008 deseni). */
+export interface TeamCommissionPayout {
+  id: string;
+  leaderRepId: string;
+  amount: number;
+  referenceNo?: string;
+  paidAt: string;
+  createdAt: string;
+  createdBy?: string;
+}
+
 /** Temsilciye verilen doğrudan referans kodu */
 export interface Referral {
   id: string;
@@ -222,6 +300,26 @@ export interface Referral {
   createdAt: string;
 }
 
+export type RepApplicationStatus = "beklemede" | "onaylandi" | "reddedildi";
+
+/**
+ * Referans bağlantısıyla gelen personel başvurusu (0012_rep_applications).
+ * Yalnız yönetici görür; onay ve personel hesabı oluşturma SONRAKİ aşamada.
+ */
+export interface RepApplication {
+  id: string;
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  /** Referans veren personel — sunucuda ref kodundan çözülür (istemciden UUID gelmez) */
+  referralRepId: string;
+  /** Başvuru anındaki ekip (rep.teamId anlık görüntüsü — sunucuda belirlenir) */
+  teamId?: string;
+  status: RepApplicationStatus;
+  createdAt: string;
+}
+
 /** Yönetim tarafından değiştirilebilir iş kuralları — kaynak koda SABLLENMEZ */
 export interface Settings {
   membershipPrice: number;
@@ -229,6 +327,8 @@ export interface Settings {
   repCommission: number;
   referralReward: number;
   renewalCommission: number;
+  /** Genel ekip kapasitesi (KİŞİ — lider dahil; varsayılan 15) */
+  teamCapacity: number;
   updatedAt: string;
 }
 
@@ -248,6 +348,7 @@ export interface DB {
   cities: City[];
   companies: Company[];
   reps: SalesRep[];
+  teams: Team[];
   leads: Lead[];
   visits: LeadVisit[];
   sales: Sale[];
@@ -255,7 +356,16 @@ export interface DB {
   memberships: Membership[];
   commissions: Commission[];
   commissionPayouts?: CommissionPayout[];
+  /** 0014: ekip liderliği komisyonları — yalnız sunucu (confirm_sale) yazar */
+  teamCommissions?: TeamCommission[];
+  /** 0014: ekip liderliği komisyonu ödemeleri — yalnız RPC yazar */
+  teamCommissionPayouts?: TeamCommissionPayout[];
+  /** 0015: ekip katılım başvuruları — yazım yalnız RPC */
+  teamJoinApplications?: TeamJoinApplication[];
+  /** 0015: ekip özeti görünümü (snapshot okuma; demo modda hesaplanır) */
+  teamOverviews?: TeamOverview[];
   referrals: Referral[];
+  repApplications: RepApplication[];
   settings: Settings;
   audit: AuditEntry[];
 }

@@ -20,6 +20,9 @@ const FirmDetailPage = lazy(() => import("./pages/FirmDetailPage"));
 const ContactPage = lazy(() =>
   import("./pages/StaticPages").then((m) => ({ default: m.ContactPage })),
 );
+const BasvuruPage = lazy(() =>
+  import("./pages/StaticPages").then((m) => ({ default: m.BasvuruPage })),
+);
 const HakkindaPage = lazy(() =>
   import("./pages/StaticPages").then((m) => ({ default: m.HakkindaPage })),
 );
@@ -46,6 +49,8 @@ const AdminCompanies = lazy(() => import("./admin/Companies"));
 const AdminCategories = lazy(() => import("./admin/Categories"));
 const AdminCities = lazy(() => import("./admin/Cities"));
 const AdminReps = lazy(() => import("./admin/Reps"));
+const AdminTeams = lazy(() => import("./admin/Teams"));
+const AdminApplications = lazy(() => import("./admin/Applications"));
 const AdminLeads = lazy(() => import("./admin/Leads"));
 const AdminSales = lazy(() => import("./admin/Sales"));
 const AdminPayments = lazy(() => import("./admin/Payments"));
@@ -67,6 +72,7 @@ const RepDrafts = lazy(() => import("./rep/Drafts"));
 const RepDraftEdit = lazy(() => import("./rep/DraftEdit"));
 const RepPayment = lazy(() => import("./rep/Payment"));
 const RepMySales = lazy(() => import("./rep/MySales"));
+const RepTeams = lazy(() => import("./rep/Teams"));
 
 /** Lazy bölüm yüklenirken gösterilen ortak bekleme görünümü */
 function PageFallback() {
@@ -156,6 +162,7 @@ export default function App() {
                 <Route path="hakkimizda" element={<HakkindaPage />} />
                 <Route path="kvkk" element={<KvkkPage />} />
                 <Route path="kullanim-kosullari" element={<TermsPage />} />
+                <Route path="basvuru" element={<BasvuruPage />} />
                 <Route path="*" element={<NotFoundPage />} />
               </Route>
 
@@ -171,6 +178,8 @@ export default function App() {
                 <Route path="sehirler" element={<AdminCities />} />
                 <Route path="ice-aktar" element={<AdminImport />} />
                 <Route path="temsilciler" element={<AdminReps />} />
+                <Route path="ekipler" element={<AdminTeams />} />
+                <Route path="basvurular" element={<AdminApplications />} />
                 <Route path="adaylar" element={<AdminLeads />} />
                 <Route path="satislar" element={<AdminSales />} />
                 <Route path="odemeler" element={<AdminPayments />} />
@@ -190,6 +199,7 @@ export default function App() {
                 <Route path="taslak/:id" element={<RepDraftEdit />} />
                 <Route path="taslak/:id/odeme" element={<RepPayment />} />
                 <Route path="satislarim" element={<RepMySales />} />
+                <Route path="ekipler" element={<RepTeams />} />
                 {/* Eski bağlantılar korunur: yer imleri kırılmaz */}
                 <Route path="firmalar" element={<Navigate to="/temsilci/taslaklar" replace />} />
                 <Route path="uyelik" element={<Navigate to="/temsilci/taslaklar" replace />} />

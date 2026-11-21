@@ -185,6 +185,27 @@
 .adm-nav {
   display: grid;
   gap: 2px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+/* Ana menü ile sistem bölümünü ayıran ince çizgi */
+.adm-nav__divider {
+  height: 1px;
+  margin: 12px 10px 4px;
+  background: var(--adm-line);
+}
+
+.adm-navgroup {
+  position: relative;
+}
+
+.adm-navgroup__row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 2px;
 }
 
 .adm-navlink {
@@ -192,8 +213,10 @@
   display: flex;
   align-items: center;
   gap: 10px;
+  flex: 1;
+  min-width: 0;
   min-height: 40px;
-  padding: 9px 10px;
+  padding: 8px 10px;
   border-radius: var(--adm-r-sm);
   color: #3d4b60;
   font-size: 0.875rem;
@@ -219,22 +242,107 @@
   color: var(--adm-ink-2);
 }
 
-.adm-navlink.is-active {
+/* Aç/kapa oku — bölüm satırından ayrı tıklama hedefi */
+.adm-navgroup__toggle {
+  display: inline-grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--adm-ink-3);
+  cursor: pointer;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.adm-navgroup__toggle:hover {
+  background: var(--adm-surface-sunken);
+  color: var(--adm-ink);
+}
+
+.adm-navgroup__toggle:focus-visible {
+  outline: 2px solid var(--adm-blue);
+  outline-offset: 1px;
+}
+
+.adm-navgroup__toggle svg {
+  transition: transform 0.18s ease;
+}
+
+.adm-navgroup.is-open .adm-navgroup__toggle svg {
+  transform: rotate(180deg);
+}
+
+/* Katlanır alt menü */
+.adm-navgroup__panel {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.18s cubic-bezier(0.32, 0.72, 0, 1);
+}
+
+.adm-navgroup.is-open > .adm-navgroup__panel {
+  grid-template-rows: 1fr;
+}
+
+.adm-navgroup__children {
+  position: relative;
+  display: grid;
+  gap: 1px;
+  min-height: 0;
+  overflow: hidden;
+  margin: 0;
+  padding: 0 0 0 14px;
+  list-style: none;
+}
+
+.adm-navgroup.is-open > .adm-navgroup__panel > .adm-navgroup__children {
+  padding-bottom: 4px;
+}
+
+.adm-navgroup__children::before {
+  content: "";
+  position: absolute;
+  left: 4px;
+  top: 4px;
+  bottom: 10px;
+  width: 1px;
+  background: var(--adm-line);
+}
+
+.adm-navlink--sub {
+  min-height: 34px;
+  padding: 7px 10px 7px 12px;
+  border-radius: 8px;
+  color: var(--adm-ink-2);
+  font-size: 0.82rem;
+  font-weight: 550;
+}
+
+.adm-navlink--sub.is-active {
   background: var(--adm-blue-soft);
   color: var(--adm-blue-strong);
+  font-weight: 650;
+}
+
+/* Aktif bölüm — yumuşak yüzey ve sol gösterge */
+.adm-navgroup.is-active > .adm-navgroup__row > .adm-navlink {
+  background: var(--adm-surface-sunken);
+  color: var(--adm-ink);
   font-weight: 680;
 }
 
-.adm-navlink.is-active svg {
+.adm-navgroup.is-active > .adm-navgroup__row > .adm-navlink svg {
   color: var(--adm-blue);
 }
 
-.adm-navlink.is-active::before {
+.adm-navgroup.is-active > .adm-navgroup__row::before {
   content: "";
   position: absolute;
   left: -10px;
-  top: 10px;
-  bottom: 10px;
+  top: 9px;
+  bottom: 9px;
   width: 3px;
   border-radius: 0 3px 3px 0;
   background: var(--adm-blue);
@@ -353,8 +461,10 @@
   padding: 11px 0;
 }
 
-.adm-shell.is-rail .adm-navlink.is-active::before {
-  left: -10px;
+/* Ray modunda alt menü yok — ikonlar bölümün varsayılan sayfasına gider */
+.adm-shell.is-rail .adm-navgroup__toggle,
+.adm-shell.is-rail .adm-navgroup__panel {
+  display: none;
 }
 
 .adm-shell.is-rail .adm-user {
@@ -484,70 +594,6 @@
   margin: 0 auto;
   padding: 22px 22px 64px;
   min-width: 0;
-}
-
-.adm-tabs {
-  display: flex;
-  align-items: center;
-  gap: 3px;
-  padding: 3px;
-  margin-bottom: 18px;
-  border: 1px solid var(--adm-line);
-  border-radius: var(--adm-r);
-  background: rgba(255, 255, 255, 0.7);
-  box-shadow: var(--adm-shadow-xs);
-  width: fit-content;
-  max-width: 100%;
-  overflow-x: auto;
-  scrollbar-width: none;
-}
-
-.adm-tabs::-webkit-scrollbar {
-  display: none;
-}
-
-.adm-tab {
-  display: inline-flex;
-  align-items: center;
-  gap: 7px;
-  padding: 7px 13px;
-  border-radius: 9px;
-  color: var(--adm-ink-2);
-  font-size: 0.82rem;
-  font-weight: 600;
-  white-space: nowrap;
-  transition: background-color 0.15s ease, color 0.15s ease, box-shadow 0.15s ease;
-}
-
-.adm-tab:hover {
-  background: var(--adm-surface-soft);
-  color: var(--adm-ink);
-  text-decoration: none;
-}
-
-.adm-tab.is-active {
-  background: var(--adm-surface);
-  color: var(--adm-ink);
-  box-shadow: 0 1px 2px rgba(11, 23, 40, 0.06), 0 3px 10px -6px rgba(11, 23, 40, 0.35);
-}
-
-.adm-tab__count {
-  display: inline-grid;
-  place-items: center;
-  min-width: 19px;
-  height: 19px;
-  padding: 0 5px;
-  border-radius: 999px;
-  background: var(--adm-surface-sunken);
-  color: var(--adm-ink-2);
-  font-size: 0.68rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-}
-
-.adm-tab.is-active .adm-tab__count {
-  background: var(--adm-blue-soft);
-  color: var(--adm-blue-strong);
 }
 
 /* Sayfa başlığı — PanelHead bu kapsamda yeniden ölçeklenir */
@@ -1830,6 +1876,40 @@
     padding: revert;
   }
 
+  /* Çekmecede ray kapalıdır: akordeon her zaman kullanılabilir kalır. */
+  .adm-shell.is-rail .adm-navgroup__toggle {
+    display: inline-grid;
+  }
+
+  .adm-shell.is-rail .adm-navgroup__panel {
+    display: grid;
+  }
+
+  .adm-shell.is-rail .adm-navlink {
+    justify-content: flex-start;
+    padding: 10px;
+  }
+
+  .adm-shell.is-rail .adm-navlink--sub {
+    padding: 8px 10px 8px 12px;
+  }
+
+  /* Dokunmatik kullanım — satır en az 44px. */
+  .adm-navlink {
+    min-height: 44px;
+    padding: 10px;
+  }
+
+  .adm-navlink--sub {
+    min-height: 44px;
+    padding: 9px 10px 9px 12px;
+  }
+
+  .adm-navgroup__toggle {
+    width: 40px;
+    height: 40px;
+  }
+
   .adm-content {
     padding: 18px 16px 56px;
   }
@@ -1862,16 +1942,6 @@
 
   .adm-content {
     padding: 16px 12px 52px;
-  }
-
-  .adm-tabs {
-    width: 100%;
-    margin-bottom: 14px;
-  }
-
-  .adm-tab {
-    padding: 7px 11px;
-    font-size: 0.79rem;
   }
 
   .adm-shell .panel-pagehead {
@@ -1972,7 +2042,9 @@
   .adm-sidebar,
   .adm-backdrop,
   .adm-navlink,
-  .adm-tab,
+  .adm-navgroup__toggle,
+  .adm-navgroup__toggle svg,
+  .adm-navgroup__panel,
   .adm-task,
   .adm-quick__item {
     transition: none !important;

@@ -3,6 +3,29 @@
    Mobil öncelikli, token tabanlı; her iki düzen de (site+panel) kullanır.
    ========================================================= */
 
+/* ---- Archivo (display) — self-host, ortak katman; ana sayfa + panel ----
+   Tek tanım yeri: alt sayfalarda da yüklensin diye global katmana taşındı. */
+@font-face {
+  font-family: 'Archivo';
+  src: url('/fonts/archivo-500_800-normal-ext.woff2') format('woff2');
+  font-weight: 500 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0100-02BA, U+02BD-02C5, U+02C7-02CC, U+02CE-02D7, U+02DD-02FF, U+0304,
+    U+0308, U+0329, U+1D00-1DBF, U+1E00-1E9F, U+1EF2-1EFF, U+2020, U+20A0-20AB, U+20AD-20C4,
+    U+2113, U+2C60-2C7F, U+A720-A7FF;
+}
+@font-face {
+  font-family: 'Archivo';
+  src: url('/fonts/archivo-500_800-normal.woff2') format('woff2');
+  font-weight: 500 800;
+  font-style: normal;
+  font-display: swap;
+  unicode-range: U+0000-00FF, U+0131, U+0152-0153, U+02BB-02BC, U+02C6, U+02DA, U+02DC,
+    U+0304, U+0308, U+0329, U+2000-206F, U+20AC, U+2122, U+2191, U+2193, U+2212, U+2215,
+    U+FEFF, U+FFFD;
+}
+
 :root {
   --font: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Segoe UI", Roboto,
     "Helvetica Neue", Arial, "Noto Sans", sans-serif;
@@ -530,7 +553,9 @@ textarea {
   position: sticky;
   top: 0;
   z-index: 40;
-  background: rgba(255, 255, 255, 0.88);
+  /* 0.94'te kaydırırken altındaki başlık/telefon metni okunacak kadar sızıyordu;
+     blur okunurluğu düşürse de büyük başlıklar geçiyordu → 0.98. */
+  background: rgba(255, 255, 255, 0.98);
   backdrop-filter: saturate(180%) blur(14px);
   -webkit-backdrop-filter: saturate(180%) blur(14px);
   border-bottom: 1px solid var(--border);
@@ -541,6 +566,26 @@ textarea {
   display: flex;
   align-items: center;
   gap: 16px;
+}
+
+/* Klavye kullanıcısı ilk sekmede görür; görünürlük dışında başlıkta kalır. */
+.skip-link {
+  position: fixed;
+  top: -60px;
+  left: 14px;
+  z-index: 100;
+  padding: 11px 17px;
+  border-radius: 9px;
+  background: var(--text);
+  color: #fff;
+  font-size: 0.88rem;
+  font-weight: 650;
+  text-decoration: none;
+  transition: top 0.16s ease;
+}
+
+.skip-link:focus {
+  top: 12px;
 }
 
 /* ---------- Marka ---------- */
@@ -1344,7 +1389,8 @@ textarea {
 }
 
 .firm-status.is-open { color: var(--success); }
-.firm-status.is-closed { color: #7c8798; }
+/* #7c8798 beyaz üzerinde 3.6:1 — AA için metin tonuna çekildi (5.8:1). */
+.firm-status.is-closed { color: var(--text-2); }
 
 /* Liste satırı */
 .firm-list {
@@ -1660,11 +1706,16 @@ textarea {
 .site-footer__links {
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 0;
   font-size: 0.87rem;
 }
 
-.site-footer__links a { color: var(--text); }
+/* Dokunma hedefi: metin 16px kalır, 4px dikey dolgu ile hedef 24px'e çıkar;
+   metinler arası görsel boşluk (4+4) eski gap: 8 ile aynı kalır. */
+.site-footer__links a {
+  color: var(--text);
+  padding-block: 4px;
+}
 .site-footer__links a:hover { color: var(--primary); }
 
 .site-footer__note {

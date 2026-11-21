@@ -1,4 +1,5 @@
 import type {
+  AuditEntry,
   Category,
   City,
   Commission,
@@ -10,9 +11,15 @@ import type {
   Membership,
   Payment,
   Referral,
+  RepApplication,
   Sale,
   SalesRep,
   Settings,
+  Team,
+  TeamCommission,
+  TeamCommissionPayout,
+  TeamJoinApplication,
+  TeamOverview,
 } from "./types";
 import { supabase, isSupabaseConfigured } from "./supabase";
 import { nowISO } from "./engine";
@@ -50,6 +57,7 @@ export function emptyDB(): DB {
     cities: [],
     companies: [],
     reps: [],
+    teams: [],
     leads: [],
     visits: [],
     sales: [],
@@ -58,11 +66,13 @@ export function emptyDB(): DB {
     commissions: [],
     commissionPayouts: [],
     referrals: [],
+    repApplications: [],
     settings: {
       membershipPrice: 0,
       repCommission: 0,
       referralReward: 0,
       renewalCommission: 0,
+      teamCapacity: 15,
       updatedAt: nowISO(),
     },
     audit: [],
@@ -188,6 +198,7 @@ export function repFromRow(row: Record<string, unknown>): SalesRep {
     code: sv(row, "code"),
     status: sv(row, "status") === "pasif" ? "pasif" : "aktif",
     customCommissionRate: row["custom_commission_rate"] == null ? undefined : num(row, "custom_commission_rate"),
+    teamId: sopt(row, "team_id"),
     createdAt: sv(row, "created_at"),
   };
 }
@@ -200,7 +211,28 @@ export function repToRow(r: SalesRep): Record<string, unknown> {
     code: r.code,
     status: r.status,
     custom_commission_rate: r.customCommissionRate ?? null,
+    team_id: r.teamId ?? null,
     created_at: r.createdAt ?? nowISO(),
+  };
+}
+
+/** Ekip satırı dönüşümü (0011_teams.sql). */
+export function teamFromRow(row: Record<string, unknown>): Team {
+  return {
+    id: sv(row, "id"),
+    name: sv(row, "name"),
+    leaderRepId: sv(row, "leader_rep_id"),
+    createdAt: sv(row, "created_at"),
+  };
+}
+
+export function teamToRow(t: Team): Record<string, unknown> {
+  return {
+    id: t.id,
+    name: t.name,
+    leader_rep_id: t.leaderRepId,
+    created_at: t.createdAt ?? nowISO(),
+    // created_by yalnızca create_team RPC'sinde yazılır; diff-sync taşımaz.
   };
 }
 
@@ -425,6 +457,95 @@ export function commissionPayoutToRow(payout: CommissionPayout): Record<string, 
   };
 }
 
+/**
+ * Denetim kaydı satırı — YALNIZ OKUMA (yazım yalnız SECURITY DEFINER
+ * zincirinden; 0002 log_audit EXECUTE'unu service_role'a bıraktı).
+ */
+export function auditFromRow(row: Record<string, unknown>): AuditEntry {
+  return {
+    id: sv(row, "id"),
+    at: sv(row, "at"),
+    actorId: sopt(row, "actor_id"),
+    actorRole: auditRole(sv(row, "actor_role")),
+    action: sv(row, "action"),
+    summary: sv(row, "summary"),
+    detail: auditDetail(row["detail"]),
+  };
+}
+
+/** audit_log.actor_role serbest metindir; AuditEntry yalnız bilinen rolleri kabul eder. */
+function auditRole(value: string): AuditEntry["actorRole"] {
+  return value === "admin" || value === "temsilci" ? value : "sistem";
+}
+
+/** `detail` kolonu JSONB'dir; AuditEntry.detail JSON METNİ bekler (engine.log deseni). */
+function auditDetail(value: unknown): string {
+  if (typeof value === "string") return value;
+  if (value == null) return "";
+  try {
+    return JSON.stringify(value);
+  } catch {
+    return "";
+  }
+}
+
+/**
+ * Ekip liderliği komisyonu satırı (0014) — yalnız okuma.
+ * Yazım istemciden YOKTUR: satırları confirm_sale (sunucu) üretir;
+ * ToRow/sync eklenmez (rep_applications ile aynı desen).
+ */
+export function teamCommissionFromRow(row: Record<string, unknown>): TeamCommission {
+  return {
+    id: sv(row, "id"),
+    saleId: sv(row, "sale_id"),
+    repId: sv(row, "sales_rep_id"),
+    leaderRepId: sv(row, "team_leader_rep_id"),
+    baseAmount: num(row, "base_amount"),
+    rate: num(row, "rate"),
+    amount: num(row, "amount"),
+    createdAt: sv(row, "created_at"),
+  };
+}
+
+/** Ekip liderliği komisyonu ödemesi (0014) — yalnız okuma; yazım RPC'dir. */
+export function teamCommissionPayoutFromRow(row: Record<string, unknown>): TeamCommissionPayout {
+  return {
+    id: sv(row, "id"),
+    leaderRepId: sv(row, "team_leader_rep_id"),
+    amount: num(row, "amount"),
+    referenceNo: sopt(row, "reference_no"),
+    paidAt: sv(row, "paid_at"),
+    createdAt: sv(row, "created_at"),
+    createdBy: sopt(row, "created_by"),
+  };
+}
+
+/** Ekip katılım başvurusu satırı (0015) — yalnız okuma; yazım RPC'dir. */
+export function teamJoinApplicationFromRow(row: Record<string, unknown>): TeamJoinApplication {
+  const status = sv(row, "status");
+  return {
+    id: sv(row, "id"),
+    repId: sv(row, "rep_id"),
+    teamId: sv(row, "team_id"),
+    status: status === "onaylandi" ? "onaylandi" : status === "reddedildi" ? "reddedildi" : "beklemede",
+    createdAt: sv(row, "created_at"),
+    decidedAt: sopt(row, "decided_at"),
+    decidedBy: sopt(row, "decided_by"),
+  };
+}
+
+/** Ekip özeti görünümü satırı (0015 `teams_overview`) — yalnız okuma. */
+export function teamOverviewFromRow(row: Record<string, unknown>): TeamOverview {
+  return {
+    teamId: sv(row, "team_id"),
+    teamName: sv(row, "team_name"),
+    leaderRepId: sv(row, "leader_rep_id"),
+    leaderName: sv(row, "leader_name"),
+    memberCount: num(row, "member_count"),
+    capacity: num(row, "capacity"),
+  };
+}
+
 export function referralFromRow(row: Record<string, unknown>): Referral {
   return {
     id: sv(row, "id"),
@@ -447,6 +568,22 @@ export function referralToRow(r: Referral): Record<string, unknown> {
   };
 }
 
+/** Başvuru satırı dönüşümü (0012_rep_applications.sql) — yalnız okuma. */
+export function repApplicationFromRow(row: Record<string, unknown>): RepApplication {
+  const status = sv(row, "status");
+  return {
+    id: sv(row, "id"),
+    firstName: sv(row, "first_name"),
+    lastName: sv(row, "last_name"),
+    phone: sv(row, "phone"),
+    email: sv(row, "email"),
+    referralRepId: sv(row, "referral_rep_id"),
+    teamId: sopt(row, "team_id"),
+    status: status === "onaylandi" ? "onaylandi" : status === "reddedildi" ? "reddedildi" : "beklemede",
+    createdAt: sv(row, "created_at"),
+  };
+}
+
 export function settingsFromRow(row: Record<string, unknown> | null): Settings {
   if (!row)
     return {
@@ -454,9 +591,12 @@ export function settingsFromRow(row: Record<string, unknown> | null): Settings {
       repCommission: 50,
       referralReward: 100,
       renewalCommission: 600,
+      teamCapacity: 15,
       updatedAt: nowISO(),
     };
   const repCommission = num(row, "rep_commission");
+  // 0011 uygulanmamışsa kolon yoktur → varsayılan 15 (okuma geriye dönük uyumlu).
+  const teamCapacity = num(row, "team_capacity");
   return {
     membershipPrice: num(row, "membership_price"),
     // rep_commission artık YÜZDE. Eski satırlar hâlâ TL (ör. 600) taşıyor olabilir;
@@ -465,6 +605,7 @@ export function settingsFromRow(row: Record<string, unknown> | null): Settings {
     repCommission: repCommission > 100 ? 50 : repCommission,
     referralReward: num(row, "referral_reward"),
     renewalCommission: num(row, "renewal_commission"),
+    teamCapacity: teamCapacity >= 2 ? teamCapacity : 15,
     updatedAt: sv(row, "updated_at"),
   };
 }
@@ -476,6 +617,7 @@ export function settingsToRow(s: Settings): Record<string, unknown> {
     rep_commission: s.repCommission,
     referral_reward: s.referralReward,
     renewal_commission: s.renewalCommission,
+    team_capacity: s.teamCapacity,
     updated_at: s.updatedAt ?? nowISO(),
   };
 }
@@ -497,6 +639,26 @@ async function selectAll(table: string): Promise<QueryOut> {
   return { rows: (data ?? []) as Record<string, unknown>[], error: null, table };
 }
 
+/** Bellekte tutulan azami denetim kaydı — sınırsız büyümeyi önler. */
+export const AUDIT_READ_LIMIT = 500;
+
+/**
+ * Denetim kayıtları — sunucu tarafında `at DESC` + limitli okuma.
+ * Sıralama sunucuda yapılır: selectAll order'sız olduğu için aynı yaklaşım
+ * "son işlemler" dilimini yanlış satırlardan seçebilirdi. RLS, temsilciye
+ * 0 satır döndürür (hata değil).
+ */
+async function selectAudit(limit = AUDIT_READ_LIMIT): Promise<Record<string, unknown>[]> {
+  if (!supabase) throw new Error("Supabase istemcisi yapılandırılmadı.");
+  const { data, error } = await supabase
+    .from("audit_log")
+    .select("*")
+    .order("at", { ascending: false })
+    .limit(limit);
+  if (error) throw new Error(`audit_log: ${error.message}`);
+  return (data ?? []) as Record<string, unknown>[];
+}
+
 /** Oturumun RLS yetkisine göre görünen tüm tabloları okur. */
 export async function loadSnapshot(): Promise<SnapshotResult> {
   if (!isSupabaseConfigured) throw new Error("Supabase yapılandırılmadı; hydrate yalnız üretim modunda çalışır.");
@@ -505,6 +667,7 @@ export async function loadSnapshot(): Promise<SnapshotResult> {
     "categories",
     "cities",
     "city_districts",
+    "teams",
     "sales_reps",
     "companies",
     "leads",
@@ -516,12 +679,32 @@ export async function loadSnapshot(): Promise<SnapshotResult> {
     "commission_payouts",
     "referrals",
     "app_settings",
+    "rep_applications",
+    // 0014: ekip liderliği komisyonları — RLS ile okunur; YAZIM istemciden
+    // yok (confirm_sale / record_team_commission_payout RPC'leri) → sync'e
+    // eklenmez (rep_applications ile aynı desen).
+    "team_commissions",
+    "team_commission_payouts",
+    // 0015: ekip katılım başvuruları + ekip özeti görünümü — yazım yalnız
+    // RPC (submit/approve/reject); bu iki kaynak da sync write listesinde
+    // DEĞİLDİR (okuma only, rep_applications deseni).
+    "team_join_applications",
+    "teams_overview",
   ] as const;
+  /**
+   * Denetim okuması kritik `Promise.all` zincirinin DIŞINDA ve kendi
+   * catch'iyle: tablo/RLS/ağ hatası yönetim panelinin açılmasını engellemez,
+   * boş audit ile devam edilir. Sorgu yine tablolarla PARALEL başlar.
+   */
+  const auditPromise = selectAudit()
+    .then((rows) => rows.map(auditFromRow).slice(0, AUDIT_READ_LIMIT))
+    .catch(() => [] as DB["audit"]);
   const outs = await Promise.all(tables.map((t) => selectAll(t)));
   const failure = outs.find((o) => o.error);
   if (failure) throw new Error(`Supabase verisi okunamadı → ${failure.error}`);
+  const audit = await auditPromise;
 
-  const [cats, cityRows, districtRows, repRows, compRows, leadRows, visitRows, saleRows, payRows, memRows, comRows, payoutRows, refRows, settingsRows] =
+  const [cats, cityRows, districtRows, teamRows, repRows, compRows, leadRows, visitRows, saleRows, payRows, memRows, comRows, payoutRows, refRows, settingsRows, appRows, teamComRows, teamPayoutRows, joinAppRows, overviewRows] =
     outs.map((o) => o.rows);
 
   const db: DB = {
@@ -529,6 +712,7 @@ export async function loadSnapshot(): Promise<SnapshotResult> {
     cities: citiesFromRows(cityRows, districtRows),
     companies: compRows.map(companyFromRow),
     reps: repRows.map(repFromRow),
+    teams: teamRows.map(teamFromRow),
     leads: leadRows.map(leadFromRow),
     visits: visitRows.map(visitFromRow),
     sales: saleRows.map(saleFromRow),
@@ -537,8 +721,19 @@ export async function loadSnapshot(): Promise<SnapshotResult> {
     commissions: comRows.map(commissionFromRow),
     commissionPayouts: payoutRows.map(commissionPayoutFromRow),
     referrals: refRows.map(referralFromRow),
+    // Başvurular yalnız yöneticiye görünür (0013: admin SELECT policy);
+    // anon listeleme/değiştirme yapamaz (RLS default-deny).
+    repApplications: appRows.map(repApplicationFromRow),
+    // 0014: lider yalnız kendi satırını görür; anon satır göremez (RLS).
+    teamCommissions: teamComRows.map(teamCommissionFromRow),
+    teamCommissionPayouts: teamPayoutRows.map(teamCommissionPayoutFromRow),
+    // 0015: personel yalnız kendi başvurusunu görür (RLS); görünüm anon'a
+    // kapalı, yalnız authenticated okur.
+    teamJoinApplications: joinAppRows.map(teamJoinApplicationFromRow),
+    teamOverviews: overviewRows.map(teamOverviewFromRow),
     settings: settingsFromRow(settingsRows[0] ?? null),
-    audit: [],
+    // Denetim kayıtları yalnız OKUNUR; syncSnapshot yazım listesinde değildir.
+    audit,
   };
   return { db };
 }
@@ -643,7 +838,7 @@ export async function syncSnapshot(local: DB, base: DB | null): Promise<DB> {
       throw new Error(`"${c.name}" yayına alınamaz: satış ve onaylı ödeme kaydı bulunmuyor.`);
   }
 
-  /* ---- 1) BABA tablolar: kategori/şehir/temsilci ---- */
+  /* ---- 1) BABA tablolar: kategori/şehir/ekip/temsilci ---- */
   // Kategoriler
   const catUp = diffFor(local.categories.map(categoryToRow), b.categories.map(categoryToRow));
   await writeChunk("categories", "upsert", catUp.upserts);
@@ -670,13 +865,32 @@ export async function syncSnapshot(local: DB, base: DB | null): Promise<DB> {
     if (error) throw new Error(`city_districts delete: ${error.message}`);
   }
 
+  // Ekipler (sales_reps.team_id FK'sı TERS yöndedir: ekipler ÖNCE yazılır;
+  // leader_rep_id'nin sales_reps FK'sı bilinçli yoktur — bkz. 0011 notları)
+  const teamUp = diffFor(local.teams.map(teamToRow), b.teams.map(teamToRow));
+  await writeChunk("teams", "upsert", teamUp.upserts);
+  await writeChunk("teams", "delete", teamUp.deletes);
+
   // Temsilciler
   const repUp = diffFor(local.reps.map(repToRow), b.reps.map(repToRow));
   await writeChunk("sales_reps", "upsert", repUp.upserts);
   await writeChunk("sales_reps", "delete", repUp.deletes);
 
-  /* ---- 2) Firmalar ---- */
-  const compUp = diffFor(local.companies.map(companyToRow), b.companies.map(companyToRow));
+  /* ---- 2) Firmalar ----
+   * YAYIN DURUMU bu fark yazımıyla TAŞINMAZ: mevcut bir satırda `published`
+   * her zaman sunucudaki bilinen değere sabitlenir. Yayın/geri alma yalnız
+   * 0016 `set_company_published` RPC'siyle (sunucu doğrulaması + audit) olur;
+   * aksi halde bayat/oynanmış yerel bir değer sunucudaki gerçeği ezebilirdi.
+   * Yeni satırlar taslak doğar; scraper istisnası INSERT trigger'ında denetlenir.
+   */
+  const baseCompanyRows = new Map(b.companies.map((c) => [c.id, companyToRow(c)]));
+  const localCompanyRows = local.companies.map((c) => {
+    const row = companyToRow(c);
+    const baseRow = baseCompanyRows.get(c.id);
+    if (baseRow) row.published = baseRow.published;
+    return row;
+  });
+  const compUp = diffFor(localCompanyRows, b.companies.map(companyToRow));
   await writeChunk("companies", "upsert", compUp.upserts);
   await writeChunk("companies", "delete", compUp.deletes);
 
@@ -719,7 +933,8 @@ export async function syncSnapshot(local: DB, base: DB | null): Promise<DB> {
     s.membershipPrice !== bs.membershipPrice ||
     s.repCommission !== bs.repCommission ||
     s.referralReward !== bs.referralReward ||
-    s.renewalCommission !== bs.renewalCommission;
+    s.renewalCommission !== bs.renewalCommission ||
+    s.teamCapacity !== bs.teamCapacity;
   if (valuesDiffer) await updateSettingsRow(s);
 
   // Sunucuda artık bilinen durum, local'in SENKRON EDİLEbilir parçalarıdır
@@ -741,6 +956,8 @@ function friendlyRpcError(message: string): string {
   if (m.includes("telefon")) return "Telefon numarası zorunludur.";
   if (m.includes("kategori bulunamadı")) return "Seçilen kategori bulunamadı.";
   if (m.includes("şehir bulunamadı")) return "Seçilen şehir bulunamadı.";
+  if (m.includes("geçersiz referans")) return "Geçersiz referans bağlantısı.";
+  if (m.includes("zaten bekleyen")) return "Bu bilgilerle zaten bekleyen bir başvurunuz var.";
   if (m.includes("network") || m.includes("fetch")) return "Ağ hatası; bağlantınızı kontrol edin.";
   return message;
 }
@@ -770,6 +987,36 @@ export async function submitWebLead(input: {
     p_city_id: input.cityId ?? null,
     p_district: input.district ?? null,
     p_note: input.note ?? null,
+    p_honeypot: input.honeypot ?? "",
+  });
+  if (error) throw new Error(friendlyRpcError(error.message));
+  return typeof data === "string" ? data : null;
+}
+
+/**
+ * Halka açık personel başvuru formu — canlı modda 0012 RPC'si üzerinden.
+ * Doğrudan rep_applications INSERT YOK (anon politikası yok; bilinçli
+ * tasarım). Referans kodu ve ekip SUNUCUDA çözülür; istemciden yalnız
+ * açık kod (AF-001) gider. Honeypot doluysa sunucu null döner.
+ * Dönüş: oluşan başvurunun id'si (honeypot yutulduysa null).
+ */
+export async function submitRepApplication(input: {
+  firstName: string;
+  lastName: string;
+  phone: string;
+  email: string;
+  refCode: string;
+  honeypot?: string;
+}): Promise<string | null> {
+  if (!isSupabaseConfigured || !supabase) {
+    throw new Error("Supabase yapılandırılmadı; başvuru gönderilemedi.");
+  }
+  const { data, error } = await supabase.rpc("submit_rep_application", {
+    p_first_name: input.firstName,
+    p_last_name: input.lastName,
+    p_phone: input.phone,
+    p_email: input.email,
+    p_ref_code: input.refCode,
     p_honeypot: input.honeypot ?? "",
   });
   if (error) throw new Error(friendlyRpcError(error.message));

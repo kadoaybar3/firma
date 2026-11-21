@@ -1,0 +1,934 @@
+/* =========================================================
+   YÖNETİM PANELİ — GENEL BAKIŞ "NÖBET DEFTERİ"
+   Kapsam: yalnızca .adm-dash. Diğer yönetim sayfaları, personel
+   paneli ve public site bu dosyadan etkilenmez.
+
+   Kavram: sayılar cetvel hizasında, kararlar tek kuyrukta.
+   Tek ses kuralı: rakam/başlık = Archivo, arayüz metni = sistem.
+   Renk yalnız anlam taşır (mavi para, amber bekleyen, yeşil
+   kesinleşmiş, kırmızı hata) — dekoratif renk yok.
+   Animasyon paketsizdir: CSS keyframe + reduced-motion bypass.
+   ========================================================= */
+
+.adm-dash {
+  --dq-rule: var(--adm-line);
+  --dq-meta: var(--adm-ink-2); /* künye: ink-3 beyazda AA altında kalıyordu */
+  --dq-ease: cubic-bezier(0.22, 1, 0.36, 1);
+  --dq-display: "Archivo", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+
+  display: grid;
+  gap: 16px;
+}
+
+/* =========================================================
+   1) CETVEL BANDI — 4 birincil figür + ikincil ölçüm şeridi
+   ========================================================= */
+
+.dq-band {
+  border: 1px solid var(--dq-rule);
+  border-radius: var(--adm-r-lg);
+  background: var(--adm-surface);
+  overflow: hidden;
+}
+
+.dq-band__primary {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+}
+
+.dq-cell {
+  display: grid;
+  align-content: start;
+  gap: 5px;
+  min-width: 0;
+  padding: 18px 20px;
+  border-right: 1px solid var(--dq-rule);
+}
+
+.dq-cell:last-child {
+  border-right: 0;
+}
+
+.dq-cell__label {
+  color: var(--dq-meta);
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+.dq-cell__value {
+  font-family: var(--dq-display);
+  font-weight: 800;
+  font-size: clamp(1.75rem, 3.2vw, 2.5rem);
+  line-height: 1.02;
+  letter-spacing: -0.03em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+.dq-cell__sub {
+  color: var(--dq-meta);
+  font-size: 0.76rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.dq-band__secondary {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 10px 24px;
+  padding: 12px 20px;
+  border-top: 1px solid var(--dq-rule);
+  background: var(--adm-surface-soft);
+}
+
+.dq-measure {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dq-measure__label {
+  color: var(--dq-meta);
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.dq-measure__value {
+  font-family: var(--dq-display);
+  font-weight: 700;
+  font-size: 0.98rem;
+  letter-spacing: -0.015em;
+  font-variant-numeric: tabular-nums;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 1099px) {
+  .dq-band__primary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dq-cell {
+    border-right: 0;
+    border-bottom: 1px solid var(--dq-rule);
+  }
+
+  .dq-cell:nth-child(odd) {
+    border-right: 1px solid var(--dq-rule);
+  }
+
+  .dq-cell:nth-last-child(-n + 2) {
+    border-bottom: 0;
+  }
+}
+
+@media (max-width: 639px) {
+  .dq-cell {
+    padding: 14px 16px;
+  }
+
+  .dq-cell__value {
+    font-size: 1.6rem;
+  }
+
+  /* İkincil ölçümler: tek sütunda bant 470px'e uzuyordu; iki sütun
+     kompakt düzen altı ölçümü üç satıra indirir. Birincil figürler
+     dokunulmaz — okunabilirlikleri aynı kalır. */
+  .dq-band__secondary {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px 14px;
+    padding: 12px 16px;
+  }
+
+  .dq-measure {
+    gap: 1px;
+  }
+
+  .dq-measure__label {
+    font-size: 0.67rem;
+    line-height: 1.25;
+  }
+
+  .dq-measure__value {
+    font-size: 0.92rem;
+  }
+}
+
+/* =========================================================
+   2) PANEL KABUĞU — gölge yok, hairline var
+   ========================================================= */
+
+.dq-panel {
+  min-width: 0;
+  border: 1px solid var(--dq-rule);
+  border-radius: var(--adm-r-lg);
+  background: var(--adm-surface);
+  overflow: hidden;
+}
+
+.dq-panel__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 14px 20px;
+  border-bottom: 1px solid var(--dq-rule);
+}
+
+.dq-panel__head h2 {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  font-family: var(--dq-display);
+  font-size: 0.95rem;
+  font-weight: 700;
+  letter-spacing: -0.015em;
+}
+
+.dq-panel__head h2 svg {
+  flex-shrink: 0;
+  color: var(--dq-meta);
+}
+
+.dq-panel__count {
+  color: var(--dq-meta);
+  font-size: 0.78rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+/* Dokunma hedefi 44px: negatif dış boşluk, hedefi başlık satırının
+   dolgusuna taşır — görsel hizalama ve başlık yüksekliği değişmez. */
+.dq-panel__link {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  min-height: 44px;
+  margin-block: -12px;
+  padding-inline: 2px;
+  color: var(--dq-meta);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.dq-panel__link:hover {
+  color: var(--adm-blue-strong);
+  text-decoration: none;
+}
+
+.dq-panel__link svg {
+  transition: transform 0.3s var(--dq-ease);
+}
+
+.dq-panel__link:hover svg {
+  transform: translateX(3px);
+}
+
+.dq-panel__body {
+  padding: 16px 20px;
+}
+
+.dq-panel__body--flush {
+  padding: 0;
+}
+
+/* Ortak boş durum — panel içinde kutu/ikon yok, tek sakin künye.
+   `EmptyState` bileşeni de panel içinde bu görünüme çekilir. */
+.dq-empty {
+  padding: 24px 20px;
+  color: var(--dq-meta);
+  font-size: 0.82rem;
+  line-height: 1.5;
+  text-align: center;
+}
+
+.adm-dash .empty-state {
+  padding: 24px 20px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--dq-meta);
+  line-height: 1.5;
+  text-align: center;
+}
+
+.adm-dash .empty-state__icon {
+  display: none;
+}
+
+.adm-dash .empty-state h3 {
+  font-family: inherit;
+  font-size: 0.84rem;
+  font-weight: 620;
+  color: var(--adm-ink);
+}
+
+.adm-dash .empty-state p {
+  margin: 4px 0 0;
+  font-size: 0.8rem;
+  color: var(--dq-meta);
+}
+
+/* =========================================================
+   3) OPERASYON KUYRUĞU — imza an
+   Şerit rengi şiddet taşır: amber para, mavi içerik/ekip,
+   nötr saha. Satır tek bağlantıdır; odak halkası satırı sarar.
+   ========================================================= */
+
+.dq-queue__group + .dq-queue__group {
+  border-top: 1px solid var(--dq-rule);
+}
+
+.dq-queue__grouplabel {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 20px 8px;
+  color: var(--dq-meta);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+}
+
+.dq-queue__grouplabel em {
+  font-style: normal;
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--adm-surface-sunken);
+  color: var(--adm-ink-2);
+  font-size: 0.68rem;
+  letter-spacing: 0;
+  font-variant-numeric: tabular-nums;
+}
+
+.dq-row {
+  position: relative;
+  display: grid;
+  grid-template-columns: 32px minmax(0, 1fr) auto 14px;
+  align-items: center;
+  gap: 12px;
+  min-height: 58px;
+  padding: 10px 20px 10px 18px;
+  color: var(--adm-ink);
+  text-decoration: none;
+  transition: background-color 0.16s ease;
+}
+
+.dq-row--plain {
+  grid-template-columns: 32px minmax(0, 1fr) 14px;
+}
+
+.dq-row + .dq-row {
+  border-top: 1px solid var(--dq-rule);
+}
+
+/* Şiddet şeridi — harita notlarının iğne diliyle aynı aile */
+.dq-row::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 9px;
+  bottom: 9px;
+  width: 3px;
+  border-radius: 2px;
+  background: var(--dq-stripe, var(--adm-line-strong));
+  transition: width 0.18s ease;
+}
+
+.dq-row--money {
+  --dq-stripe: var(--adm-amber);
+}
+
+.dq-row--content {
+  --dq-stripe: var(--adm-blue);
+}
+
+.dq-row--team {
+  --dq-stripe: var(--adm-blue);
+}
+
+.dq-row--field {
+  --dq-stripe: var(--adm-ink-3);
+}
+
+.dq-row:hover {
+  background: var(--adm-surface-soft);
+  text-decoration: none;
+}
+
+.dq-row:hover::before {
+  width: 4px;
+}
+
+.dq-row:hover .dq-row__go {
+  transform: translateX(3px);
+}
+
+.dq-row:focus-visible {
+  outline: 2px solid var(--adm-blue);
+  outline-offset: -2px;
+}
+
+.dq-row:active {
+  background: var(--adm-surface-sunken);
+}
+
+.dq-row__glyph {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  flex-shrink: 0;
+  border-radius: 9px;
+  background: var(--adm-surface-sunken);
+  color: var(--adm-ink-2);
+}
+
+.dq-row--money .dq-row__glyph {
+  background: var(--adm-amber-soft);
+  color: var(--adm-amber);
+}
+
+.dq-row--content .dq-row__glyph,
+.dq-row--team .dq-row__glyph {
+  background: var(--adm-blue-soft);
+  color: var(--adm-blue-strong);
+}
+
+.dq-row__text {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dq-row__text strong {
+  font-size: 0.86rem;
+  font-weight: 620;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.dq-row__text span {
+  color: var(--dq-meta);
+  font-size: 0.75rem;
+  line-height: 1.4;
+  overflow-wrap: anywhere;
+}
+
+.dq-row__side {
+  display: grid;
+  justify-items: end;
+  gap: 2px;
+  text-align: right;
+}
+
+.dq-row__amount {
+  font-family: var(--dq-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dq-row__age {
+  color: var(--dq-meta);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dq-row__go {
+  color: var(--adm-ink-3);
+  transition: transform 0.3s var(--dq-ease), color 0.2s ease;
+}
+
+.dq-row:hover .dq-row__go {
+  color: var(--adm-blue-strong);
+}
+
+/* =========================================================
+   4) DEFTER SATIRLARI — satış / ödeme listeleri
+   ========================================================= */
+
+.dq-ledger {
+  display: grid;
+}
+
+.dq-ledger__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 4px 16px;
+  padding: 11px 20px;
+  border-top: 1px solid var(--dq-rule);
+}
+
+.dq-ledger__row:first-child {
+  border-top: 0;
+}
+
+.dq-ledger__main {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.dq-ledger__title {
+  font-size: 0.86rem;
+  font-weight: 620;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+
+.dq-ledger__meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  color: var(--dq-meta);
+  font-size: 0.74rem;
+  line-height: 1.4;
+}
+
+.dq-ledger__side {
+  display: grid;
+  justify-items: end;
+  gap: 3px;
+  text-align: right;
+}
+
+.dq-ledger__amount {
+  font-family: var(--dq-display);
+  font-size: 0.9rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dq-dot {
+  width: 7px;
+  height: 7px;
+  flex-shrink: 0;
+  border-radius: 50%;
+  background: var(--adm-ink-3);
+}
+
+.dq-dot--green {
+  background: var(--adm-green);
+}
+
+.dq-dot--amber {
+  background: var(--adm-amber);
+}
+
+.dq-dot--blue {
+  background: var(--adm-blue);
+}
+
+.dq-dot--red {
+  background: var(--adm-red);
+}
+
+/* =========================================================
+   5) HIZLI İŞLEM — komut listesi
+   ========================================================= */
+
+.dq-quick {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.dq-quick__item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  min-height: 44px;
+  min-width: 0;
+  padding: 9px 11px;
+  border: 1px solid var(--dq-rule);
+  border-radius: var(--adm-r);
+  color: var(--adm-ink);
+  text-decoration: none;
+  transition: border-color 0.15s ease, background-color 0.15s ease;
+}
+
+.dq-quick__item:hover {
+  border-color: var(--adm-line-strong);
+  background: var(--adm-surface-soft);
+  text-decoration: none;
+}
+
+.dq-quick__icon {
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  flex-shrink: 0;
+  border-radius: 8px;
+  background: var(--adm-blue-soft);
+  color: var(--adm-blue-strong);
+}
+
+.dq-quick__text {
+  display: grid;
+  gap: 1px;
+  min-width: 0;
+}
+
+.dq-quick__text strong {
+  font-size: 0.82rem;
+  font-weight: 620;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.dq-quick__text small {
+  color: var(--dq-meta);
+  font-size: 0.71rem;
+  line-height: 1.3;
+}
+
+/* =========================================================
+   6) PERSONEL PERFORMANSI — ölçüm satırları
+   ========================================================= */
+
+.dq-perf + .dq-perf {
+  margin-top: 12px;
+}
+
+.dq-perf__top {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  min-width: 0;
+}
+
+.dq-perf__name {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  font-size: 0.84rem;
+  font-weight: 620;
+  overflow-wrap: anywhere;
+}
+
+.dq-perf__value {
+  font-family: var(--dq-display);
+  font-size: 0.86rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dq-perf__meter {
+  display: block;
+  height: 6px;
+  margin-top: 6px;
+  border-radius: 999px;
+  background: var(--adm-surface-sunken);
+  overflow: hidden;
+}
+
+.dq-perf__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--adm-blue);
+}
+
+.dq-perf__meta {
+  margin-top: 5px;
+  color: var(--dq-meta);
+  font-size: 0.73rem;
+  line-height: 1.4;
+}
+
+/* =========================================================
+   7) ALTI AYLIK EĞİLİM — ince bar şeridi
+   ========================================================= */
+
+.dq-bars {
+  display: grid;
+  gap: 11px;
+}
+
+.dq-bar {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 10px;
+}
+
+.dq-bar__label {
+  color: var(--dq-meta);
+  font-size: 0.74rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dq-bar__track {
+  height: 8px;
+  border-radius: 999px;
+  background: var(--adm-surface-sunken);
+  overflow: hidden;
+}
+
+.dq-bar__fill {
+  display: block;
+  height: 100%;
+  border-radius: 999px;
+  background: var(--adm-blue);
+}
+
+.dq-bar__value {
+  font-size: 0.74rem;
+  font-weight: 600;
+  color: var(--adm-ink);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dq-bar__value span {
+  color: var(--dq-meta);
+  font-weight: 500;
+}
+
+@media (max-width: 639px) {
+  .dq-bar {
+    grid-template-columns: 46px minmax(0, 1fr);
+  }
+
+  .dq-bar__value {
+    grid-column: 2;
+    font-size: 0.72rem;
+  }
+}
+
+/* =========================================================
+   8) DENETİM İZİ — log satırları
+   ========================================================= */
+
+.dq-log {
+  display: grid;
+}
+
+.dq-log__row {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) auto;
+  align-items: baseline;
+  gap: 10px;
+  padding: 9px 20px;
+  border-top: 1px solid var(--dq-rule);
+  font-size: 0.79rem;
+}
+
+.dq-log__row:first-child {
+  border-top: 0;
+}
+
+.dq-log__time {
+  color: var(--dq-meta);
+  font-size: 0.72rem;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dq-log__body {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.dq-log__action {
+  display: block;
+  margin-bottom: 1px;
+  color: var(--dq-meta);
+  font-size: 0.69rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.dq-log__actor {
+  color: var(--dq-meta);
+  font-size: 0.72rem;
+  white-space: nowrap;
+}
+
+/* =========================================================
+   9) YERLEŞİM — bölünmüş satırlar
+   ========================================================= */
+
+.dq-split {
+  display: grid;
+  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
+  align-items: start;
+  gap: 16px;
+}
+
+.dq-split > .dq-panel,
+.dq-split > div > .dq-panel + .dq-panel {
+  min-width: 0;
+}
+
+.dq-split__stack {
+  display: grid;
+  gap: 16px;
+  align-content: start;
+}
+
+/* Geniş ekran: sol panel sağ yığınla aynı yüksekliğe oturur ve satırları
+   dikeyde ortalanır. Veri azken altında boşluk kalan kısa panel yerine
+   iki kolon aynı taban çizgisinde kapanır. */
+@media (min-width: 1100px) {
+  .dq-split {
+    align-items: stretch;
+  }
+
+  .dq-split > .dq-panel {
+    display: flex;
+    flex-direction: column;
+  }
+
+  .dq-split > .dq-panel > .dq-panel__body {
+    display: flex;
+    flex: 1;
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .dq-split > .dq-panel > .dq-panel__body--flush {
+    justify-content: flex-start;
+  }
+
+  /* Satır sayısı azken kalan yüksekliği satırlara dağıt: panel içinde
+     ortada boşluk yerine eşit aralıklı defter satırları. */
+  .dq-split > .dq-panel > .dq-panel__body--flush > .dq-ledger {
+    flex: 1;
+    grid-auto-rows: 1fr;
+  }
+
+  .dq-split > .dq-panel > .dq-panel__body--flush > .empty-state {
+    margin-block: auto;
+  }
+}
+
+@media (max-width: 1099px) {
+  .dq-split {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+
+/* =========================================================
+   10) HAREKET — paketsiz giriş, reduced-motion'da kapalı
+   ========================================================= */
+
+.dq-reveal {
+  animation: dq-in 0.28s var(--dq-ease) both;
+  animation-delay: calc(var(--rd, 0) * 40ms);
+}
+
+@keyframes dq-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .dq-reveal {
+    animation: none !important;
+    opacity: 1 !important;
+    transform: none !important;
+  }
+
+  .dq-row::before,
+  .dq-row__go,
+  .dq-panel__link svg {
+    transition: none;
+  }
+
+  .dq-row:hover .dq-row__go,
+  .dq-panel__link:hover svg {
+    transform: none;
+  }
+}
+
+/* =========================================================
+   11) MOBİL — 390 hedefi
+   ========================================================= */
+
+@media (max-width: 639px) {
+  .adm-dash {
+    gap: 12px;
+  }
+
+  .dq-panel__head {
+    padding: 12px 16px;
+  }
+
+  .dq-panel__body {
+    padding: 14px 16px;
+  }
+
+  /* Sticky, panelin overflow:hidden'ı yüzünden hiç çalışmıyordu
+     (kaydırma kabı viewport değil panelin kendisiydi) → kaldırıldı. */
+  .dq-queue__grouplabel {
+    padding: 10px 16px 6px;
+  }
+
+  .dq-row {
+    grid-template-columns: 28px minmax(0, 1fr) auto;
+    gap: 10px;
+    min-height: 52px;
+    padding: 9px 16px 9px 15px;
+  }
+
+  .dq-row--plain {
+    grid-template-columns: 28px minmax(0, 1fr);
+  }
+
+  .dq-row__glyph {
+    width: 28px;
+    height: 28px;
+    border-radius: 8px;
+  }
+
+  .dq-row__go {
+    display: none;
+  }
+
+  .dq-row__amount {
+    font-size: 0.86rem;
+  }
+
+  .dq-ledger__row {
+    padding: 10px 16px;
+  }
+
+  .dq-log__row {
+    grid-template-columns: 74px minmax(0, 1fr);
+    padding: 9px 16px;
+  }
+
+  .dq-log__actor {
+    grid-column: 2;
+  }
+
+  .dq-quick {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
