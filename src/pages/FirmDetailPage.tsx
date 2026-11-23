@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link, useParams } from "react-router-dom";
 import {
   Building2,
@@ -21,10 +21,11 @@ import { FirmGrid } from "../components/FirmCard";
 import { CategoryGlyph } from "../components/CategoryGlyph";
 import CompanyLocationMap from "../components/CompanyLocationMap";
 import { EmptyState } from "../components/ui";
-import { getCompanyBySlug, getCityById, listCategories, listCompanies } from "../lib/repo";
+import { getCompanyBySlug, getCityById, listCategories, listCompanies, trackEngagement } from "../lib/repo";
 import { isOpenNow, mapLink } from "../lib/hours";
 import { normalizeCoordinates } from "../lib/coordinates";
 import { socialProfileUrl, whatsappHref, websiteHref } from "../lib/format";
+import type { EngagementKind } from "../lib/types";
 import {
   buildBreadcrumbJsonLd,
   buildLocalBusinessJsonLd,
@@ -53,6 +54,8 @@ export default function FirmDetailPage() {
   const company = slug ? getCompanyBySlug(slug) : undefined;
 
   const [copied, setCopied] = useState(false);
+  /** Profil görüntülenmesi bu sayfa açılışında bir kez sayılır (çift effect yok). */
+  const countedProfileFor = useRef<string | null>(null);
 
   // Hooks kuralı: tüm hook'lar erken dönüşten ÖNCE çağrılır — bulundu/bulunamadı
   // durumları arasında hook sayısı sabit kalır (rotalar arası geçişte crash olmaz).
@@ -61,6 +64,22 @@ export default function FirmDetailPage() {
   // Faz 4E-2: canonical + pageUrl + breadcrumb son öğesi tek seoPath kaynağında.
   const canonicalPath = company ? seoPath(`/firma/${company.slug}`) : "";
   const pageUrl = canonicalPath ? `${locationOriginSafe()}${canonicalPath}` : "";
+
+  /**
+   * Etkileşim sayacı: yalnız yayındaki firmalarda ve yalnız gerçek
+   * görüntüleme/tıklamalarda artar (0018). Hata ziyaretçi akışını etkilemez.
+   */
+  const trackClick = (kind: EngagementKind) => {
+    if (company?.published) void trackEngagement(company.id, kind);
+  };
+
+  // Profil görüntülenmesi — firma değiştikçe bir kez sayılır.
+  const viewedCompanyId = company?.published ? company.id : undefined;
+  useEffect(() => {
+    if (!viewedCompanyId || countedProfileFor.current === viewedCompanyId) return;
+    countedProfileFor.current = viewedCompanyId;
+    void trackEngagement(viewedCompanyId, "profil");
+  }, [viewedCompanyId]);
 
   // JSON-LD düğümleri: yalnızca doğrulanmış veri; girdi değişmedikçe yeniden üretme
   const jsonLd = useMemo(
@@ -233,7 +252,11 @@ export default function FirmDetailPage() {
           {(telHref || mapsHref) && (
             <div className="firm-hero__actions">
               {telHref && (
-                <a className="btn btn--primary" href={telHref}>
+                <a
+                  className="btn btn--primary"
+                  href={telHref}
+                  onClick={() => trackClick("telefon")}
+                >
                   <Phone size={17} strokeWidth={2} aria-hidden="true" />
                   Telefonla ara
                 </a>
@@ -244,6 +267,7 @@ export default function FirmDetailPage() {
                   href={mapsHref}
                   target="_blank"
                   rel="noopener noreferrer"
+                  onClick={() => trackClick("yol")}
                 >
                   <Navigation size={17} strokeWidth={2} aria-hidden="true" />
                   Yol tarifi
@@ -328,6 +352,7 @@ export default function FirmDetailPage() {
                       href={mapsHref}
                       target="_blank"
                       rel="noopener noreferrer"
+                      onClick={() => trackClick("yol")}
                     >
                       Haritada Görüntüle
                     </a>
@@ -369,7 +394,9 @@ export default function FirmDetailPage() {
                   </span>
                   <div className="firm-contact__phone-body">
                     <span className="firm-contact__label">Telefon</span>
-                    <a href={telHref ?? undefined}>{company.phone}</a>
+                    <a href={telHref ?? undefined} onClick={() => trackClick("telefon")}>
+                      {company.phone}
+                    </a>
                   </div>
                 </div>
               )}
@@ -393,6 +420,7 @@ export default function FirmDetailPage() {
                           href={mapsHref}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={() => trackClick("yol")}
                         >
                           Yol Tarifi
                         </a>
@@ -427,6 +455,7 @@ export default function FirmDetailPage() {
                         href={siteHref}
                         target="_blank"
                         rel="noopener noreferrer"
+                        onClick={() => trackClick("web")}
                       >
                         {cleanSite}
                       </a>
@@ -444,6 +473,7 @@ export default function FirmDetailPage() {
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={`WhatsApp ile iletişim kur: ${company.name}`}
+                      onClick={() => trackClick("whatsapp")}
                     >
                       <MessageCircle size={16} strokeWidth={1.9} aria-hidden="true" />
                       WhatsApp
@@ -456,6 +486,7 @@ export default function FirmDetailPage() {
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={`Instagram profili: ${company.name}`}
+                      onClick={() => trackClick("instagram")}
                     >
                       {/* Lucide'da marka ikonu yok; fotoğraf/lens simgesi en uygun karşılık */}
                       <Camera size={16} strokeWidth={1.9} aria-hidden="true" />
@@ -528,13 +559,23 @@ export default function FirmDetailPage() {
         {(telHref || mapsHref) && (
           <div className="firm-mbar" role="navigation" aria-label="Hızlı iletişim">
             {telHref && (
-              <a className="btn btn--primary" href={telHref}>
+              <a
+                className="btn btn--primary"
+                href={telHref}
+                onClick={() => trackClick("telefon")}
+              >
                 <Phone size={17} strokeWidth={2} aria-hidden="true" />
                 Ara
               </a>
             )}
             {mapsHref && (
-              <a className="btn btn--secondary" href={mapsHref} target="_blank" rel="noopener noreferrer">
+              <a
+                className="btn btn--secondary"
+                href={mapsHref}
+                target="_blank"
+                rel="noopener noreferrer"
+                onClick={() => trackClick("yol")}
+              >
                 <Navigation size={17} strokeWidth={2} aria-hidden="true" />
                 Yol tarifi
               </a>

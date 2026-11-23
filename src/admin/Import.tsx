@@ -303,7 +303,7 @@ export default function AdminImport() {
   return (
     <div className="panel-content">
       <PanelHead
-        title="Google Maps Firma Toplama"
+        title="İçe Aktarma"
         desc="İl, ilçe ve kategori seçerek Google Maps üzerinden otomatik firma topla. Kayıt öncesi doğrulama ve mükerrer kontrolü yapılır; mevcut firmalar hiçbir koşulda otomatik güncellenmez."
       />
       {error && <ErrorBanner message={error} />}

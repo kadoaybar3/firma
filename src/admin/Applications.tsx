@@ -95,7 +95,7 @@ export default function AdminApplications() {
   return (
     <div className="panel-content">
       <PanelHead
-        title="Personel Başvuruları"
+        title="Başvurular"
         desc="Referans bağlantısıyla gelen başvurular. Onayda referans personeli, ekip ve kapasite sunucuda yeniden doğrulanır; hesap yalnızca yönetici onayıyla oluşur. Reddedilen kayıtlar denetim için saklanır."
       />
       {error && <ErrorBanner message={error} />}

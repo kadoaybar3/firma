@@ -51,7 +51,7 @@ interface NavSection {
 const MAIN_SECTIONS: NavSection[] = [
   {
     id: "today",
-    label: "Bugün",
+    label: "İşlem Merkezi",
     to: "/yonetim",
     icon: LayoutDashboard,
     paths: ["/yonetim"],
@@ -69,7 +69,6 @@ const MAIN_SECTIONS: NavSection[] = [
       "/yonetim/ice-aktar",
     ],
     children: [
-      { to: "/yonetim/firma-akisi", label: "Firma Hattı" },
       { to: "/yonetim/adaylar", label: "Adaylar" },
       { to: "/yonetim/firmalar", label: "Firmalar" },
       { to: "/yonetim/ice-aktar", label: "İçe Aktarma" },
@@ -82,8 +81,7 @@ const MAIN_SECTIONS: NavSection[] = [
     icon: Wallet,
     paths: ["/yonetim/satislar", "/yonetim/odemeler", "/yonetim/uyelikler"],
     children: [
-      { to: "/yonetim/satislar", label: "Satışlar" },
-      { to: "/yonetim/odemeler", label: "Ödeme Onayları" },
+      { to: "/yonetim/odemeler", label: "Ödeme Kayıtları" },
       { to: "/yonetim/uyelikler", label: "Üyelikler" },
     ],
   },
@@ -97,7 +95,7 @@ const MAIN_SECTIONS: NavSection[] = [
   },
   {
     id: "staff",
-    label: "Kadro",
+    label: "Personel",
     to: "/yonetim/temsilciler",
     icon: Users,
     paths: [
@@ -107,7 +105,6 @@ const MAIN_SECTIONS: NavSection[] = [
       "/yonetim/referanslar",
     ],
     children: [
-      { to: "/yonetim/temsilciler", label: "Personel" },
       { to: "/yonetim/ekipler", label: "Ekipler" },
       { to: "/yonetim/basvurular", label: "Başvurular" },
       { to: "/yonetim/referanslar", label: "Referanslar" },
@@ -115,12 +112,11 @@ const MAIN_SECTIONS: NavSection[] = [
   },
   {
     id: "showcase",
-    label: "Vitrin",
+    label: "Kategoriler",
     to: "/yonetim/kategoriler",
     icon: FolderTree,
     paths: ["/yonetim/kategoriler", "/yonetim/sehirler"],
     children: [
-      { to: "/yonetim/kategoriler", label: "Kategoriler" },
       { to: "/yonetim/sehirler", label: "Şehir ve İlçeler" },
     ],
   },
@@ -129,8 +125,10 @@ const MAIN_SECTIONS: NavSection[] = [
     label: "Analiz",
     to: "/yonetim/raporlar",
     icon: ChartLine,
-    paths: ["/yonetim/raporlar"],
-    children: [],
+    paths: ["/yonetim/raporlar", "/yonetim/etkilesimler"],
+    children: [
+      { to: "/yonetim/etkilesimler", label: "Ziyaret ve Etkileşimler" },
+    ],
   },
 ];
 
@@ -157,7 +155,6 @@ const SYSTEM_SECTIONS: NavSection[] = [
 const ALL_SECTIONS: NavSection[] = [...MAIN_SECTIONS, ...SYSTEM_SECTIONS];
 
 const RAIL_KEY = "ff.admin.sidebarRail";
-const NAV_OPEN_KEY = "adm.nav.open";
 
 function matchesPath(pathname: string, path: string): boolean {
   if (path === "/yonetim") return pathname === "/yonetim";
@@ -190,19 +187,6 @@ function activeTab(
     .find((tab) => matchesPath(pathname, tab.to));
 }
 
-function readOpenGroups(): string[] {
-  try {
-    const raw = localStorage.getItem(NAV_OPEN_KEY);
-    if (!raw) return [];
-    const parsed: unknown = JSON.parse(raw);
-    return Array.isArray(parsed)
-      ? parsed.filter((value): value is string => typeof value === "string")
-      : [];
-  } catch {
-    return [];
-  }
-}
-
 export function AdminLayout() {
   const { user, logout } = useAuth();
   const live = useAdminLiveUpdates();
@@ -217,7 +201,7 @@ export function AdminLayout() {
     }
   });
   const [drawer, setDrawer] = useState(false);
-  const [openGroups, setOpenGroups] = useState<string[]>(readOpenGroups);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
 
   const section = activeSection(pathname);
   const tab = activeTab(section, pathname);
@@ -252,31 +236,15 @@ export function AdminLayout() {
     }
   }, [rail]);
 
-  // Açık grup tercihleri — yalnızca arayüz durumu.
+  // Akordeon: aynı anda yalnızca BİR bölüm açık kalır. Rota değiştiğinde
+  // aktif bölüm açılır, öncekiler kapanır. Böylece menü, ziyaret geçmişine
+  // göre birikip eski uzun bağlantı listesine dönüşmez.
   useEffect(() => {
-    try {
-      localStorage.setItem(NAV_OPEN_KEY, JSON.stringify(openGroups));
-    } catch {
-      /* gizli mod — tercih saklanamaz */
-    }
-  }, [openGroups]);
-
-  // Rota değiştiğinde aktif grup otomatik açılır.
-  useEffect(() => {
-    if (!section || section.children.length === 0) return;
-    const id = section.id;
-    setOpenGroups((current) =>
-      current.includes(id) ? current : [...current, id],
-    );
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    setOpenGroup(section?.id ?? null);
   }, [section?.id]);
 
   const toggleGroup = (id: string) => {
-    setOpenGroups((current) =>
-      current.includes(id)
-        ? current.filter((value) => value !== id)
-        : [...current, id],
-    );
+    setOpenGroup((current) => (current === id ? null : id));
   };
 
   // Yetki koruması — asıl sınır sunucu tarafındaki RLS'dir.
@@ -295,7 +263,7 @@ export function AdminLayout() {
     const Icon = item.icon;
     const isActive = section?.id === item.id;
     const hasChildren = item.children.length > 0;
-    const isOpen = hasChildren && openGroups.includes(item.id);
+    const isOpen = hasChildren && openGroup === item.id;
     return (
       <li
         key={item.id}

@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import type { Actor, DB, Lead } from "./types";
 import type { CompanyDraft } from "./repo";
 import { seedDB } from "../data/seed";
+import { ENGAGEMENT_DEFAULTS } from "./engagement";
 
 /**
  * Gerçek Supabase modu (isSupabaseConfigured = true) simülasyonu.
@@ -37,6 +38,7 @@ vi.mock("./dataSource", () => ({
       referralReward: 100,
       renewalCommission: 600,
       teamCapacity: 15,
+      ...ENGAGEMENT_DEFAULTS,
       updatedAt: "",
     },
     audit: [],

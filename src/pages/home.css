@@ -117,8 +117,20 @@
   background: var(--surface-2);
 }
 
-.hm-search__field:focus-within {
+/* Odak halkası YALNIZ klavye odağında. `:focus-within` fare ile seçim yapan
+   segmentte kalıcı mavi çerçeve bırakıyordu: açılır listeden seçim yapıldıktan
+   sonra da select/dropdown odağı elemanın üzerinde kalır. `:has(:focus-visible)`
+   halkayı klavye gezintisiyle sınırlar; fare ile yapılan seçim iz bırakmaz. */
+.hm-search__field:has(:focus-visible) {
   box-shadow: inset 0 0 0 2px var(--ring);
+}
+
+/* Fare ile odaklanan denetimlerde tarayıcı varsayılanı da bastırılır (bazı
+   WebKit sürümleri div/select için :focus-visible'ı fare odağında eşler). */
+.hm-search .loc-btn:focus:not(:focus-visible),
+.hm-search__field--city select:focus:not(:focus-visible),
+.hm-search__field--q input:focus:not(:focus-visible) {
+  outline: none;
 }
 
 .hm-search__field--q {
@@ -204,13 +216,23 @@
   background: rgba(37, 99, 235, 0.07);
 }
 
-.hm-search .loc-btn:focus-visible,
-.hm-search .loc-btn.open {
+/* Klavye odağı: mavi halka (yalnız :focus-visible). */
+.hm-search .loc-btn:focus-visible {
   border-color: transparent;
   box-shadow: none;
   outline: 2px solid var(--primary);
   outline-offset: 3px;
   border-radius: 7px;
+}
+
+/* Açık menü durumu: odak halkasından AYRI, nötr yüzey vurgusu. Seçim yapılıp
+   menü kapandığında geriye mavi çerçeve kalmaz. */
+.hm-search .loc-btn.open {
+  border-color: transparent;
+  box-shadow: none;
+  outline: none;
+  border-radius: 7px;
+  background: rgba(37, 99, 235, 0.07);
 }
 
 .hm-search .loc-btn svg {
@@ -443,6 +465,12 @@
    ========================================================= */
 .page-home .section {
   padding-block: 56px 0;
+}
+
+/* Kategoriler bölümü doğrudan beyaz banda dayanıyordu; karo bitişi ile
+   "Öne çıkan firmalar" bandı arasına bölüm ritmiyle aynı dengeli alt boşluk. */
+.page-home .home-body > .section:first-child {
+  padding-bottom: 56px;
 }
 
 /* Son bölüm (CTA) alt boşluğunu üstlenir — section padding'i 0 ile biter. */
@@ -903,38 +931,10 @@
     display: none;
   }
 
-  /* Not kartları: yatay snap satırı */
+  /* Not kartları yalnız geniş ekranda haritanın üstünde durur. Mobilde
+     tamamen gizlenir: harita dokusu kalır, altında kart listesi görünmez. */
   .hm-stage {
-    min-height: 0;
-    display: flex;
-    gap: 12px;
-    overflow-x: auto;
-    scroll-snap-type: x mandatory;
-    -webkit-overflow-scrolling: touch;
-    margin-inline: -16px;
-    padding: 6px 16px 34px;
-    scrollbar-width: none;
-  }
-
-  .hm-stage::-webkit-scrollbar {
     display: none;
-  }
-
-  .hm-note {
-    position: static;
-    flex: 0 0 auto;
-    width: min(76vw, 290px);
-    scroll-snap-align: start;
-    animation: hm-pin-drop 0.7s var(--hm-settle) both var(--hm-delay, 0s);
-  }
-
-  .hm-note--1,
-  .hm-note--2,
-  .hm-note--3 {
-    top: auto;
-    right: auto;
-    bottom: auto;
-    left: auto;
   }
 
   .hm-search {
@@ -973,6 +973,10 @@
 
   .page-home .section {
     padding-block: 44px 0;
+  }
+
+  .page-home .home-body > .section:first-child {
+    padding-bottom: 44px;
   }
 
   .page-home .hm-band .section {

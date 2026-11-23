@@ -2,8 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
-  Eye,
-  EyeOff,
   MoreHorizontal,
   Pencil,
   Plus,
@@ -491,19 +489,6 @@ export default function AdminCompanies() {
                           <button
                             type="button"
                             onClick={() =>
-                              handleAction(() => setCompanyPublished(co.id, !co.published, actor))
-                            }
-                          >
-                            {co.published ? (
-                              <EyeOff size={15} strokeWidth={1.9} aria-hidden="true" />
-                            ) : (
-                              <Eye size={15} strokeWidth={1.9} aria-hidden="true" />
-                            )}
-                            {co.published ? "Yayından al" : "Yayına al"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() =>
                               handleAction(() => {
                                 updateCompany(co.id, { featured: !co.featured }, actor);
                               })
@@ -931,7 +916,6 @@ function EditCompany({
     description: company.description,
     hours: company.hours,
     featured: company.featured,
-    published: company.published,
     repId: company.repId ?? null,
     latitude: company.latitude,
     longitude: company.longitude,
@@ -951,13 +935,9 @@ function EditCompany({
         onSubmit={async (draft) => {
           setError(null);
           try {
-            // Yayın durumu ayrı ve güvenli yoldan değişir (form aynı değeri
-            // geri gönderdiğinde hiç çağrılmaz).
-            const { published, ...rest } = draft;
-            await updateCompany(companyId, rest, actor);
-            if (published !== undefined && published !== company.published) {
-              await setCompanyPublished(companyId, published, actor);
-            }
+            // Yayın durumu bu formda değişmez: tekil yayınlama İşlem Merkezi'nde,
+            // toplu yayınlama firmalar listesinde yapılır.
+            await updateCompany(companyId, draft, actor);
             onCancel();
           } catch (err) {
             setError(err instanceof Error ? err.message : "Güncelleme başarısız.");

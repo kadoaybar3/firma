@@ -111,9 +111,16 @@ async function profileToUser(): Promise<AppUser | null> {
   };
 }
 
-/** Oturumun RLS yetkisine göre tüm tabloları okuyup repo'ya devreder. */
-async function hydrateFromSupabase(): Promise<void> {
-  const { db } = await loadSnapshot();
+/**
+ * Oturumun RLS yetkisine göre tüm tabloları okuyup repo'ya devreder.
+ *
+ * 0018 sayaç tablolarına yalnız `authenticated` rolünün SELECT hakkı vardır
+ * (anon/public tamamen revoke). Anon görüntüde bu iki tablo SORULMAZ; aksi
+ * halde `permission denied for table company_engagement_counters` (42501)
+ * tek hatası tüm görüntüyü düşürür ve kamu sitesi açılamaz.
+ */
+async function hydrateFromSupabase(user: AppUser | null): Promise<void> {
+  const { db } = await loadSnapshot({ includeEngagement: user?.role === "admin" });
   applySnapshot(db);
 }
 
@@ -142,7 +149,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         // Anonim ziyaretçi dahil HER durumda görüntü yüklenir; RLS anonime
         // yalnızca kamu verisini (kategoriler/şehirler/yayınlanmış firmalar)
         // döndürür. Oturum varsa satır kümesi rolün yetkisiyle genişler.
-        await hydrateFromSupabase();
+        await hydrateFromSupabase(u);
         if (!alive) return;
         setUser(u);
         setPhase("ready");
@@ -201,7 +208,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       const u = await profileToUser();
       if (!u) return { ok: false, error: "Oturum açıldı ancak profil bilgisi alınamadı." };
       await flushNow(); // giriş öncesi bekleyen yazım varsa önce sunucuya gitsin
-      await hydrateFromSupabase(); // rolün RLS yetkisinde tam görüntü
+      await hydrateFromSupabase(u); // rolün RLS yetkisinde tam görüntü
       setUser(u);
       return { ok: true, role: u.role };
     } catch (e) {
@@ -223,7 +230,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     await supabase.auth.signOut();
     setUser(null);
     try {
-      await hydrateFromSupabase(); // anonim (kamu) görüntüye dön
+      await hydrateFromSupabase(null); // anonim (kamu) görüntüye dön
     } catch {
       /* anonim yeniden yükleme başarısızsa mevcut görüntü kalır */
     }

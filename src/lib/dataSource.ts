@@ -6,6 +6,9 @@ import type {
   CommissionPayout,
   Company,
   DB,
+  EngagementCounter,
+  EngagementNotification,
+  EngagementRule,
   Lead,
   LeadVisit,
   Membership,
@@ -25,6 +28,7 @@ import { supabase, isSupabaseConfigured } from "./supabase";
 import { nowISO } from "./engine";
 import { normalizeCoordinates, toFiniteNumber } from "./coordinates";
 import { encodeLeadNote, parseLeadNote } from "./leadLocation";
+import { ENGAGEMENT_DEFAULTS, isEngagementKind } from "./engagement";
 
 /**
  * SUPABASE VERİ KAYNAĞI KATMANI (P-1 bağlantı turu)
@@ -67,12 +71,15 @@ export function emptyDB(): DB {
     commissionPayouts: [],
     referrals: [],
     repApplications: [],
+    engagementCounters: [],
+    engagementNotifications: [],
     settings: {
       membershipPrice: 0,
       repCommission: 0,
       referralReward: 0,
       renewalCommission: 0,
       teamCapacity: 15,
+      ...ENGAGEMENT_DEFAULTS,
       updatedAt: nowISO(),
     },
     audit: [],
@@ -592,6 +599,7 @@ export function settingsFromRow(row: Record<string, unknown> | null): Settings {
       referralReward: 100,
       renewalCommission: 600,
       teamCapacity: 15,
+      ...ENGAGEMENT_DEFAULTS,
       updatedAt: nowISO(),
     };
   const repCommission = num(row, "rep_commission");
@@ -606,7 +614,55 @@ export function settingsFromRow(row: Record<string, unknown> | null): Settings {
     referralReward: num(row, "referral_reward"),
     renewalCommission: num(row, "renewal_commission"),
     teamCapacity: teamCapacity >= 2 ? teamCapacity : 15,
+    ...engagementSettingsFromRow(row),
     updatedAt: sv(row, "updated_at"),
+  };
+}
+
+/**
+ * 0018 kolonları uygulanmamış eski bir satırda da okuma çalışsın diye
+ * varsayılanlar kullanılır (feed geriye dönük uyumlu).
+ */
+function engagementSettingsFromRow(row: Record<string, unknown>) {
+  const override = row["engagement_kind_overrides"];
+  const overrides: Settings["engagementKindOverrides"] = {};
+  if (override && typeof override === "object" && !Array.isArray(override)) {
+    for (const [key, value] of Object.entries(override as Record<string, unknown>)) {
+      if (!isEngagementKind(key) || !value || typeof value !== "object") continue;
+      const raw = value as Record<string, unknown>;
+      const part: Partial<EngagementRule> = {};
+      if (typeof raw["enabled"] === "boolean") part.enabled = raw["enabled"];
+      if (typeof raw["tier1Enabled"] === "boolean") part.tier1Enabled = raw["tier1Enabled"];
+      if (Number.isFinite(Number(raw["tier1Interval"])))
+        part.tier1Interval = Math.floor(Number(raw["tier1Interval"]));
+      if (typeof raw["tier2Enabled"] === "boolean") part.tier2Enabled = raw["tier2Enabled"];
+      if (Number.isFinite(Number(raw["tier2Start"])))
+        part.tier2Start = Math.floor(Number(raw["tier2Start"]));
+      overrides[key] = part;
+    }
+  }
+  return {
+    engagementEnabled:
+      typeof row["engagement_enabled"] === "boolean"
+        ? (row["engagement_enabled"] as boolean)
+        : ENGAGEMENT_DEFAULTS.engagementEnabled,
+    engagementTier1Enabled:
+      typeof row["engagement_tier1_enabled"] === "boolean"
+        ? (row["engagement_tier1_enabled"] as boolean)
+        : ENGAGEMENT_DEFAULTS.engagementTier1Enabled,
+    engagementTier1Interval:
+      num(row, "engagement_tier1_interval") >= 1
+        ? Math.floor(num(row, "engagement_tier1_interval"))
+        : ENGAGEMENT_DEFAULTS.engagementTier1Interval,
+    engagementTier2Enabled:
+      typeof row["engagement_tier2_enabled"] === "boolean"
+        ? (row["engagement_tier2_enabled"] as boolean)
+        : ENGAGEMENT_DEFAULTS.engagementTier2Enabled,
+    engagementTier2Start:
+      num(row, "engagement_tier2_start") >= 1
+        ? Math.floor(num(row, "engagement_tier2_start"))
+        : ENGAGEMENT_DEFAULTS.engagementTier2Start,
+    engagementKindOverrides: overrides,
   };
 }
 
@@ -618,7 +674,46 @@ export function settingsToRow(s: Settings): Record<string, unknown> {
     referral_reward: s.referralReward,
     renewal_commission: s.renewalCommission,
     team_capacity: s.teamCapacity,
+    engagement_enabled: s.engagementEnabled !== false,
+    engagement_tier1_enabled: s.engagementTier1Enabled !== false,
+    engagement_tier1_interval: Math.max(1, Math.floor(s.engagementTier1Interval || 1)),
+    engagement_tier2_enabled: s.engagementTier2Enabled !== false,
+    engagement_tier2_start: Math.max(1, Math.floor(s.engagementTier2Start || 1)),
+    engagement_kind_overrides: s.engagementKindOverrides ?? {},
     updated_at: s.updatedAt ?? nowISO(),
+  };
+}
+
+/* ---------- 0018: etkileşim sayaçları / bildirimleri (yalnız OKUMA) ---------- */
+
+export function engagementCounterFromRow(row: Record<string, unknown>): EngagementCounter | null {
+  const kind = row["kind"];
+  const companyId = sv(row, "company_id");
+  if (!isEngagementKind(kind) || !companyId) return null;
+  return {
+    companyId,
+    kind,
+    count: Math.max(0, Math.floor(num(row, "count"))),
+    updatedAt: sv(row, "updated_at"),
+  };
+}
+
+export function engagementNotificationFromRow(
+  row: Record<string, unknown>,
+): EngagementNotification | null {
+  const kind = row["kind"];
+  const companyId = sv(row, "company_id");
+  const id = sv(row, "id");
+  if (!isEngagementKind(kind) || !companyId || !id) return null;
+  return {
+    id,
+    companyId,
+    kind,
+    count: Math.max(0, Math.floor(num(row, "count"))),
+    tier: num(row, "tier") === 2 ? 2 : 1,
+    threshold: Math.max(0, Math.floor(num(row, "threshold"))),
+    tier1Also: row["tier1_also"] === true ? true : undefined,
+    createdAt: sv(row, "created_at"),
   };
 }
 
@@ -659,11 +754,30 @@ async function selectAudit(limit = AUDIT_READ_LIMIT): Promise<Record<string, unk
   return (data ?? []) as Record<string, unknown>[];
 }
 
-/** Oturumun RLS yetkisine göre görünen tüm tabloları okur. */
-export async function loadSnapshot(): Promise<SnapshotResult> {
-  if (!isSupabaseConfigured) throw new Error("Supabase yapılandırılmadı; hydrate yalnız üretim modunda çalışır.");
+/**
+ * 0018 sayaç tabloları. `0018_company_engagement.sql` bu iki tabloya yalnız
+ * `authenticated` rolüne SELECT verir, anon/public için hiçbir yetki bırakmaz.
+ * Bu yüzden ANON görüntüsünde bu tablolar HİÇ sorgulanmamalıdır: aksi halde
+ * PostgREST `42501 permission denied for table company_engagement_counters`
+ * döner ve `loadSnapshot` tek hatada TÜM görüntüyü düşürür (kamu sitesi ve
+ * giriş ekranı açılamaz).
+ */
+export const ENGAGEMENT_TABLES = [
+  "company_engagement_counters",
+  "company_engagement_notifications",
+] as const;
 
-  const tables = [
+export type SnapshotOptions = {
+  /**
+   * 0018 sayaç/bildirim tabloları da okunsun mu? Varsayılan `true`.
+   * Yönetici olmayan (anon) görüntüde `false` verilir — bkz. ENGAGEMENT_TABLES.
+   */
+  includeEngagement?: boolean;
+};
+
+/** Okunacak tablo listesi — sayaç tabloları yalnız yönetici görüntüsünde eklenir. */
+export function snapshotTables(includeEngagement: boolean): string[] {
+  const tables: string[] = [
     "categories",
     "cities",
     "city_districts",
@@ -690,7 +804,18 @@ export async function loadSnapshot(): Promise<SnapshotResult> {
     // DEĞİLDİR (okuma only, rep_applications deseni).
     "team_join_applications",
     "teams_overview",
-  ] as const;
+  ];
+  // 0018: etkileşim sayaçları + eşik bildirimleri — YAZIM yalnız
+  // track_company_engagement RPC'sinde; bu iki kaynak da sync write
+  // listesinde DEĞİLDİR (okuma only, rep_applications deseni).
+  return includeEngagement ? [...tables, ...ENGAGEMENT_TABLES] : tables;
+}
+
+/** Oturumun RLS yetkisine göre görünen tüm tabloları okur. */
+export async function loadSnapshot(options: SnapshotOptions = {}): Promise<SnapshotResult> {
+  if (!isSupabaseConfigured) throw new Error("Supabase yapılandırılmadı; hydrate yalnız üretim modunda çalışır.");
+
+  const tables = snapshotTables(options.includeEngagement !== false);
   /**
    * Denetim okuması kritik `Promise.all` zincirinin DIŞINDA ve kendi
    * catch'iyle: tablo/RLS/ağ hatası yönetim panelinin açılmasını engellemez,
@@ -704,34 +829,45 @@ export async function loadSnapshot(): Promise<SnapshotResult> {
   if (failure) throw new Error(`Supabase verisi okunamadı → ${failure.error}`);
   const audit = await auditPromise;
 
-  const [cats, cityRows, districtRows, teamRows, repRows, compRows, leadRows, visitRows, saleRows, payRows, memRows, comRows, payoutRows, refRows, settingsRows, appRows, teamComRows, teamPayoutRows, joinAppRows, overviewRows] =
-    outs.map((o) => o.rows);
+  // Tablo adına göre eşleme: sayaç tabloları anon görüntüsünde hiç
+  // sorgulanmadığı için sıralı destructuring yerine adla okunur.
+  const rowsByTable = new Map(outs.map((o) => [o.table, o.rows]));
+  const rows = (table: string): Record<string, unknown>[] => rowsByTable.get(table) ?? [];
 
   const db: DB = {
-    categories: cats.map(categoryFromRow),
-    cities: citiesFromRows(cityRows, districtRows),
-    companies: compRows.map(companyFromRow),
-    reps: repRows.map(repFromRow),
-    teams: teamRows.map(teamFromRow),
-    leads: leadRows.map(leadFromRow),
-    visits: visitRows.map(visitFromRow),
-    sales: saleRows.map(saleFromRow),
-    payments: payRows.map(paymentFromRow),
-    memberships: memRows.map(membershipFromRow),
-    commissions: comRows.map(commissionFromRow),
-    commissionPayouts: payoutRows.map(commissionPayoutFromRow),
-    referrals: refRows.map(referralFromRow),
+    categories: rows("categories").map(categoryFromRow),
+    cities: citiesFromRows(rows("cities"), rows("city_districts")),
+    companies: rows("companies").map(companyFromRow),
+    reps: rows("sales_reps").map(repFromRow),
+    teams: rows("teams").map(teamFromRow),
+    leads: rows("leads").map(leadFromRow),
+    visits: rows("lead_visits").map(visitFromRow),
+    sales: rows("sales").map(saleFromRow),
+    payments: rows("payments").map(paymentFromRow),
+    memberships: rows("memberships").map(membershipFromRow),
+    commissions: rows("commissions").map(commissionFromRow),
+    commissionPayouts: rows("commission_payouts").map(commissionPayoutFromRow),
+    referrals: rows("referrals").map(referralFromRow),
     // Başvurular yalnız yöneticiye görünür (0013: admin SELECT policy);
     // anon listeleme/değiştirme yapamaz (RLS default-deny).
-    repApplications: appRows.map(repApplicationFromRow),
+    repApplications: rows("rep_applications").map(repApplicationFromRow),
     // 0014: lider yalnız kendi satırını görür; anon satır göremez (RLS).
-    teamCommissions: teamComRows.map(teamCommissionFromRow),
-    teamCommissionPayouts: teamPayoutRows.map(teamCommissionPayoutFromRow),
+    teamCommissions: rows("team_commissions").map(teamCommissionFromRow),
+    teamCommissionPayouts: rows("team_commission_payouts").map(teamCommissionPayoutFromRow),
     // 0015: personel yalnız kendi başvurusunu görür (RLS); görünüm anon'a
     // kapalı, yalnız authenticated okur.
-    teamJoinApplications: joinAppRows.map(teamJoinApplicationFromRow),
-    teamOverviews: overviewRows.map(teamOverviewFromRow),
-    settings: settingsFromRow(settingsRows[0] ?? null),
+    teamJoinApplications: rows("team_join_applications").map(teamJoinApplicationFromRow),
+    teamOverviews: rows("teams_overview").map(teamOverviewFromRow),
+    // 0018: sayaçlar ve bildirimler yalnız okunur (yazım RPC'de). Anon
+    // görüntüsünde bu tablolar hiç sorgulanmaz → boş dizi.
+    engagementCounters: rows("company_engagement_counters")
+      .map(engagementCounterFromRow)
+      .filter((c): c is EngagementCounter => c !== null),
+    engagementNotifications: rows("company_engagement_notifications")
+      .map(engagementNotificationFromRow)
+      .filter((n): n is EngagementNotification => n !== null)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt)),
+    settings: settingsFromRow(rows("app_settings")[0] ?? null),
     // Denetim kayıtları yalnız OKUNUR; syncSnapshot yazım listesinde değildir.
     audit,
   };
@@ -934,7 +1070,14 @@ export async function syncSnapshot(local: DB, base: DB | null): Promise<DB> {
     s.repCommission !== bs.repCommission ||
     s.referralReward !== bs.referralReward ||
     s.renewalCommission !== bs.renewalCommission ||
-    s.teamCapacity !== bs.teamCapacity;
+    s.teamCapacity !== bs.teamCapacity ||
+    (s.engagementEnabled !== false) !== (bs.engagementEnabled !== false) ||
+    (s.engagementTier1Enabled !== false) !== (bs.engagementTier1Enabled !== false) ||
+    s.engagementTier1Interval !== bs.engagementTier1Interval ||
+    (s.engagementTier2Enabled !== false) !== (bs.engagementTier2Enabled !== false) ||
+    s.engagementTier2Start !== bs.engagementTier2Start ||
+    JSON.stringify(s.engagementKindOverrides ?? {}) !==
+      JSON.stringify(bs.engagementKindOverrides ?? {});
   if (valuesDiffer) await updateSettingsRow(s);
 
   // Sunucuda artık bilinen durum, local'in SENKRON EDİLEbilir parçalarıdır

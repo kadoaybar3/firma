@@ -1,102 +1,87 @@
-import type { CSSProperties } from "react";
+import { useRef, useState } from "react";
+import type { ReactNode } from "react";
 import { Link } from "react-router-dom";
 import {
   ArrowRight,
-  ChartNoAxesColumnIncreasing,
+  BadgeCheck,
+  Banknote,
+  Building2,
   CircleAlert,
-  ClipboardList,
+  Clock3,
   CreditCard,
-  Download,
+  ListChecks,
+  Loader2,
   Store,
   Target,
   Users,
   Wallet,
   type LucideIcon,
 } from "lucide-react";
-import { PanelHead } from "./AdminLayout";
-import { Badge, EmptyState, InfoBanner, auditActionLabels } from "../components/ui";
-import { useActor } from "../lib/auth";
+import { EmptyState, ErrorBanner, InfoBanner } from "../components/ui";
+import { useActor, useAuth } from "../lib/auth";
 import { useLiveDataRevision } from "../lib/liveData";
-import { formatShortDate, formatTRY } from "../lib/format";
+import { formatTRY } from "../lib/format";
 import { isSupabaseConfigured } from "../lib/supabase";
 import {
+  approveEftPayment,
+  cancelSale,
   companyHasConfirmedPayment,
+  confirmRenewal,
+  confirmSale,
+  createPendingPayment,
   getCompanyById,
-  listAudit,
-  listCommissions,
   listCompanies,
-  listCommissionPayoutSummary,
   listLeads,
   listPayments,
-  listRepApplications,
   listReps,
   listSales,
-  listTeamCommissionSummary,
-  listTeamJoinApplications,
-  monthlyReport,
+  rejectPendingPayment,
+  setCompanyPublished,
+  verifyPayment,
 } from "../lib/repo";
-import type { Lead, Payment, Sale } from "../lib/types";
+import {
+  groupPaymentsBySale,
+  paymentMethodLabel,
+  primaryPaymentForSale,
+  saleStage,
+} from "../lib/saleState";
+import type { Payment, Sale } from "../lib/types";
+import DigitalVisibility from "./DigitalVisibility";
 import "./dashboard.css";
 
 /*
- * GENEL BAKIŞ — "Nöbet defteri"
+ * İŞLEM MERKEZİ
  *
- * İlke: bu dosya YALNIZ sunum yapar. Hiçbir sayı sabit değildir; her değer
- * aşağıdaki repo okumalarından türetilir. İş kuralları (ödeme onayı, satış
- * kesinleştirme, komisyon, yayın kapısı) repo/engine içinde kalır; burada
- * yalnız "hangi kayıt hangi kararı bekliyor" sınıflandırması yapılır.
+ * Tek kural: karar gerektiren her kayıt TEK kuyrukta, tek satırda görünür ve
+ * işlemi satırın kendisinden yapılır. Sıra: para → yayın → bilgi.
+ *
+ * İş kuralları burada YOKTUR. Satır eylemleri repo'nun mevcut fonksiyonlarını
+ * aynı parametrelerle çağırır (approveEftPayment / verifyPayment /
+ * confirmSale / confirmRenewal / createPendingPayment / cancelSale /
+ * setCompanyPublished); sınıflandırma lib/saleState.ts'ten gelir.
  */
 
-const QUICK_ACTIONS = [
-  { to: "/yonetim/firmalar", label: "Firma ekle", desc: "Yeni kayıt", icon: Store },
-  { to: "/yonetim/ice-aktar", label: "İçe aktar", desc: "Toplu liste", icon: Download },
-  { to: "/yonetim/odemeler", label: "Ödeme onayla", desc: "EFT kuyruğu", icon: CreditCard },
-  { to: "/yonetim/satislar", label: "Satış aç", desc: "Yeni üyelik", icon: Wallet },
-  { to: "/yonetim/adaylar", label: "Adayları gör", desc: "Saha bildirimleri", icon: Target },
-  { to: "/yonetim/temsilciler", label: "Personel", desc: "Ekip yönetimi", icon: Users },
-];
-
-/** Kuyruk grupları — sıra ekrandaki sıradır (para önce). */
-type QueueGroup = "money" | "content" | "field" | "team";
-
-const QUEUE_GROUPS: Array<{ id: QueueGroup; label: string; short: string }> = [
-  { id: "money", label: "Para · onay bekleyen", short: "para" },
-  { id: "content", label: "İçerik · yayın", short: "içerik" },
-  { id: "field", label: "Saha · adaylar", short: "saha" },
-  { id: "team", label: "Ekip · başvurular", short: "ekip" },
-];
-
-interface QueueRow {
-  /** Kayıt kimliği — aynı kayıt iki satır üretmesin diye tek anahtar. */
-  id: string;
-  group: QueueGroup;
-  icon: LucideIcon;
-  subject: string;
-  detail: string;
-  amount?: number;
-  ageDays?: number;
-  to: string;
-}
-
-/**
- * Satış aşaması — SIRA ÖNEMLİ, ilk eşleşen kazanır (rapor §1):
- * S1 kesinleşti → S2 iptal → S3 kesinleştirme yarım → S4/S5 bekleyen
- * ödeme (EFT/manuel vs kart) → S6 ödeme kaydı yok.
- * Böylece bir satış kuyrukta en fazla bir satır üretir.
- */
-type SaleStage = "settled" | "cancelled" | "confirm" | "eft" | "card" | "none";
-
-function saleStage(sale: Sale, rows: Payment[]): SaleStage {
-  if (sale.status === "odendi") return "settled";
-  if (sale.status === "iptal") return "cancelled";
-  // Onaylı ödeme var ama satış hâlâ potansiyel: kesinleştirme yarıda kalmış.
-  if (rows.some((payment) => payment.status === "onaylandi")) return "confirm";
-  const pending = rows.find((payment) => payment.status === "beklemede");
-  if (pending) {
-    // "hicbiri" = sağlayıcı yok, yöneticinin manuel/EFT onayı bekleniyor.
-    return pending.provider === "eft" || pending.provider === "hicbiri" ? "eft" : "card";
-  }
-  return "none";
+/** Saate göre karşılama + kısa motivasyon cümlesi. */
+function greetingFor(hour: number): { hello: string; lead: string } {
+  if (hour >= 6 && hour < 12)
+    return {
+      hello: "Günaydın",
+      lead: "Yeni gün, temiz bir sayfa. Küçük bir onay bile günün akışını rahatlatır.",
+    };
+  if (hour >= 12 && hour < 18)
+    return {
+      hello: "İyi günler",
+      lead: "Günün ortasındayız; biriken işi ertelemeden kapatmak en iyisi.",
+    };
+  if (hour >= 18 && hour < 22)
+    return {
+      hello: "İyi akşamlar",
+      lead: "Günü kapatmadan önce bekleyen birkaç kaydı netleştirelim.",
+    };
+  return {
+    hello: "İyi geceler",
+    lead: "Sessiz saatlerde verilen bir onay, yarını çok daha rahat ettirir.",
+  };
 }
 
 function daysSince(iso?: string): number | undefined {
@@ -106,311 +91,247 @@ function daysSince(iso?: string): number | undefined {
   return Math.max(0, Math.floor((Date.now() - time) / 86_400_000));
 }
 
-function ageLabel(days: number): string {
+function ageLabel(days?: number): string {
+  if (days === undefined) return "";
   return days <= 0 ? "bugün" : `${days} gündür`;
 }
 
-function oldest(rows: Payment[], status: Payment["status"]): string | undefined {
-  return rows
-    .filter((payment) => payment.status === status)
-    .map((payment) => payment.createdAt)
-    .sort()[0];
+interface SaleQueueRow {
+  sale: Sale;
+  payment?: Payment;
+  companyId: string;
+  companyName: string;
+  detail: string;
+  ageDays?: number;
+  /** Satış kanalı temsilci ise satışı yapan personelin adı. */
+  repName?: string;
 }
 
-function saleStatus(sale: Sale): { tone: "green" | "orange" | "red"; label: string } {
-  if (sale.status === "odendi") return { tone: "green", label: "Kesinleşti" };
-  if (sale.status === "iptal") return { tone: "red", label: "İptal" };
-  return { tone: "orange", label: "Bekliyor" };
+type Tone = "money" | "content" | "info";
+
+/** Kuyruk satırı — miktar/yaş sağda, eylemler satırın içinde. */
+function QueueRow({
+  icon: Icon,
+  tone,
+  title,
+  titleTo,
+  detail,
+  amount,
+  ageDays,
+  actions,
+}: {
+  icon: LucideIcon;
+  tone: Tone;
+  title: string;
+  titleTo: string;
+  detail: string;
+  amount?: number;
+  ageDays?: number;
+  actions?: ReactNode;
+}) {
+  return (
+    <div
+      className={`dq-row dq-row--${tone} ${actions ? "dq-row--act" : "dq-row--info"}`}
+    >
+      <span className="dq-row__glyph">
+        <Icon size={17} strokeWidth={1.9} aria-hidden="true" />
+      </span>
+      <span className="dq-row__text">
+        <Link className="dq-row__title" to={titleTo}>
+          {title}
+        </Link>
+        <span>{detail}</span>
+      </span>
+      <span className="dq-row__side">
+        {amount !== undefined && (
+          <span className="dq-row__amount">{formatTRY(amount)}</span>
+        )}
+        {ageDays !== undefined && (
+          <span className="dq-row__age">{ageLabel(ageDays)}</span>
+        )}
+      </span>
+      {actions && <span className="dq-row__actions">{actions}</span>}
+    </div>
+  );
 }
 
-function paymentMethod(payment?: Payment): string {
-  if (!payment) return "Kayıt yok";
-  if (payment.provider === "eft") return "EFT";
-  if (payment.provider === "hicbiri") return "Manuel";
-  return "Kart";
-}
-
-function paymentLabel(payment: Payment): { tone: "green" | "orange" | "red" | "gray"; label: string } {
-  if (payment.status === "onaylandi") return { tone: "green", label: "Onaylandı" };
-  if (payment.status === "beklemede") return { tone: "orange", label: "Bekliyor" };
-  if (payment.status === "hata") return { tone: "red", label: "Reddedildi" };
-  return { tone: "gray", label: "İade" };
-}
-
-function channelLabel(sale: Sale, reps: { id: string; name: string }[]): string {
-  if (sale.channel === "temsilci") return reps.find((rep) => rep.id === sale.repId)?.name ?? "Temsilci";
-  if (sale.referralCode) return `Doğrudan · ${sale.referralCode}`;
-  return "Doğrudan";
-}
-
-function leadDetail(lead: Lead): string {
-  const parts = ["Anlaşma bildirildi"];
-  if (lead.district) parts.push(lead.district);
-  parts.push("firmaya dönüştürülmedi");
-  return parts.join(" · ");
+function QueueGroup({
+  label,
+  count,
+  children,
+}: {
+  label: string;
+  count: number;
+  children: ReactNode;
+}) {
+  return (
+    <div className="dq-queue__group">
+      <div className="dq-queue__grouplabel">
+        {label}
+        <em>{count}</em>
+      </div>
+      {children}
+    </div>
+  );
 }
 
 export default function AdminDashboard() {
   useLiveDataRevision();
   const actor = useActor();
+  const { user } = useAuth();
 
-  // --- Okumalar (tek geçiş; iş mantığı çağrılmaz, yalnız sorgular) ---
+  const [busy, setBusy] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [message, setMessage] = useState<string | null>(null);
+  const busyRef = useRef(false);
+  const [, setTick] = useState(0);
+
   const companies = listCompanies({ includeUnpublished: true });
   const sales = listSales(actor);
   const payments = listPayments(actor);
-  const leads = listLeads(actor);
   const reps = listReps(actor);
-  const commissions = listCommissions(actor);
-  const payoutSummary = listCommissionPayoutSummary(actor);
-  const teamSummary = listTeamCommissionSummary(actor);
-  const repApplications = listRepApplications(actor);
-  const teamApplications = listTeamJoinApplications(actor);
-  const audit = listAudit(6);
-  const months = monthlyReport(6);
+  /**
+   * Yönetici incelemesi bekleyen adaylar: temsilcinin «anlaşma bildir» dediği,
+   * henüz firmaya dönüştürülmemiş kayıtlar — /yonetim/firma-akisi 1. adımı.
+   * Dönüştürülen (convertedToCompanyId dolu) veya iptal edilen adaylar burada
+   * sayılmaz; onay sonrası kayıt satış/ödeme kuyruğuna geçer.
+   */
+  const pendingLeads = listLeads(actor).filter(
+    (lead) => lead.status === "anlaşma" && !lead.convertedToCompanyId,
+  );
 
-  // Satış → ödemeleri indeksi: her satış için tek aşama sınıflaması.
-  const paymentsBySale = new Map<string, Payment[]>();
-  for (const payment of payments) {
-    const rows = paymentsBySale.get(payment.saleId);
-    if (rows) rows.push(payment);
-    else paymentsBySale.set(payment.saleId, [payment]);
-  }
-  const salesByCompany = new Map<string, Sale[]>();
-  for (const sale of sales) {
-    const rows = salesByCompany.get(sale.companyId);
-    if (rows) rows.push(sale);
-    else salesByCompany.set(sale.companyId, [sale]);
-  }
-
-  // --- Cetvel bandı: kesinleşmiş para ---
-  const confirmedSales = sales.filter((sale) => sale.status === "odendi");
-  const collected = confirmedSales.reduce((sum, sale) => sum + sale.amount, 0);
-  const potentialSales = sales.filter((sale) => sale.status === "potansiyel");
-  const awaitingAmount = potentialSales.reduce((sum, sale) => sum + sale.amount, 0);
-
-  // --- Kuyruk ---
-  const queue: QueueRow[] = [];
-  const stageCounts: Record<Exclude<SaleStage, "settled" | "cancelled">, number> = {
-    confirm: 0,
-    eft: 0,
-    card: 0,
-    none: 0,
-  };
-
-  for (const sale of sales) {
-    const rows = paymentsBySale.get(sale.id) ?? [];
-    const stage = saleStage(sale, rows);
-    if (stage === "settled" || stage === "cancelled") continue;
-
-    const companyName = getCompanyById(sale.companyId)?.name ?? "Firma kaydı yok";
-    const renewal = sale.renewalForMembershipId ? "Yenileme" : "Üyelik";
-    stageCounts[stage] += 1;
-
-    if (stage === "confirm") {
-      queue.push({
-        id: `sale:${sale.id}`,
-        group: "money",
-        icon: CircleAlert,
-        subject: companyName,
-        detail: `Onaylı ödeme var, satış kesinleşmedi · ${renewal}`,
-        amount: sale.amount,
-        ageDays: daysSince(sale.createdAt),
-        to: "/yonetim/odemeler",
-      });
-    } else if (stage === "eft") {
-      const pending = rows.find((payment) => payment.status === "beklemede");
-      queue.push({
-        id: `sale:${sale.id}`,
-        group: "money",
-        icon: CreditCard,
-        subject: companyName,
-        detail: `${paymentMethod(pending)} ödeme onayı bekliyor · ${renewal}`,
-        amount: sale.amount,
-        ageDays: daysSince(oldest(rows, "beklemede") ?? sale.createdAt),
-        to: "/yonetim/odemeler",
-      });
-    } else if (stage === "card") {
-      queue.push({
-        id: `sale:${sale.id}`,
-        group: "money",
-        icon: CreditCard,
-        subject: companyName,
-        detail: `Kart ödemesi sağlayıcı doğrulamasında · ${renewal}`,
-        amount: sale.amount,
-        ageDays: daysSince(oldest(rows, "beklemede") ?? sale.createdAt),
-        to: "/yonetim/odemeler",
-      });
-    } else {
-      queue.push({
-        id: `sale:${sale.id}`,
-        group: "money",
-        icon: Wallet,
-        subject: companyName,
-        detail: `Ödeme kaydı açılmamış · ${renewal}`,
-        amount: sale.amount,
-        ageDays: daysSince(sale.createdAt),
-        to: "/yonetim/odemeler",
-      });
+  /** Hızlı çift tıklama / mükerrer gönderim koruması. */
+  async function run(key: string, fn: () => Promise<string>) {
+    if (busyRef.current) return;
+    busyRef.current = true;
+    setBusy(key);
+    setError(null);
+    setMessage(null);
+    try {
+      const text = await fn();
+      setMessage(text);
+      setTick((t) => t + 1);
+    } catch (e) {
+      setError(e instanceof Error ? e.message : "İşlem başarısız.");
+    } finally {
+      busyRef.current = false;
+      setBusy(null);
     }
   }
 
-  /*
-   * F1 — yayına hazır firma. Çift sayım kilidi: yayında DEĞİL + onaylı ödeme
-   * var + kesinleşmiş (odendi) satış var. "Onaylı ödeme var ama satış hâlâ
-   * potansiyel" durumu burada DEĞİL, S3 satırında görünür.
-   */
-  const readyCompanies = companies.filter((company) => {
-    if (company.published) return false;
-    const companySales = salesByCompany.get(company.id) ?? [];
-    if (!companySales.some((sale) => sale.status === "odendi")) return false;
-    return companyHasConfirmedPayment(company.id);
-  });
+  // --- Kuyruk kovaları (tek sınıflandırma: saleState.saleStage) ---
+  const bySale = groupPaymentsBySale(payments);
+  const buckets: Record<"confirm" | "eft" | "card" | "none", SaleQueueRow[]> = {
+    eft: [],
+    confirm: [],
+    none: [],
+    card: [],
+  };
 
-  for (const company of readyCompanies) {
-    const confirmed = (salesByCompany.get(company.id) ?? []).find((sale) => sale.status === "odendi");
-    queue.push({
-      id: `company:${company.id}`,
-      group: "content",
-      icon: Store,
-      subject: company.name,
-      detail: "Ödeme onaylı, firma yayına alınmayı bekliyor",
-      ageDays: daysSince(confirmed?.confirmedAt ?? confirmed?.createdAt ?? company.createdAt),
-      to: "/yonetim/firmalar",
+  for (const sale of sales) {
+    const rows = bySale.get(sale.id) ?? [];
+    const stage = saleStage(sale, rows);
+    if (stage === "settled" || stage === "cancelled") continue;
+
+    const payment = primaryPaymentForSale(rows);
+    const company = getCompanyById(sale.companyId);
+    const renewal = sale.renewalForMembershipId ? "Yenileme" : "Üyelik";
+    buckets[stage].push({
+      sale,
+      payment,
+      companyId: sale.companyId,
+      companyName: company?.name ?? "Firma kaydı yok",
+      detail:
+        stage === "eft"
+          ? `${paymentMethodLabel(payment)} ödeme onayı bekliyor · ${renewal}`
+          : stage === "confirm"
+            ? `Ödeme onaylı, satış kesinleşmedi · ${renewal}`
+            : stage === "card"
+              ? "Kart ödemesi sağlayıcı doğrulamasında"
+              : `Ödeme kaydı açılmamış · ${renewal}`,
+      ageDays: daysSince(payment?.createdAt ?? sale.createdAt),
+      repName:
+        sale.channel === "temsilci"
+          ? (reps.find((rep) => rep.id === sale.repId)?.name ?? "temsilci")
+          : undefined,
     });
   }
 
-  // --- Adaylar: dönüşüm (anlaşma) ve takip (diğer) ayrık kümeler ---
-  const pendingLeads = leads.filter(
-    (lead) => lead.status === "anlaşma" && !lead.convertedToCompanyId,
+  // --- Yayına hazır: yayında değil + kesinleşmiş satış + onaylı ödeme ---
+  const confirmedCompanyIds = new Set(
+    sales.filter((sale) => sale.status === "odendi").map((sale) => sale.companyId),
   );
-  const openLeads = leads.filter(
-    (lead) => lead.status !== "anlaşma" && lead.status !== "iptal",
-  );
-
-  for (const lead of pendingLeads) {
-    queue.push({
-      id: `lead:${lead.id}`,
-      group: "field",
-      icon: Target,
-      subject: lead.companyName,
-      detail: leadDetail(lead),
-      ageDays: daysSince(lead.createdAt),
-      to: "/yonetim/adaylar",
-    });
-  }
-
-  if (openLeads.length > 0) {
-    const oldestLead = [...openLeads].sort((a, b) => a.createdAt.localeCompare(b.createdAt))[0];
-    queue.push({
-      id: "lead:open",
-      group: "field",
-      icon: Target,
-      subject: `${openLeads.length} aday takip bekliyor`,
-      detail: "Yeni, iletişim ve görüşme aşamasındakiler",
-      ageDays: daysSince(oldestLead?.createdAt),
-      to: "/yonetim/adaylar",
-    });
-  }
-
-  // --- Başvurular: personel ve ekip ayrı defter, ayrı satır ---
-  const pendingRepApplications = repApplications.filter((app) => app.status === "beklemede");
-  const pendingTeamApplications = teamApplications.filter((app) => app.status === "beklemede");
-
-  if (pendingRepApplications.length > 0) {
-    const oldestApp = [...pendingRepApplications].sort((a, b) =>
-      a.createdAt.localeCompare(b.createdAt),
-    )[0];
-    queue.push({
-      id: "application:rep",
-      group: "team",
-      icon: ClipboardList,
-      subject: `${pendingRepApplications.length} personel başvurusu`,
-      detail: "Referansla gelen başvurular incelenmeyi bekliyor",
-      ageDays: daysSince(oldestApp?.createdAt),
-      to: "/yonetim/basvurular",
-    });
-  }
-
-  if (pendingTeamApplications.length > 0) {
-    const oldestApp = [...pendingTeamApplications].sort((a, b) =>
-      a.createdAt.localeCompare(b.createdAt),
-    )[0];
-    queue.push({
-      id: "application:team",
-      group: "team",
-      icon: Users,
-      subject: `${pendingTeamApplications.length} ekip katılım başvurusu`,
-      detail: "Personelin ekip katılımı onay bekliyor",
-      ageDays: daysSince(oldestApp?.createdAt),
-      to: "/yonetim/ekipler",
-    });
-  }
-
-  // Grup sırası sabit; grup içinde tutar (yoksa 0) ve bekleme yaşı azalan.
-  const groupRank: Record<QueueGroup, number> = { money: 0, content: 1, field: 2, team: 3 };
-  queue.sort(
-    (a, b) =>
-      groupRank[a.group] - groupRank[b.group] ||
-      (b.amount ?? -1) - (a.amount ?? -1) ||
-      (b.ageDays ?? -1) - (a.ageDays ?? -1),
+  const readyCompanies = companies.filter(
+    (company) =>
+      !company.published &&
+      confirmedCompanyIds.has(company.id) &&
+      companyHasConfirmedPayment(company.id),
   );
 
-  const queueByGroup = queue.reduce<Record<string, number>>((acc, row) => {
-    acc[row.group] = (acc[row.group] ?? 0) + 1;
-    return acc;
-  }, {});
+  const confirmedTotal = sales
+    .filter((sale) => sale.status === "odendi")
+    .reduce((sum, sale) => sum + sale.amount, 0);
+  const waitingTotal = sales
+    .filter((sale) => sale.status === "potansiyel")
+    .reduce((sum, sale) => sum + sale.amount, 0);
 
-  // --- Firma durumu ---
+  const queueTotal =
+    pendingLeads.length +
+    buckets.eft.length +
+    buckets.confirm.length +
+    buckets.none.length +
+    readyCompanies.length +
+    buckets.card.length;
+
+  // --- Karşılama (yerel saat) + Türkçe tarih ---
+  const now = new Date();
+  const { hello, lead } = greetingFor(now.getHours());
+  const firstName = user?.name?.trim().split(/\s+/)[0] ?? null;
+  const dateLong = new Intl.DateTimeFormat("tr-TR", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric",
+  }).format(now);
+  const dayNumber = new Intl.DateTimeFormat("tr-TR", { day: "numeric" }).format(now);
+  const monthYear = new Intl.DateTimeFormat("tr-TR", { month: "long", year: "numeric" }).format(now);
+  const weekday = new Intl.DateTimeFormat("tr-TR", { weekday: "long" }).format(now);
+
   const publishedCount = companies.filter((company) => company.published).length;
-  const unpublishedCount = companies.length - publishedCount;
-
-  // --- Komisyon borçları: iki ayrı defter, ayrı toplam ---
-  const repDebt = payoutSummary.reduce((sum, row) => sum + row.outstanding, 0);
-  const leaderDebt = teamSummary.reduce((sum, row) => sum + row.outstanding, 0);
-
-  // --- İkincil ölçümler ---
-  const activeReps = reps.filter((rep) => rep.status === "aktif");
-  const pendingApplicationCount = pendingRepApplications.length + pendingTeamApplications.length;
-
-  const pendingParts: string[] = [];
-  if (stageCounts.none) pendingParts.push(`${stageCounts.none} ödeme kaydı yok`);
-  if (stageCounts.eft) pendingParts.push(`${stageCounts.eft} EFT onayı`);
-  if (stageCounts.confirm) pendingParts.push(`${stageCounts.confirm} kesinleştirme`);
-  if (stageCounts.card) pendingParts.push(`${stageCounts.card} kart doğrulaması`);
-
-  const queueSub = QUEUE_GROUPS.filter((group) => queueByGroup[group.id] > 0)
-    .map((group) => `${queueByGroup[group.id]} ${group.short}`)
-    .join(" · ");
-
-  // --- Son hareketler ---
-  const recentSales = sales.slice(0, 6);
-  const recentPayments = [...payments]
-    .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
-    .slice(0, 6);
-
-  // --- Personel performansı ---
-  const perf = reps
-    .map((rep) => {
-      const repSales = confirmedSales.filter((sale) => sale.repId === rep.id);
-      const amount = repSales.reduce((sum, sale) => sum + sale.amount, 0);
-      const commission = commissions
-        .filter(({ com }) => com.repId === rep.id)
-        .reduce((sum, { com }) => sum + com.amount, 0);
-      return { rep, count: repSales.length, amount, commission };
-    })
-    .sort((a, b) => b.amount - a.amount);
-  const maxPerf = Math.max(1, ...perf.map((row) => row.amount));
-
-  // --- Altı aylık eğilim ---
-  const maxMonth = Math.max(1, ...months.map((month) => month.totalAmount));
-  const trendEmpty = months.every((month) => month.totalAmount === 0 && month.saleCount === 0);
+  const summary: Array<{ label: string; value: string; icon: LucideIcon; alert?: boolean }> = [
+    { label: "Toplam firma", value: String(companies.length), icon: Building2 },
+    { label: "Yayında firma", value: String(publishedCount), icon: BadgeCheck },
+    { label: "Bekleyen işlem", value: String(queueTotal), icon: ListChecks, alert: queueTotal > 0 },
+    { label: "Personel", value: String(reps.length), icon: Users },
+    { label: "Tahsil edilen", value: formatTRY(confirmedTotal), icon: Banknote },
+    { label: "Bekleyen tutar", value: formatTRY(waitingTotal), icon: Clock3 },
+  ];
 
   return (
     <div className="panel-content adm-dash">
-      <PanelHead
-        title="Genel Bakış"
-        desc="Tahsilat, karar kuyruğu ve yayın durumu. Tüm rakamlar kayıtlı gerçek verilerden hesaplanır."
-      />
+      {/* ============ KARŞILAMA ============ */}
+      <section className="dq-hero" aria-labelledby="dq-hero-title">
+        <div className="dq-hero__text">
+          <p className="dq-hero__eyebrow">İşlem Merkezi</p>
+          <h1 id="dq-hero-title" className="dq-hero__title">
+            {hello}
+            {firstName ? `, ${firstName}` : ""}
+          </h1>
+          <p className="dq-hero__lead">
+            {queueTotal === 0
+              ? "Bugün bekleyen iş yok; her şey akışında. Yeni bir gün için hazırsınız."
+              : lead}
+          </p>
+        </div>
+        <div className="dq-hero__date" aria-label={dateLong}>
+          <span className="dq-hero__day">{dayNumber}</span>
+          <span className="dq-hero__month">{monthYear}</span>
+          <span className="dq-hero__weekday">{weekday}</span>
+        </div>
+      </section>
+
+      {/* ============ DİJİTAL GÖRÜNÜRLÜK ============ */}
+      <DigitalVisibility />
 
       {!isSupabaseConfigured && (
         <InfoBanner>
@@ -418,394 +339,314 @@ export default function AdminDashboard() {
         </InfoBanner>
       )}
 
-      {/* ============ CETVEL BANDI ============ */}
-      <section className="dq-band" aria-label="Özet göstergeler">
-        <div className="dq-band__primary">
-          <div className="dq-cell">
-            <div className="dq-cell__label">Tahsil edilen</div>
-            <div className="dq-cell__value">{formatTRY(collected)}</div>
-            <div className="dq-cell__sub">{confirmedSales.length} kesinleşen satış</div>
-          </div>
-          <div className="dq-cell">
-            <div className="dq-cell__label">Bekleyen tahsilat</div>
-            <div className="dq-cell__value">{formatTRY(awaitingAmount)}</div>
-            <div className="dq-cell__sub">
-              {pendingParts.length > 0 ? pendingParts.join(" · ") : "Bekleyen satış yok"}
-            </div>
-          </div>
-          <div className="dq-cell">
-            <div className="dq-cell__label">Karar kuyruğu</div>
-            <div className="dq-cell__value">{queue.length}</div>
-            <div className="dq-cell__sub">
-              {queue.length === 0 ? "Bekleyen karar yok" : queueSub}
-            </div>
-          </div>
-          <div className="dq-cell">
-            <div className="dq-cell__label">Yayındaki firma</div>
-            <div className="dq-cell__value">{publishedCount}</div>
-            <div className="dq-cell__sub">
-              {companies.length} firma · {unpublishedCount} yayın dışı
-              {readyCompanies.length > 0 ? ` · ${readyCompanies.length} yayına hazır` : ""}
-            </div>
-          </div>
+      {error && <ErrorBanner message={error} />}
+      {message && (
+        <div className="info-banner" role="status">
+          {message}
         </div>
+      )}
 
-        <div className="dq-band__secondary">
-          <div className="dq-measure">
-            <span className="dq-measure__label">Toplam satış</span>
-            <span className="dq-measure__value">{sales.length}</span>
-          </div>
-          <div className="dq-measure">
-            <span className="dq-measure__label">Açık aday</span>
-            <span className="dq-measure__value">{openLeads.length}</span>
-          </div>
-          <div className="dq-measure">
-            <span className="dq-measure__label">Aktif personel</span>
-            <span className="dq-measure__value">
-              {activeReps.length} / {reps.length}
-            </span>
-          </div>
-          <div className="dq-measure">
-            <span className="dq-measure__label">Temsilciye ödenecek</span>
-            <span className="dq-measure__value">{formatTRY(repDebt)}</span>
-          </div>
-          <div className="dq-measure">
-            <span className="dq-measure__label">Ekip liderine ödenecek</span>
-            <span className="dq-measure__value">{formatTRY(leaderDebt)}</span>
-          </div>
-          <div className="dq-measure">
-            <span className="dq-measure__label">Bekleyen başvuru</span>
-            <span className="dq-measure__value">{pendingApplicationCount}</span>
-          </div>
+      {/* ============ İŞ ÖZETİ ============ */}
+      <section className="dq-summary" aria-labelledby="dq-summary-title">
+        <h2 id="dq-summary-title" className="dq-summary__title">
+          İş özeti
+        </h2>
+        <div className="dq-summary__grid">
+          {summary.map(({ label, value, icon: Icon, alert }) => (
+            <div key={label} className={`dq-sum ${alert ? "dq-sum--alert" : ""}`}>
+              <span className="dq-sum__icon">
+                <Icon size={16} strokeWidth={1.9} aria-hidden="true" />
+              </span>
+              <span className="dq-sum__body">
+                <span className="dq-sum__value">{value}</span>
+                <span className="dq-sum__label">{label}</span>
+              </span>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* ============ OPERASYON KUYRUĞU ============ */}
-      <section className="dq-panel" aria-labelledby="dq-queue-title">
+      {/* ============ TEK İŞLEM KUYRUĞU ============ */}
+      <section className="dq-panel" aria-label="İşlem kuyruğu">
         <div className="dq-panel__head">
-          <h2 id="dq-queue-title">
-            <CircleAlert size={16} strokeWidth={1.9} aria-hidden="true" />
-            Operasyon kuyruğu
-          </h2>
-          <span className="dq-panel__count">{queue.length} iş</span>
-        </div>
-        <div className="dq-panel__body dq-panel__body--flush">
-          {queue.length === 0 ? (
-            <p className="dq-empty">
-              Karar bekleyen iş yok. Para, içerik, saha ve ekip kuyruklarının tümü boş.
-            </p>
-          ) : (
-            QUEUE_GROUPS.map((group) => {
-              const rows = queue.filter((row) => row.group === group.id);
-              if (rows.length === 0) return null;
-              return (
-                <div className="dq-queue__group" key={group.id}>
-                  <div className="dq-queue__grouplabel">
-                    {group.label}
-                    <em>{rows.length}</em>
-                  </div>
-                  {rows.map((row, index) => {
-                    const Icon = row.icon;
-                    const hasSide = row.amount !== undefined || row.ageDays !== undefined;
-                    return (
-                      <Link
-                        key={row.id}
-                        to={row.to}
-                        className={`dq-row dq-row--${row.group} dq-reveal${hasSide ? "" : " dq-row--plain"}`}
-                        style={{ "--rd": index } as CSSProperties}
-                      >
-                        <span className="dq-row__glyph" aria-hidden="true">
-                          <Icon size={16} strokeWidth={1.9} />
-                        </span>
-                        <span className="dq-row__text">
-                          <strong>{row.subject}</strong>
-                          <span>{row.detail}</span>
-                        </span>
-                        {hasSide && (
-                          <span className="dq-row__side">
-                            {row.amount !== undefined && (
-                              <span className="dq-row__amount">{formatTRY(row.amount)}</span>
-                            )}
-                            {row.ageDays !== undefined && (
-                              <span className="dq-row__age">{ageLabel(row.ageDays)}</span>
-                            )}
-                          </span>
-                        )}
-                        <ArrowRight
-                          className="dq-row__go"
-                          size={14}
-                          strokeWidth={2}
-                          aria-hidden="true"
-                        />
-                      </Link>
-                    );
-                  })}
-                </div>
-              );
-            })
-          )}
-        </div>
-      </section>
-
-      {/* ============ AKIŞ: SON SATIŞLAR + HIZLI İŞLEM / ÖDEMELER ============ */}
-      <div className="dq-split">
-        <section className="dq-panel" aria-labelledby="dq-sales-title">
-          <div className="dq-panel__head">
-            <h2 id="dq-sales-title">
-              <Wallet size={16} strokeWidth={1.9} aria-hidden="true" />
-              Son satışlar
-            </h2>
-            <Link className="dq-panel__link" to="/yonetim/satislar">
-              Tümü <ArrowRight size={13} aria-hidden="true" />
-            </Link>
-          </div>
-          <div className="dq-panel__body dq-panel__body--flush">
-            {recentSales.length === 0 ? (
-              <EmptyState
-                title="Henüz satış kaydı yok"
-                description="İlk satışı açtığınızda burada görünecek."
-              />
-            ) : (
-              <div className="dq-ledger">
-                {recentSales.map((sale) => {
-                  const company = getCompanyById(sale.companyId);
-                  const status = saleStatus(sale);
-                  return (
-                    <div className="dq-ledger__row" key={sale.id}>
-                      <div className="dq-ledger__main">
-                        <span className="dq-ledger__title">{company?.name ?? "—"}</span>
-                        <span className="dq-ledger__meta">
-                          <span>{channelLabel(sale, reps)}</span>
-                          <span aria-hidden="true">·</span>
-                          <span>{sale.renewalForMembershipId ? "Yenileme" : "Üyelik"}</span>
-                          <span aria-hidden="true">·</span>
-                          <span>{formatShortDate(sale.createdAt)}</span>
-                        </span>
-                      </div>
-                      <div className="dq-ledger__side">
-                        <span className="dq-ledger__amount">{formatTRY(sale.amount)}</span>
-                        <Badge tone={status.tone}>{status.label}</Badge>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        </section>
-
-        <div className="dq-split__stack">
-          <section className="dq-panel" aria-labelledby="dq-quick-title">
-            <div className="dq-panel__head">
-              <h2 id="dq-quick-title">Hızlı işlem</h2>
-            </div>
-            <div className="dq-panel__body">
-              <div className="dq-quick">
-                {QUICK_ACTIONS.map(({ to, label, desc, icon: Icon }) => (
-                  <Link key={to} className="dq-quick__item" to={to}>
-                    <span className="dq-quick__icon" aria-hidden="true">
-                      <Icon size={15} strokeWidth={1.9} />
-                    </span>
-                    <span className="dq-quick__text">
-                      <strong>{label}</strong>
-                      <small>{desc}</small>
-                    </span>
-                  </Link>
-                ))}
-              </div>
-            </div>
-          </section>
-
-          <section className="dq-panel" aria-labelledby="dq-payments-title">
-            <div className="dq-panel__head">
-              <h2 id="dq-payments-title">
-                <CreditCard size={16} strokeWidth={1.9} aria-hidden="true" />
-                Son ödemeler
-              </h2>
-              <Link className="dq-panel__link" to="/yonetim/odemeler">
-                Tümü <ArrowRight size={13} aria-hidden="true" />
-              </Link>
-            </div>
-            <div className="dq-panel__body dq-panel__body--flush">
-              {recentPayments.length === 0 ? (
-                <p className="dq-empty">Henüz ödeme kaydı oluşmadı.</p>
-              ) : (
-                <div className="dq-ledger">
-                  {recentPayments.map((payment) => {
-                    const sale = sales.find((row) => row.id === payment.saleId);
-                    const company = sale ? getCompanyById(sale.companyId) : undefined;
-                    const status = paymentLabel(payment);
-                    const dot =
-                      payment.status === "onaylandi"
-                        ? "dq-dot--green"
-                        : payment.status === "beklemede"
-                          ? "dq-dot--amber"
-                          : payment.status === "hata"
-                            ? "dq-dot--red"
-                            : "dq-dot--blue";
-                    return (
-                      <div className="dq-ledger__row" key={payment.id}>
-                        <div className="dq-ledger__main">
-                          <span className="dq-ledger__title">{company?.name ?? "—"}</span>
-                          <span className="dq-ledger__meta">
-                            <span
-                              className={`dq-dot ${dot}`}
-                              aria-hidden="true"
-                              style={{ marginRight: 2 }}
-                            />
-                            <span>{paymentMethod(payment)}</span>
-                            <span aria-hidden="true">·</span>
-                            <span>{formatShortDate(payment.updatedAt)}</span>
-                          </span>
-                        </div>
-                        <div className="dq-ledger__side">
-                          <span className="dq-ledger__amount">{formatTRY(payment.amount)}</span>
-                          <Badge tone={status.tone}>{status.label}</Badge>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              )}
-            </div>
-          </section>
-        </div>
-      </div>
-
-      {/* ============ EĞİLİM + PERSONEL ============ */}
-      <div className="dq-split">
-        <section className="dq-panel" aria-labelledby="dq-trend-title">
-          <div className="dq-panel__head">
-            <h2 id="dq-trend-title">
-              <ChartNoAxesColumnIncreasing size={16} strokeWidth={1.9} aria-hidden="true" />
-              Altı aylık satış eğilimi
-            </h2>
-            <Link className="dq-panel__link" to="/yonetim/raporlar">
-              Raporlar <ArrowRight size={13} aria-hidden="true" />
-            </Link>
-          </div>
-          <div className="dq-panel__body">
-            {trendEmpty ? (
-              <p className="dq-empty" style={{ padding: 0 }}>
-                Kesinleşen satış olmadığı için grafik boş.
-              </p>
-            ) : (
-              <div className="dq-bars">
-                {months.map((month) => (
-                  <div className="dq-bar" key={month.month}>
-                    <span className="dq-bar__label">
-                      {new Intl.DateTimeFormat("tr-TR", {
-                        month: "short",
-                        year: "2-digit",
-                      }).format(new Date(`${month.month}-01T12:00:00`))}
-                    </span>
-                    <span
-                      className="dq-bar__track"
-                      role="img"
-                      aria-label={`${month.saleCount} satış, ${formatTRY(month.totalAmount)}`}
-                    >
-                      <span
-                        className="dq-bar__fill"
-                        style={{ width: `${(month.totalAmount / maxMonth) * 100}%` }}
-                      />
-                    </span>
-                    <span className="dq-bar__value">
-                      {formatTRY(month.totalAmount)}{" "}
-                      <span>· {month.saleCount}</span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
-        </section>
-
-        <section className="dq-panel" aria-labelledby="dq-perf-title">
-          <div className="dq-panel__head">
-            <h2 id="dq-perf-title">
-              <Users size={16} strokeWidth={1.9} aria-hidden="true" />
-              Personel performansı
-            </h2>
-            <Link className="dq-panel__link" to="/yonetim/temsilciler">
-              Personel <ArrowRight size={13} aria-hidden="true" />
-            </Link>
-          </div>
-          <div className="dq-panel__body">
-            {perf.length === 0 ? (
-              <p className="dq-empty" style={{ padding: 0 }}>
-                Kayıtlı personel yok.
-              </p>
-            ) : (
-              <>
-                {perf.slice(0, 4).map(({ rep, count, amount, commission }) => (
-                  <div className="dq-perf" key={rep.id}>
-                    <div className="dq-perf__top">
-                      <span className="dq-perf__name">
-                        {rep.name}
-                        <Badge tone={rep.status === "aktif" ? "green" : "gray"}>
-                          {rep.status === "aktif" ? "Aktif" : "Pasif"}
-                        </Badge>
-                      </span>
-                      <span className="dq-perf__value">{formatTRY(amount)}</span>
-                    </div>
-                    <span className="dq-perf__meter" aria-hidden="true">
-                      <span
-                        className="dq-perf__fill"
-                        style={{ width: `${amount === 0 ? 0 : Math.max(4, (amount / maxPerf) * 100)}%` }}
-                      />
-                    </span>
-                    <div className="dq-perf__meta">
-                      {count} kesinleşen satış · {formatTRY(commission)} komisyon
-                    </div>
-                  </div>
-                ))}
-                {repDebt > 0 && (
-                  <p className="dq-perf__meta" style={{ marginTop: 12 }}>
-                    Temsilcilere toplam {formatTRY(repDebt)} ödeme bekliyor.
-                  </p>
-                )}
-                {leaderDebt > 0 && (
-                  <p className="dq-perf__meta" style={{ marginTop: 2 }}>
-                    Ekip liderlerine toplam {formatTRY(leaderDebt)} ödeme bekliyor.
-                  </p>
-                )}
-              </>
-            )}
-          </div>
-        </section>
-      </div>
-
-      {/* ============ DENETİM İZİ ============ */}
-      <section className="dq-panel" aria-labelledby="dq-audit-title">
-        <div className="dq-panel__head">
-          <h2 id="dq-audit-title">
-            <ClipboardList size={16} strokeWidth={1.9} aria-hidden="true" />
-            Son işlemler
-          </h2>
-          <Link className="dq-panel__link" to="/yonetim/denetim">
-            Tüm kayıtlar <ArrowRight size={13} aria-hidden="true" />
+          <h2>İşlem kuyruğu</h2>
+          <Link className="dq-panel__link" to="/yonetim/satislar">
+            Tüm satışlar
+            <ArrowRight size={14} strokeWidth={2} aria-hidden="true" />
           </Link>
         </div>
-        <div className="dq-panel__body dq-panel__body--flush">
-          {audit.length === 0 ? (
-            <p className="dq-empty">Henüz denetim kaydı yok.</p>
-          ) : (
-            <div className="dq-log">
-              {audit.map((entry) => (
-                <div className="dq-log__row" key={entry.id}>
-                  <span className="dq-log__time">{formatShortDate(entry.at)}</span>
-                  <span className="dq-log__body">
-                    <span className="dq-log__action">
-                      {auditActionLabels[entry.action] ?? entry.action}
-                    </span>
-                    {entry.summary}
-                  </span>
-                  <span className="dq-log__actor">{entry.actorRole}</span>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
+
+        {queueTotal === 0 ? (
+          <div className="dq-panel__body">
+            <EmptyState
+              title="Bekleyen iş yok"
+              description="Onay bekleyen aday, ödeme, kesinleştirme ve yayına hazır firma bulunmuyor."
+            />
+          </div>
+        ) : (
+          <div className="dq-panel__body dq-panel__body--flush">
+            {pendingLeads.length > 0 && (
+              <QueueGroup label="Yönetici onayındaki adaylar" count={pendingLeads.length}>
+                {pendingLeads.map((lead) => {
+                  const leadTo = `/yonetim/firma-akisi?lead=${encodeURIComponent(lead.id)}`;
+                  const repName =
+                    reps.find((rep) => rep.id === lead.repId)?.name ?? "Temsilci atanmamış";
+                  return (
+                    <QueueRow
+                      key={lead.id}
+                      icon={Target}
+                      tone="content"
+                      title={lead.companyName}
+                      titleTo={leadTo}
+                      detail={`${repName} · Aday incelemesi bekliyor · Ödeme kaydı yok (onay sonrası üyelik satışı açılır)`}
+                      ageDays={daysSince(lead.updatedAt)}
+                      actions={
+                        <Link className="btn btn--sm btn--primary" to={leadTo}>
+                          İncele
+                        </Link>
+                      }
+                    />
+                  );
+                })}
+              </QueueGroup>
+            )}
+
+            {buckets.eft.length > 0 && (
+              <QueueGroup label="Ödeme bekleyen" count={buckets.eft.length}>
+                {buckets.eft.map((row) => {
+                  const key = `eft-${row.sale.id}`;
+                  const rowBusy = busy === key;
+                  const isEft = row.payment?.provider === "eft";
+                  return (
+                    <QueueRow
+                      key={row.sale.id}
+                      icon={Banknote}
+                      tone="money"
+                      title={row.companyName}
+                      titleTo="/yonetim/firmalar"
+                      detail={`${row.detail}${row.repName ? ` · ${row.repName}` : ""}`}
+                      amount={row.sale.amount}
+                      ageDays={row.ageDays}
+                      actions={
+                        <>
+                          <button
+                            type="button"
+                            className="btn btn--sm btn--primary"
+                            disabled={rowBusy}
+                            onClick={() => {
+                              if (
+                                !window.confirm(
+                                  isEft
+                                    ? `${row.companyName} için EFT ödemesinin hesabınıza ulaştığını onaylıyor musunuz? Bu işlem satışı kesinleştirir ve komisyon oluşturur.`
+                                    : `${row.companyName} için manuel ödeme onaylansın mı? Satışı ayrıca «Kesinleştir» adımıyla tamamlamalısınız.`,
+                                )
+                              )
+                                return;
+                              void run(key, async () => {
+                                if (isEft) {
+                                  await approveEftPayment(row.sale.id, actor);
+                                  return "EFT onaylandı; satış kesinleşti ve komisyon oluşturuldu.";
+                                }
+                                if (!row.payment) throw new Error("Ödeme kaydı bulunamadı.");
+                                await verifyPayment(row.payment.id, actor);
+                                return "Ödeme onaylandı; satışı «Kesinleştir» ile tamamlayın.";
+                              });
+                            }}
+                          >
+                            {rowBusy ? <Loader2 size={14} className="spin" /> : null}
+                            Onayla
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn--sm"
+                            disabled={rowBusy || row.payment?.status !== "beklemede"}
+                            onClick={() => {
+                              if (
+                                !window.confirm(
+                                  "Bekleyen ödeme reddedilsin mi? Kayıt silinmez, 'reddedildi' olarak saklanır.",
+                                )
+                              )
+                                return;
+                              void run(`${key}-reject`, async () => {
+                                await rejectPendingPayment(row.sale.id, actor);
+                                return "Ödeme reddedildi. Doğru ödeme geldiğinde yeniden onaylayabilirsiniz.";
+                              });
+                            }}
+                          >
+                            Reddet
+                          </button>
+                        </>
+                      }
+                    />
+                  );
+                })}
+              </QueueGroup>
+            )}
+
+            {buckets.confirm.length > 0 && (
+              <QueueGroup label="Kesinleştirme bekleyen" count={buckets.confirm.length}>
+                {buckets.confirm.map((row) => {
+                  const key = `confirm-${row.sale.id}`;
+                  const rowBusy = busy === key;
+                  return (
+                    <QueueRow
+                      key={row.sale.id}
+                      icon={CircleAlert}
+                      tone="money"
+                      title={row.companyName}
+                      titleTo="/yonetim/firmalar"
+                      detail={`${row.detail}${row.repName ? ` · ${row.repName}` : ""}`}
+                      amount={row.sale.amount}
+                      ageDays={row.ageDays}
+                      actions={
+                        <button
+                          type="button"
+                          className="btn btn--sm btn--primary"
+                          disabled={rowBusy}
+                          onClick={() =>
+                            void run(key, async () => {
+                              if (row.sale.renewalForMembershipId) {
+                                await confirmRenewal(row.sale.id, actor);
+                                return "Yenileme kesinleştirildi; komisyon tek kez oluşturuldu.";
+                              }
+                              await confirmSale(row.sale.id, actor);
+                              return "Satış kesinleştirildi; üyelik ve komisyon oluşturuldu.";
+                            })
+                          }
+                        >
+                          {rowBusy ? <Loader2 size={14} className="spin" /> : null}
+                          Kesinleştir
+                        </button>
+                      }
+                    />
+                  );
+                })}
+              </QueueGroup>
+            )}
+
+            {buckets.none.length > 0 && (
+              <QueueGroup label="Ödeme kaydı açılmamış" count={buckets.none.length}>
+                {buckets.none.map((row) => {
+                  const key = `none-${row.sale.id}`;
+                  const rowBusy = busy === key;
+                  return (
+                    <QueueRow
+                      key={row.sale.id}
+                      icon={Wallet}
+                      tone="money"
+                      title={row.companyName}
+                      titleTo="/yonetim/firmalar"
+                      detail={`${row.detail}${row.repName ? ` · ${row.repName}` : ""}`}
+                      amount={row.sale.amount}
+                      ageDays={row.ageDays}
+                      actions={
+                        <>
+                          <button
+                            type="button"
+                            className="btn btn--sm btn--primary"
+                            disabled={rowBusy}
+                            onClick={() =>
+                              void run(key, async () => {
+                                await createPendingPayment(row.sale.id, actor);
+                                return "Beklemede ödeme kaydı açıldı; onayı bu ekrandan verin.";
+                              })
+                            }
+                          >
+                            {rowBusy ? <Loader2 size={14} className="spin" /> : null}
+                            Ödeme kaydı aç
+                          </button>
+                          <button
+                            type="button"
+                            className="btn btn--sm btn--danger"
+                            disabled={rowBusy}
+                            onClick={() => {
+                              if (
+                                !window.confirm(
+                                  "Satış iptal edilsin mi? Kayıt silinmez; bekleyen ödemeler kapatılır ve bu işlem geri alınamaz.",
+                                )
+                              )
+                                return;
+                              void run(`${key}-cancel`, async () => {
+                                await cancelSale(row.sale.id, actor);
+                                return "Satış iptal edildi; bekleyen ödemeler kapatıldı.";
+                              });
+                            }}
+                          >
+                            İptal
+                          </button>
+                        </>
+                      }
+                    />
+                  );
+                })}
+              </QueueGroup>
+            )}
+
+            {readyCompanies.length > 0 && (
+              <QueueGroup label="Yayına hazır firmalar" count={readyCompanies.length}>
+                {readyCompanies.map((company) => {
+                  const key = `publish-${company.id}`;
+                  const rowBusy = busy === key;
+                  const confirmed = sales
+                    .filter((sale) => sale.companyId === company.id && sale.status === "odendi")
+                    .sort((a, b) =>
+                      (b.confirmedAt ?? b.createdAt).localeCompare(a.confirmedAt ?? a.createdAt),
+                    )[0];
+                  return (
+                    <QueueRow
+                      key={company.id}
+                      icon={Store}
+                      tone="content"
+                      title={company.name}
+                      titleTo="/yonetim/firmalar"
+                      detail={`Satış kesinleşti ve ödeme onaylı · yayına alınmayı bekliyor${
+                        confirmed?.channel === "temsilci"
+                          ? ` · ${reps.find((rep) => rep.id === confirmed.repId)?.name ?? "temsilci"}`
+                          : ""
+                      }`}
+                      ageDays={daysSince(confirmed?.confirmedAt ?? confirmed?.createdAt)}
+                      actions={
+                        <button
+                          type="button"
+                          className="btn btn--sm btn--primary"
+                          disabled={rowBusy}
+                          onClick={() =>
+                            void run(key, async () => {
+                              await setCompanyPublished(company.id, true, actor);
+                              return "Firma yayına alındı.";
+                            })
+                          }
+                        >
+                          {rowBusy ? <Loader2 size={14} className="spin" /> : null}
+                          Yayınla
+                        </button>
+                      }
+                    />
+                  );
+                })}
+              </QueueGroup>
+            )}
+
+            {buckets.card.length > 0 && (
+              <QueueGroup label="Kart doğrulaması bekleyen" count={buckets.card.length}>
+                {buckets.card.map((row) => (
+                  <QueueRow
+                    key={row.sale.id}
+                    icon={CreditCard}
+                    tone="info"
+                    title={row.companyName}
+                    titleTo="/yonetim/firmalar"
+                    detail={`Sağlayıcı doğrulaması bekleniyor · manuel onay verilemez${
+                      row.repName ? ` · ${row.repName}` : ""
+                    }`}
+                    amount={row.sale.amount}
+                    ageDays={row.ageDays}
+                  />
+                ))}
+              </QueueGroup>
+            )}
+          </div>
+        )}
       </section>
     </div>
   );

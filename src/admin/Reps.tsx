@@ -1,10 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { Link } from "react-router-dom";
-import { Eye, PenLine, Receipt, Ticket, Wallet } from "lucide-react";
+import { Eye, PenLine, Ticket } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
 import { Badge, ErrorBanner, Field, StatCard } from "../components/ui";
 import { useActor } from "../lib/auth";
-import { formatDate, formatTRY } from "../lib/format";
+import { formatDate } from "../lib/format";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
 import { loadSnapshot } from "../lib/dataSource";
 import {
@@ -13,10 +13,7 @@ import {
   createRep,
   getCityById,
   listCategories,
-  listCommissions,
-  listCommissionPayoutSummary,
   listCompanies,
-  listReferrals,
   listReps,
   listSales,
   updateRep,
@@ -132,8 +129,8 @@ function AdminReps() {
   return (
     <div className="panel-content reps-page">
       <PanelHead
-        title="Satış temsilcileri"
-        desc="Saha ekibini yönetin. Komisyon oranını temsilci bazında yüzde olarak tanımlayabilirsiniz (boş kalırsa genel tutar uygulanır)."
+        title="Personel"
+        desc="Ekip listesi: personel bilgileri, durumu ve komisyon oranı."
       />
       {error && <ErrorBanner message={error} />}
 
@@ -304,7 +301,6 @@ function AdminReps() {
 
           {detailId === rep.id && (
             <RepDetail
-              rep={rep}
               companies={companies.filter((company) => company.repId === rep.id)}
               sales={sales}
               categories={categories}
@@ -312,42 +308,15 @@ function AdminReps() {
           )}
         </article>
       ))}
-
-      <div className="stats-grid mt-18">
-        <StatCard
-          icon={<Ticket size={20} strokeWidth={1.9} />}
-          label="Aktif referans kodu"
-          value={listReferrals(actor).filter((r) => !r.usedAt).length}
-          hint="Kullanılmamış kod sayısı"
-        />
-        <StatCard
-          icon={<Receipt size={20} strokeWidth={1.9} />}
-          label="Toplam komisyon kaydı"
-          value={listCommissions(actor).length}
-        />
-        <StatCard
-          icon={<Wallet size={20} strokeWidth={1.9} />}
-          label="Ödenen komisyon toplamı"
-          value={formatTRY(
-            // Kaynak: commission_payouts defteri. commissions.status ödeme
-            // kaydıyla güncellenmediği için oradan saymak her zaman 0 verir;
-            // payout'lar tek kaynak olduğundan çift sayım oluşmaz.
-            listCommissionPayoutSummary(actor).reduce((sum, row) => sum + row.paid, 0),
-          )}
-          tone="success"
-        />
-      </div>
     </div>
   );
 }
 
 function RepDetail({
-  rep,
   companies,
   sales,
   categories,
 }: {
-  rep: { id: string; name: string; code: string; status: "aktif" | "pasif" };
   companies: Company[];
   sales: Sale[];
   categories: ReturnType<typeof listCategories>;
@@ -357,23 +326,9 @@ function RepDetail({
 
   return (
     <div className="reps-detail">
-      <div className="reps-detail__meta">
-        <span>
-          Personel: <strong>{rep.name}</strong>
-        </span>
-        <span>
-          Kod: <strong>{rep.code}</strong>
-        </span>
-        <Badge tone={rep.status === "aktif" ? "green" : "gray"}>
-          {rep.status === "aktif" ? "Aktif" : "Pasif"}
-        </Badge>
-      </div>
-
       <div className="stats-grid mb-14">
-        <StatCard label="Toplam firma" value={companies.length} />
         <StatCard label="Yayındaki firma" value={published} tone="success" />
-        <StatCard label="Onay bekleyen (yayın dışı)" value={unpublished} tone="warning" />
-        <StatCard label="Reddedilen firma" value="—" hint="Veri modelinde red durumu tutulmuyor" />
+        <StatCard label="Yayın dışı firma" value={unpublished} tone="warning" />
       </div>
 
       {companies.length === 0 ? (

@@ -320,8 +320,63 @@ export interface RepApplication {
   createdAt: string;
 }
 
+/**
+ * Firma etkileşim türleri — her tür için sayaç AYRIDIR ve bildirim eşikleri
+ * türden bağımsız değerlendirilir.
+ */
+export type EngagementKind = "profil" | "telefon" | "whatsapp" | "yol" | "instagram" | "web";
+
+/** Firma + tür başına birikimli sayaç (0018 `company_engagement_counters`). */
+export interface EngagementCounter {
+  companyId: string;
+  kind: EngagementKind;
+  count: number;
+  updatedAt: string;
+}
+
+/**
+ * Eşik aşımı bildirimi (0018 `company_engagement_notifications`).
+ * (firma, tür, sayaç değeri) tekildir: aynı etkileşim için ikinci bildirim
+ * üretilemez. İki kademe aynı anda tetiklenirse TEK kayıt yazılır ve
+ * `tier1Also` ikinci kademenin yanında birinci kademenin de tetiklendiğini söyler.
+ */
+export interface EngagementNotification {
+  id: string;
+  companyId: string;
+  kind: EngagementKind;
+  count: number;
+  /** 1 = sabit aralık, 2 = katlanarak artan eşik */
+  tier: 1 | 2;
+  threshold: number;
+  tier1Also?: boolean;
+  createdAt: string;
+}
+
+/** Bir etkileşim türü için çözümlenmiş (genel + tür bazlı) bildirim kuralı. */
+export interface EngagementRule {
+  enabled: boolean;
+  tier1Enabled: boolean;
+  tier1Interval: number;
+  tier2Enabled: boolean;
+  tier2Start: number;
+}
+
+/** Bildirim sistemi ayarları — panelden yönetilir, koda sabitlenmez. */
+export interface EngagementSettings {
+  /** Sistem genel anahtarı: kapalıyken hiçbir kademe bildirim üretmez. */
+  engagementEnabled: boolean;
+  engagementTier1Enabled: boolean;
+  /** Sabit aralık: her N etkileşimde bir bildirim (100, 200, 300…). */
+  engagementTier1Interval: number;
+  engagementTier2Enabled: boolean;
+  /** Katlanan eşik başlangıcı: 500 → 1.000 → 2.000 → 4.000… */
+  engagementTier2Start: number;
+  /** İleride tür bazlı ayar: tür → kısmi kural (boş = genel kural geçerli). */
+  engagementKindOverrides?: Partial<Record<EngagementKind, Partial<EngagementRule>>>;
+}
+
 /** Yönetim tarafından değiştirilebilir iş kuralları — kaynak koda SABLLENMEZ */
-export interface Settings {
+export interface Settings extends EngagementSettings {
   membershipPrice: number;
   /** Temsilci komisyon oranı (%). Satış tutarıyla çarpılarak hesaplanır. */
   repCommission: number;
@@ -366,6 +421,10 @@ export interface DB {
   teamOverviews?: TeamOverview[];
   referrals: Referral[];
   repApplications: RepApplication[];
+  /** 0018: firma etkileşim sayaçları — yazım yalnız track_company_engagement RPC'si */
+  engagementCounters?: EngagementCounter[];
+  /** 0018: eşik bildirimleri — yazım yalnız RPC; (firma, tür, sayaç) tekil */
+  engagementNotifications?: EngagementNotification[];
   settings: Settings;
   audit: AuditEntry[];
 }

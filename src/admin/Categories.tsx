@@ -115,7 +115,7 @@ export default function AdminCategories() {
       <div className="card card__pad mb-14" style={{ maxWidth: 720 }}>
         <div style={{ display: "flex", gap: 10, alignItems: "center", flexWrap: "wrap" }}>
           <h3 style={{ margin: 0 }}>Toplu kategori ekleme</h3>
-          <button type="button" className="btn btn--sm" onClick={() => setBulkOpen((o) => !o)}>
+          <button type="button" className="btn btn--sm btn--ghost" onClick={() => setBulkOpen((o) => !o)}>
             {bulkOpen ? "Kapat" : "Aç"}
           </button>
         </div>
@@ -194,7 +194,7 @@ export default function AdminCategories() {
         )}
       </div>
 
-      <div className="table-wrap" style={{ maxWidth: 720 }}>
+      <div className="table-wrap table-wrap--cards" style={{ maxWidth: 720 }}>
         <table className="table">
           <thead>
             <tr>
@@ -207,14 +207,14 @@ export default function AdminCategories() {
           <tbody>
             {listCategories().map((c) => (
               <tr key={c.id}>
-                <td>
+                <td data-label="Kategori">
                   <span aria-hidden="true">{c.icon}</span> <strong>{c.name}</strong>
                 </td>
-                <td className="text-muted small">/kategori/{c.slug}</td>
-                <td>
+                <td data-label="Slug" className="text-muted small">/kategori/{c.slug}</td>
+                <td data-label="Firma sayısı">
                   <Badge tone="blue">{categoryCompanyCount(c.id)}</Badge>
                 </td>
-                <td>
+                <td data-label="İşlem">
                   <button
                     className="btn btn--sm btn--danger"
                     onClick={async () => {

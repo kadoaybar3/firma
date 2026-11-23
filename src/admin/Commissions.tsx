@@ -99,7 +99,7 @@ export default function AdminCommissions() {
   return (
     <div className="panel-content">
       <PanelHead
-        title="Temsilci Ödemeleri"
+        title="Hakediş"
         desc="Temsilciye banka üzerinden ödeme yaptıktan sonra tutarı kaydedin. Kısmi ödemelerde kalan alacak otomatik hesaplanır."
       />
       {error && <ErrorBanner message={error} />}

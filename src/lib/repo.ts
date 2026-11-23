@@ -6,6 +6,9 @@ import type {
   CommissionPayout,
   Company,
   DB,
+  EngagementCounter,
+  EngagementKind,
+  EngagementNotification,
   Lead,
   LeadStatus,
   LeadVisit,
@@ -31,6 +34,7 @@ import { bindSyncBridge, emptyDB, flushNow, loadSnapshot, scheduleSync } from ".
 import { scheduleSeoRebuild, companySeoSnapshot, seoRelevantChange } from "./seoRebuild";
 import { normalizeCoordinates } from "./coordinates";
 import { isValidPackageAmount, packageAmount } from "./packages";
+import { ENGAGEMENT_DEFAULTS, applyEngagementToDB } from "./engagement";
 
 /**
  * VERİ KAYNAĞI KATMANI
@@ -84,6 +88,11 @@ export function getDB(): DB {
         if (!Array.isArray(cache.teams)) cache.teams = [];
         if (!(cache.settings?.teamCapacity >= 2))
           cache.settings = { ...cache.settings, teamCapacity: 15 } as DB["settings"];
+        // 0018 öncesi demo kayıtları: yeni alanları varsayılanla tamamla.
+        if (!Array.isArray(cache.engagementCounters)) cache.engagementCounters = [];
+        if (!Array.isArray(cache.engagementNotifications)) cache.engagementNotifications = [];
+        if (typeof cache.settings?.engagementEnabled !== "boolean")
+          cache.settings = { ...cache.settings, ...ENGAGEMENT_DEFAULTS } as DB["settings"];
         return cache;
       }
     } catch {
@@ -2280,10 +2289,30 @@ export function getSettings(): Settings {
   return getDB().settings;
 }
 
-/** Komisyon/ödül kuralları yönetici tarafından değiştirilebilir; her değişiklik denetim kaydına işlenir. */
+/** Ayar anahtarına göre sayısal alt sınır (SQL check kısıtlarıyla aynı). */
+const SETTINGS_MIN: Record<string, number> = {
+  teamCapacity: 2,
+  engagementTier1Interval: 1,
+  engagementTier2Start: 1,
+};
+
+/** Komisyon/ödül kuralları ve etkileşim bildirim eşikleri yönetici tarafından değiştirilebilir. */
 export function updateSettings(
   patch: Partial<
-    Pick<Settings, "membershipPrice" | "repCommission" | "referralReward" | "renewalCommission" | "teamCapacity">
+    Pick<
+      Settings,
+      | "membershipPrice"
+      | "repCommission"
+      | "referralReward"
+      | "renewalCommission"
+      | "teamCapacity"
+      | "engagementEnabled"
+      | "engagementTier1Enabled"
+      | "engagementTier1Interval"
+      | "engagementTier2Enabled"
+      | "engagementTier2Start"
+      | "engagementKindOverrides"
+    >
   >,
   actor: Actor,
 ): Settings {
@@ -2291,18 +2320,64 @@ export function updateSettings(
   const db = getDB();
   const before = { ...db.settings };
   for (const [key, value] of Object.entries(patch)) {
+    if (typeof value === "boolean" || (value !== null && typeof value === "object")) continue;
     const n = Number(value);
-    // teamCapacity: SQL check (>=2) ile aynı sınır — lider dahil en az 2 kişi.
-    if (!Number.isFinite(n) || n < 0 || (key === "teamCapacity" && n < 2))
-      throw new Error(`Geçersiz değer: ${key}`);
+    const min = SETTINGS_MIN[key] ?? 0;
+    if (!Number.isFinite(n) || n < min) throw new Error(`Geçersiz değer: ${key}`);
   }
   Object.assign(db.settings, patch, { updatedAt: nowISO() });
-  log(db, actor, "ayar_guncelle", "Fiyat ve komisyon ayarları güncellendi", {
+  log(db, actor, "ayar_guncelle", "Sistem ayarları güncellendi", {
     before,
     after: db.settings,
   });
   persist();
   return db.settings;
+}
+
+/* ============ ETKİLEŞİM SAYAÇLARI (0018) ============ */
+
+/** Firma bazlı sayaçlar; companyId verilmezse tümü. */
+export function listEngagementCounters(companyId?: string): EngagementCounter[] {
+  const rows = getDB().engagementCounters ?? [];
+  return companyId ? rows.filter((r) => r.companyId === companyId) : [...rows];
+}
+
+/** Eşik bildirimleri — en yeniden eskiye. */
+export function listEngagementNotifications(limit = 20): EngagementNotification[] {
+  const rows = [...(getDB().engagementNotifications ?? [])];
+  return rows.sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, limit);
+}
+
+/**
+ * Gerçek bir etkileşimi sayar. Yayında olmayan/bulunmayan firmada hiçbir
+ * şey yapmaz (sahte kayıt üretilmez).
+ *
+ * SUPABASE MODU: sayaç ve eşik kararı sunucuda, tek transaction içinde
+ * (`track_company_engagement` RPC) verilir — eşzamanlı ziyaretlerde sayaç
+ * kaybolmaz ve aynı sayım için ikinci bildirim yazılamaz.
+ * DEMO MOD: aynı kural `applyEngagementToDB` ile yerel veri kümesinde uygulanır.
+ */
+export async function trackEngagement(
+  companyId: string,
+  kind: EngagementKind,
+): Promise<EngagementNotification | null> {
+  const db = getDB();
+  const company = db.companies.find((c) => c.id === companyId);
+  if (!company || !company.published) return null;
+
+  if (isSupabaseConfigured && supabase) {
+    const { error } = await supabase.rpc("track_company_engagement", {
+      p_company_id: companyId,
+      p_kind: kind,
+    });
+    // Ziyaretçi akışını engellemeyiz; hata yalnız konsola düşer.
+    if (error) console.warn(`track_company_engagement: ${error.message}`);
+    return null;
+  }
+
+  const notification = applyEngagementToDB(db, companyId, kind);
+  persist();
+  return notification;
 }
 
 /* ============ DENETİM KAYDI ============ */

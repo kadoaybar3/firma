@@ -1,3 +1,4 @@
+import { ENGAGEMENT_DEFAULTS } from "../lib/engagement";
 import type {
   AppUser,
   Category,
@@ -32,6 +33,8 @@ export const defaultSettings: Settings = {
   renewalCommission: 600,
   /** Genel ekip kapasitesi (kişi, lider dahil) */
   teamCapacity: 15,
+  /** 0018: etkileşim sayaç/bildirim ayarları (panelden değiştirilebilir) */
+  ...ENGAGEMENT_DEFAULTS,
   updatedAt: new Date().toISOString(),
 };
 

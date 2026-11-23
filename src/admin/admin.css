@@ -1583,6 +1583,7 @@
 .adm-report-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 340px), 1fr));
+  align-items: start;
   gap: 14px;
 }
 
@@ -2160,16 +2161,6 @@
   border-top: 1px solid var(--border);
 }
 
-.reps-detail__meta {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: center;
-  gap: 6px 16px;
-  margin-bottom: 12px;
-  color: var(--text-2);
-  font-size: 0.85rem;
-}
-
 @media (max-width: 520px) {
   .reps-form__actions .btn {
     width: 100%;
@@ -2182,4 +2173,314 @@
   .reps-card__head > .text-muted {
     flex-basis: 100%;
   }
+}
+
+/* =========================================================
+   ANALİZ — bölüm alt başlığı, geniş etiketli bar, kapalı ayrıntı
+   ========================================================= */
+
+/* Panel içi ikinci ölçüm grubunun (ör. ödeme yöntemi) ayırıcı başlığı */
+.adm-report-sub {
+  margin: 16px 0 10px;
+  padding-top: 12px;
+  border-top: 1px solid var(--adm-line);
+  color: var(--adm-ink-3);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+}
+
+/* Uzun etiketli dağılım barları (kategori adı) — sabit 54px yerine 112px */
+.adm-bar--wide {
+  grid-template-columns: minmax(84px, 112px) minmax(40px, 1fr) 52px;
+}
+
+.adm-bar--wide .adm-bar__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.adm-bar--wide .adm-bar__value {
+  text-align: right;
+}
+
+/* Ayrıntı bölümü: kapalı başlar, başlığa tıklanınca açılır */
+.adm-details {
+  margin-top: 14px;
+  border: 1px solid var(--adm-line);
+  border-radius: var(--adm-r-lg);
+  background: var(--adm-surface);
+  box-shadow: var(--adm-shadow-xs);
+  overflow: hidden;
+}
+
+.adm-details > summary {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 52px;
+  padding: 14px 18px;
+  color: var(--adm-ink);
+  font-size: 0.9rem;
+  font-weight: 680;
+  cursor: pointer;
+  list-style: none;
+}
+
+.adm-details > summary::-webkit-details-marker {
+  display: none;
+}
+
+.adm-details > summary::after {
+  content: "▾";
+  margin-left: auto;
+  color: var(--adm-ink-3);
+  font-size: 0.9rem;
+  transition: transform 0.18s ease;
+}
+
+.adm-details[open] > summary {
+  border-bottom: 1px solid var(--adm-line);
+}
+
+.adm-details[open] > summary::after {
+  transform: rotate(180deg);
+}
+
+.adm-details > summary:focus-visible {
+  outline: 2px solid var(--adm-blue);
+  outline-offset: -2px;
+}
+
+.adm-details__count {
+  padding: 1px 7px;
+  border-radius: 999px;
+  background: var(--adm-surface-sunken);
+  color: var(--adm-ink-2);
+  font-size: 0.7rem;
+  font-weight: 650;
+  font-variant-numeric: tabular-nums;
+}
+
+@media (max-width: 639px) {
+  .adm-bar--wide {
+    grid-template-columns: minmax(88px, 120px) minmax(28px, 1fr) 38px;
+  }
+}
+
+/* =========================================================
+   PERSONEL / ADAYLAR / ŞEHİRLER — ortak küçük düzeltmeler
+   ========================================================= */
+
+/* Aday satırının açılan kayıtları: masaüstünde iki kolon, mobilde tek kolon */
+.lead-detail {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+.lead-detail-cell {
+  background: #fafbfe;
+}
+
+@media (max-width: 760px) {
+  .lead-detail {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  /* Ayrıntı satırı kart görünümünde etiketsiz kalır (colSpan hücresi) */
+  .table-wrap--cards .table .lead-detail-cell::before {
+    content: none;
+  }
+}
+
+/* Şehir/ilçe çipindeki kaldırma düğmesi — 24px dokunma hedefi */
+.chip__x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  margin-left: -4px;
+  padding: 0;
+  border: 0;
+  border-radius: 999px;
+  background: transparent;
+  color: var(--text-2);
+  cursor: pointer;
+}
+
+.chip__x:hover {
+  background: var(--surface-2);
+  color: var(--danger);
+}
+
+/* =========================================================
+   ADMİN TABLOLARININ MOBİL KART GÖRÜNÜMÜ
+   index.css'teki .table-wrap--cards kuralları yönetim kabuğunda
+   .adm-shell .table td kuralına yenildiği için burada daha yüksek
+   özgüllükle yeniden tanımlanır (firma listesinin .table--rows
+   görünümü hariç tutulur).
+   ========================================================= */
+@media (max-width: 760px) {
+  .adm-shell .table-wrap--cards .table:not(.table--rows) {
+    min-width: 0;
+  }
+
+  .adm-shell .table-wrap--cards .table:not(.table--rows) thead {
+    display: none;
+  }
+
+  .adm-shell .table-wrap--cards .table:not(.table--rows),
+  .adm-shell .table-wrap--cards .table:not(.table--rows) tbody,
+  .adm-shell .table-wrap--cards .table:not(.table--rows) tr,
+  .adm-shell .table-wrap--cards .table:not(.table--rows) td {
+    display: block;
+    width: 100%;
+  }
+
+  .adm-shell .table-wrap--cards .table:not(.table--rows) tr {
+    padding: 12px 14px;
+    border-bottom: 1px solid var(--adm-line);
+  }
+
+  .adm-shell .table-wrap--cards .table:not(.table--rows) td {
+    padding: 4px 0;
+    border: 0;
+  }
+
+  .adm-shell .table-wrap--cards .table:not(.table--rows) td::before {
+    content: attr(data-label);
+    display: block;
+    margin-bottom: 2px;
+    color: var(--adm-ink-3);
+    font-size: 0.66rem;
+    font-weight: 750;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  /* İşlem hücresi: düğmeler kartın içinde alt alta sarar */
+  .adm-shell .table-wrap--cards .table:not(.table--rows) td.actions-cell {
+    text-align: left;
+    white-space: normal;
+  }
+
+  .adm-shell .table-wrap--cards .table:not(.table--rows) .actions-cell {
+    justify-content: flex-start;
+    width: 100%;
+    gap: 8px;
+  }
+
+  .adm-shell .table-wrap--cards .table:not(.table--rows) .actions-cell .btn {
+    flex: 1 1 auto;
+  }
+
+  /* Açılan ayrıntı satırı, üstteki kartın devamı gibi görünür */
+  .adm-shell .table-wrap--cards .table:not(.table--rows) tr:has(+ .lead-detail-row) {
+    border-bottom: 0;
+  }
+
+  .adm-shell .table-wrap--cards .table:not(.table--rows) tr.lead-detail-row {
+    padding: 0 14px 14px;
+  }
+
+  .adm-shell .table-wrap--cards .table:not(.table--rows) .lead-detail-cell {
+    background: transparent;
+  }
+
+  .adm-shell .table-wrap--cards .table:not(.table--rows) .lead-detail-cell::before {
+    content: none;
+  }
+}
+
+@media (max-width: 760px) {
+  /* Kart görünümünde slug satırı (geliştirici bilgisi) gizlenir */
+  .adm-shell .table-wrap--cards .table:not(.table--rows) td[data-label="Slug"] {
+    display: none;
+  }
+
+  /* Tek eylemli tablolarda (kategori sil) düğme kart genişliğini kullanır */
+  .adm-shell .table-wrap--cards .table:not(.table--rows) td[data-label="İşlem"] > .btn {
+    width: 100%;
+  }
+}
+
+/* Ayarlar: iki dar kart yan yana sığmadığında tek kolona iner
+   (.adm-shell .stats-grid kuralını geçmesi için özgüllük artırıldı) */
+@media (max-width: 560px) {
+  .adm-shell .stats-grid.settings-integrations {
+    grid-template-columns: 1fr;
+  }
+}
+
+/* Ayarlar — onay kutusu satırı (etkileşim bildirim kademeleri) */
+.adm-shell .settings-switch {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  cursor: pointer;
+}
+
+.adm-shell .settings-switch > input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  flex: none;
+  margin: 2px 0 0;
+  padding: 0;
+  accent-color: var(--adm-blue);
+}
+
+.adm-shell .settings-switch > span {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  color: var(--adm-ink);
+  font-size: 0.86rem;
+  font-weight: 600;
+}
+
+.adm-shell .settings-switch .field__hint {
+  font-weight: 400;
+}
+
+/* Ziyaret ve Etkileşimler: sıralanabilir tablo başlıkları.
+   th'nin büyük harf/dolgu düzeni düğmeye devredilir; başlık tıklanabilir olur. */
+.adm-shell .table th:has(> .adm-sort) {
+  padding: 0;
+}
+
+.adm-shell .adm-sort {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  width: 100%;
+  min-height: 34px;
+  padding: 10px 14px;
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  text-align: left;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.adm-shell .adm-sort:hover,
+.adm-shell .adm-sort.is-active {
+  color: var(--adm-ink);
+}
+
+.adm-shell .adm-sort.is-active svg {
+  color: var(--adm-blue);
+}
+
+.adm-shell .adm-sort__idle {
+  opacity: 0.5;
 }

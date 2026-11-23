@@ -9,10 +9,8 @@ import { normalizeSearch } from "../lib/slug";
 export default function AdminCities() {
   const actor = useActor();
   const [cityName, setCityName] = useState("");
-  const newDistricts: Record<string, string> = {};
-  const [districtInputs, setDistrictInputs] = useState<Record<string, string>>(newDistricts);
+  const [districtInputs, setDistrictInputs] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
-  void newDistricts;
 
   function run(fn: () => void) {
     setError(null);
@@ -67,17 +65,9 @@ export default function AdminCities() {
                 {normalizeSearch(d) !== "merkez" && (
                   <button
                     type="button"
+                    className="chip__x"
                     aria-label={`${d} ilçesini kaldır`}
-                    style={{
-                      all: "unset",
-                      cursor: "pointer",
-                      marginLeft: 2,
-                      display: "inline-flex",
-                      alignItems: "center",
-                    }}
-                    onClick={() =>
-                      run(() => removeDistrict(city.id, d, actor))
-                    }
+                    onClick={() => run(() => removeDistrict(city.id, d, actor))}
                   >
                     <X size={13} strokeWidth={2.4} aria-hidden="true" />
                   </button>

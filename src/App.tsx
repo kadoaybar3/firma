@@ -58,6 +58,7 @@ const AdminMemberships = lazy(() => import("./admin/Memberships"));
 const AdminCommissions = lazy(() => import("./admin/Commissions"));
 const AdminReferrals = lazy(() => import("./admin/Referrals"));
 const AdminReports = lazy(() => import("./admin/Reports"));
+const AdminEngagement = lazy(() => import("./admin/Engagement"));
 const AdminSettings = lazy(() => import("./admin/Settings"));
 const AdminAudit = lazy(() => import("./admin/Audit"));
 const AdminImport = lazy(() => import("./admin/Import"));
@@ -187,6 +188,7 @@ export default function App() {
                 <Route path="komisyonlar" element={<AdminCommissions />} />
                 <Route path="referanslar" element={<AdminReferrals />} />
                 <Route path="raporlar" element={<AdminReports />} />
+                <Route path="etkilesimler" element={<AdminEngagement />} />
                 <Route path="ayarlar" element={<AdminSettings />} />
                 <Route path="denetim" element={<AdminAudit />} />
               </Route>

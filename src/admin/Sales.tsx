@@ -7,9 +7,6 @@ import { useActor } from "../lib/auth";
 import { useLiveDataRevision } from "../lib/liveData";
 import { formatTRY, formatDateTime } from "../lib/format";
 import {
-  cancelSale,
-  confirmRenewal,
-  confirmSale,
   createPendingPayment,
   createSale,
   getCompanyById,
@@ -18,23 +15,12 @@ import {
   listReps,
   listSales,
 } from "../lib/repo";
+import {
+  paymentMethodLabel,
+  paymentStatusBadge,
+  primaryPaymentForSale,
+} from "../lib/saleState";
 import type { Payment, SaleStatus } from "../lib/types";
-
-function paymentTone(status: Payment["status"]): "green" | "orange" | "red" | "gray" {
-  if (status === "onaylandi") return "green";
-  if (status === "beklemede") return "orange";
-  if (status === "hata") return "red";
-  return "gray";
-}
-
-function paymentLabel(payment: Payment): string {
-  const method =
-    payment.provider === "eft" ? "EFT" : payment.provider === "hicbiri" ? "Manuel" : "Kart";
-  if (payment.status === "onaylandi") return `${method} · onaylandı`;
-  if (payment.status === "beklemede") return `${method} · bekliyor`;
-  if (payment.status === "hata") return `${method} · reddedildi`;
-  return `${method} · iade`;
-}
 
 export default function AdminSales() {
   useLiveDataRevision();
@@ -84,13 +70,7 @@ export default function AdminSales() {
   }
 
   function paymentForSale(saleId: string): Payment | undefined {
-    const rows = payments.filter((p) => p.saleId === saleId);
-    return (
-      rows.find((p) => p.status === "onaylandi") ??
-      rows
-        .filter((p) => p.status === "beklemede")
-        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))[0]
-    );
+    return primaryPaymentForSale(payments.filter((p) => p.saleId === saleId));
   }
 
   const min = minAmount.trim() === "" ? null : Number(minAmount);
@@ -416,9 +396,9 @@ export default function AdminSales() {
                   </td>
                   <td data-label="Ödeme">
                     {payment ? (
-                      <>
-                        <Badge tone={paymentTone(payment.status)}>{paymentLabel(payment)}</Badge>
-                      </>
+                      <Badge tone={paymentStatusBadge(payment.status).tone}>
+                        {paymentMethodLabel(payment)} · {paymentStatusBadge(payment.status).label}
+                      </Badge>
                     ) : (
                       <span className="text-muted small">Kayıt yok</span>
                     )}
@@ -434,7 +414,7 @@ export default function AdminSales() {
                               onClick={() =>
                                 void run(rowKey, async () => {
                                   await createPendingPayment(sale.id, actor);
-                                  return "Beklemede ödeme kaydı açıldı. EFT onayı Ödeme ve EFT onayı ekranından verilir.";
+                                  return "Beklemede ödeme kaydı açıldı; onayı İşlem Merkezi'nden verin.";
                                 })
                               }
                             >
@@ -442,48 +422,11 @@ export default function AdminSales() {
                               Ödeme kaydı aç
                             </button>
                           )}
-                          {payment?.status === "beklemede" && (
-                            <Link className="btn btn--sm" to="/yonetim/odemeler">
-                              Ödeme onayına git
-                            </Link>
-                          )}
-                          {payment?.status === "onaylandi" && (
-                            <button
-                              className="btn btn--sm btn--primary"
-                              disabled={rowBusy}
-                              onClick={() =>
-                                void run(rowKey, async () => {
-                                  if (sale.renewalForMembershipId) {
-                                    await confirmRenewal(sale.id, actor);
-                                    return "Yenileme kesinleştirildi; komisyon tek kez oluşturuldu.";
-                                  }
-                                  await confirmSale(sale.id, actor);
-                                  return "Satış kesinleştirildi; üyelik ve komisyon oluşturuldu.";
-                                })
-                              }
-                            >
-                              {rowBusy ? <Loader2 size={14} className="spin" /> : null}
-                              Kesinleştir
-                            </button>
-                          )}
-                          <button
-                            className="btn btn--sm btn--danger"
-                            disabled={rowBusy}
-                            onClick={() => {
-                              if (
-                                !window.confirm(
-                                  "Satış iptal edilsin mi? Kayıt silinmez; bekleyen ödemeler kapatılır ve bu işlem geri alınamaz.",
-                                )
-                              )
-                                return;
-                              void run(`${rowKey}-cancel`, async () => {
-                                await cancelSale(sale.id, actor);
-                                return "Satış iptal edildi; bekleyen ödemeler kapatıldı.";
-                              });
-                            }}
-                          >
-                            İptal
-                          </button>
+                          <Link className="btn btn--sm" to="/yonetim">
+                            {payment?.status === "onaylandi"
+                              ? "Kesinleştir (İşlem Merkezi)"
+                              : "Ödeme onayı (İşlem Merkezi)"}
+                          </Link>
                         </>
                       )}
                       {paid && sale.renewalForMembershipId && (

@@ -92,6 +92,7 @@ export default function AdminTeams() {
             Henüz ekip yok. Personel panelindeki "Ekibim" bölümünden personel kendi ekibini kurar.
           </p>
         ) : (
+          <div className="table-wrap">
           <table className="table" style={{ minWidth: 640, marginTop: 10 }}>
             <thead>
               <tr>
@@ -140,6 +141,7 @@ export default function AdminTeams() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -154,6 +156,7 @@ export default function AdminTeams() {
         {joinApps.length === 0 ? (
           <p className="text-muted small mt-14">Katılım başvurusu yok.</p>
         ) : (
+          <div className="table-wrap">
           <table className="table" style={{ minWidth: 720, marginTop: 10 }}>
             <thead>
               <tr>
@@ -220,6 +223,7 @@ export default function AdminTeams() {
               })}
             </tbody>
           </table>
+          </div>
         )}
       </div>
 
@@ -230,6 +234,7 @@ export default function AdminTeams() {
           Transfer yalnızca yöneticiyle yapılır; ekip lideri kendi ekibinden ayrılamaz (önce
           liderlik değiştirilir).
         </p>
+        <div className="table-wrap">
         <table className="table" style={{ minWidth: 520, marginTop: 10 }}>
           <thead>
             <tr>
@@ -263,6 +268,7 @@ export default function AdminTeams() {
             ))}
           </tbody>
         </table>
+        </div>
       </div>
     </div>
   );

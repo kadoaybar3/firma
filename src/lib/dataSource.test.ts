@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  ENGAGEMENT_TABLES,
   categoryFromRow,
   categoryToRow,
   citiesFromRows,
@@ -14,6 +15,7 @@ import {
   saleFromRow,
   saleToRow,
   settingsFromRow,
+  snapshotTables,
   syncSnapshot,
 } from "./dataSource";
 import type { Company, DB, Sale } from "./types";
@@ -22,6 +24,30 @@ import type { Company, DB, Sale } from "./types";
  * Supabase veri kaynağı dönüşümleri — SAF birim testler (ağ yok).
  * Kolon eşleşmeleri 0001_init.sql + 0003/0004 additive kolonlarına karşı doğrulanır.
  */
+
+describe("loadSnapshot tablo listesi — 0018 yetki sınırı", () => {
+  /*
+   * 0018 bu iki tabloya yalnız `authenticated` rolüne SELECT verir; anon için
+   * GRANT yoktur. Anon görüntüsünde tablo sorgulanırsa PostgREST 42501
+   * (`permission denied for table company_engagement_counters`) döner ve tüm
+   * görüntü düşer. Bu yüzden anon listesi bu tabloları HİÇ içermemelidir.
+   */
+  it("anon görüntüsünde sayaç tabloları hiç sorgulanmaz", () => {
+    const tables = snapshotTables(false);
+    for (const table of ENGAGEMENT_TABLES) expect(tables).not.toContain(table);
+    expect(tables).toContain("companies");
+  });
+
+  it("yönetici görüntüsünde sayaç tabloları okunur", () => {
+    const tables = snapshotTables(true);
+    for (const table of ENGAGEMENT_TABLES) expect(tables).toContain(table);
+  });
+
+  it("her tablo listede en fazla bir kez yer alır", () => {
+    const tables = snapshotTables(true);
+    expect(new Set(tables).size).toBe(tables.length);
+  });
+});
 
 describe("dataSource satır dönüşümleri", () => {
   it("company roundtrip: camelCase ↔ snake_case", () => {

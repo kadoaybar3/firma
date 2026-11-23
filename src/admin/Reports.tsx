@@ -1,22 +1,21 @@
-import { useMemo, useState } from "react";
+import { useState } from "react";
 import {
   BadgeCheck,
   Banknote,
-  CalendarRange,
-  CreditCard,
   Receipt,
+  Store,
+  Tag,
   TrendingUp,
   Users,
   Wallet,
 } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
-import { Badge, InfoBanner, StatCard } from "../components/ui";
+import { Badge, StatCard } from "../components/ui";
 import { useActor } from "../lib/auth";
 import { formatTRY } from "../lib/format";
 import {
   categoryCompanyCount,
   getCompanyById,
-  getSettings,
   listCategories,
   listCommissions,
   listCommissionPayouts,
@@ -27,6 +26,14 @@ import {
   listSales,
 } from "../lib/repo";
 import type { Payment } from "../lib/types";
+
+/*
+ * ANALİZ
+ *
+ * Sıra: göstergeler → eğilimler → kişi/komisyon → dağılımlar → (kapalı) ayrıntı.
+ * Her sayı TEK yerde gösterilir; aynı tutar hem kartta hem listede tekrarlanmaz.
+ * Hesaplamalar ve veri kaynakları raporun önceki sürümüyle aynıdır.
+ */
 
 type GroupMode = "gunluk" | "haftalik" | "aylik";
 
@@ -78,6 +85,67 @@ function paymentStatusLabel(status: Payment["status"]): string {
   return "İade";
 }
 
+interface TrendPoint {
+  key: string;
+  label: string;
+  amount: number;
+  count: number;
+}
+
+/** Dönem kovalarına göre tutar/sayı dizisi — en güncel 14 dönem. */
+function buildTrend(
+  items: Array<{ at: string; amount: number }>,
+  mode: GroupMode,
+): TrendPoint[] {
+  const map = new Map<string, { amount: number; count: number }>();
+  for (const item of items) {
+    const key = bucketKey(item.at, mode);
+    const row = map.get(key) ?? { amount: 0, count: 0 };
+    row.amount += item.amount;
+    row.count += 1;
+    map.set(key, row);
+  }
+  return [...map.entries()]
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .slice(-14)
+    .map(([key, value]) => ({ key, label: bucketLabel(key, mode), ...value }));
+}
+
+/** Tek bar listesi — satış, tahsilat ve yöntem dağılımı aynı görünümü kullanır. */
+function TrendBars({
+  rows,
+  max,
+  unit,
+  emptyText,
+}: {
+  rows: TrendPoint[];
+  max: number;
+  unit: string;
+  emptyText: string;
+}) {
+  if (rows.length === 0) return <p className="text-muted small">{emptyText}</p>;
+
+  return (
+    <div className="adm-bars">
+      {rows.map((row) => (
+        <div className="adm-bar" key={row.key}>
+          <span className="adm-bar__label">{row.label}</span>
+          <span
+            className="adm-bar__track"
+            role="img"
+            aria-label={`${row.count} ${unit}, ${formatTRY(row.amount)}`}
+          >
+            <span className="adm-bar__fill" style={{ width: `${(row.amount / max) * 100}%` }} />
+          </span>
+          <span className="adm-bar__value">
+            {formatTRY(row.amount)} <span className="text-muted">· {row.count}</span>
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
 export default function AdminReports() {
   const actor = useActor();
   const [from, setFrom] = useState("");
@@ -90,7 +158,7 @@ export default function AdminReports() {
   const commissions = listCommissions(actor);
   const payouts = listCommissionPayouts(actor);
   const reps = listReps(actor);
-  const settings = getSettings();
+  const allCompanies = listCompanies({ includeUnpublished: true });
 
   const confirmedAll = sales.filter((sale) => sale.status === "odendi");
   const inRange = (value: string): boolean => {
@@ -106,17 +174,13 @@ export default function AdminReports() {
   const rangePayments = payments.filter((payment) => inRange(payment.createdAt));
   const rangeCommissions = commissions.filter(({ com }) => inRange(com.createdAt));
   // Dönemde ÖDENEN komisyon: yalnız commission_payouts defteri, payout'un
-  // paidAt tarihi aralığa giren kayıtlar. Payout'lar tek tek komisyonlara
-  // bağlanmadığı için bu bir nakit çıkışıdır; "kazanılan − ödenen" farkı
-  // bekleyen bakiye yerine kullanılmaz. commissions.status ödeme kaydıyla
-  // güncellenmediğinden (0008) burada hiç okunmaz → çift sayım yok.
+  // paidAt tarihi aralığa giren kayıtlar (nakit çıkışı).
   const rangePayouts = payouts.filter((payout) => inRange(payout.paidAt));
 
   const totalRevenue = confirmedSales.reduce((sum, sale) => sum + sale.amount, 0);
   const totalCommission = rangeCommissions.reduce((sum, { com }) => sum + com.amount, 0);
   const paidCommission = rangePayouts.reduce((sum, payout) => sum + payout.amount, 0);
-  // Güncel kalan hakediş: dönem filtresinden BAĞIMSIZ, defterin tamamından
-  // (Σ kazanılan − Σ payout). Reps/Commissions/Dashboard ile aynı kaynak.
+  // Güncel kalan hakediş: dönem filtresinden BAĞIMSIZ, defterin tamamından.
   const outstandingCommission = listCommissionPayoutSummary(actor).reduce(
     (sum, row) => sum + row.outstanding,
     0,
@@ -135,22 +199,21 @@ export default function AdminReports() {
     );
   });
 
-  const trend = useMemo(() => {
-    const map = new Map<string, { amount: number; count: number }>();
-    for (const sale of confirmedSales) {
-      const key = bucketKey(sale.confirmedAt ?? sale.createdAt, mode);
-      const row = map.get(key) ?? { amount: 0, count: 0 };
-      row.amount += sale.amount;
-      row.count += 1;
-      map.set(key, row);
-    }
-    return [...map.entries()]
-      .sort((a, b) => a[0].localeCompare(b[0]))
-      .slice(-14)
-      .map(([key, value]) => ({ key, label: bucketLabel(key, mode), ...value }));
-  }, [confirmedSales, mode]);
-
+  const trend = buildTrend(
+    confirmedSales.map((sale) => ({
+      at: sale.confirmedAt ?? sale.createdAt,
+      amount: sale.amount,
+    })),
+    mode,
+  );
   const maxTrend = Math.max(1, ...trend.map((row) => row.amount));
+
+  /** Tahsilat eğilimi — onaylanmış ödemeler, satış trendiyle aynı kovalar. */
+  const collectedTrend = buildTrend(
+    approvedPayments.map((payment) => ({ at: payment.createdAt, amount: payment.amount })),
+    mode,
+  );
+  const maxCollected = Math.max(1, ...collectedTrend.map((row) => row.amount));
 
   const repPerformance = reps
     .map((rep) => {
@@ -173,15 +236,17 @@ export default function AdminReports() {
       amount: rows.reduce((sum, payment) => sum + payment.amount, 0),
     };
   });
-  const methodTotal = Math.max(
-    1,
-    methodRows.reduce((sum, row) => sum + row.amount, 0),
-  );
+  const methodTotal = Math.max(1, methodRows.reduce((sum, row) => sum + row.amount, 0));
 
   const categories = listCategories()
     .map((category) => ({ category, count: categoryCompanyCount(category.id) }))
     .sort((a, b) => b.count - a.count);
   const maxCategory = Math.max(1, ...categories.map((row) => row.count));
+
+  const publishedCompanies = allCompanies.filter((company) => company.published).length;
+  const companyTotal = allCompanies.length;
+  const unpublishedCompanies = companyTotal - publishedCompanies;
+  const publishedShare = companyTotal === 0 ? 0 : (publishedCompanies / companyTotal) * 100;
 
   const applyQuickRange = (days: number | "year" | "all") => {
     if (days === "all") {
@@ -200,8 +265,8 @@ export default function AdminReports() {
   return (
     <div className="panel-content">
       <PanelHead
-        title="Raporlar"
-        desc="Tarih aralığına göre satış, tahsilat, ödeme yöntemi, personel performansı ve komisyon raporları. Gelir rakamları yalnızca kesinleşen satışları sayar."
+        title="Analiz"
+        desc="Dönem seçin; göstergeler, eğilimler ve dağılımlar tek ekranda."
       />
 
       <div className="adm-filterbar">
@@ -215,8 +280,8 @@ export default function AdminReports() {
             <input type="date" value={to} min={from || undefined} onChange={(e) => setTo(e.target.value)} />
           </label>
           <div className="adm-filter">
-            <span>Satış grafiği</span>
-            <div className="adm-seg" role="group" aria-label="Satış grafiği dönemi">
+            <span>Grafik dönemi</span>
+            <div className="adm-seg" role="group" aria-label="Grafik dönemi">
               {(Object.keys(GROUP_LABEL) as GroupMode[]).map((key) => (
                 <button
                   key={key}
@@ -256,6 +321,7 @@ export default function AdminReports() {
         </div>
       </div>
 
+      {/* ============ 1) TEMEL GÖSTERGELER ============ */}
       <div className="stats-grid">
         <StatCard
           icon={<Wallet size={20} strokeWidth={1.9} />}
@@ -279,51 +345,62 @@ export default function AdminReports() {
         />
         <StatCard
           icon={<Receipt size={20} strokeWidth={1.9} />}
-          label="Komisyon toplamı"
-          value={formatTRY(totalCommission)}
-          hint={`Dönemde ödenen: ${formatTRY(paidCommission)}`}
+          label="Kalan hakediş"
+          value={formatTRY(outstandingCommission)}
+          hint="Tüm dönemler"
         />
       </div>
 
-      <div className="adm-report-grid">
+      <div className="adm-report-grid" style={{ marginTop: 14 }}>
+        {/* ============ 2) EĞİLİMLER ============ */}
         <section className="adm-panel">
           <div className="adm-panel__head">
             <h2>
-              <TrendingUp size={16} strokeWidth={1.9} aria-hidden="true" /> Satış trendi
+              <TrendingUp size={16} strokeWidth={1.9} aria-hidden="true" /> Satış eğilimi
             </h2>
             <Badge tone="blue">{GROUP_LABEL[mode]}</Badge>
           </div>
           <div className="adm-panel__body">
-            {trend.length === 0 ? (
-              <p className="text-muted small">Seçilen aralıkta kesinleşen satış yok.</p>
-            ) : (
-              <div className="adm-bars">
-                {trend.map((row) => (
-                  <div className="adm-bar" key={row.key}>
-                    <span className="adm-bar__label">{row.label}</span>
-                    <span
-                      className="adm-bar__track"
-                      role="img"
-                      aria-label={`${row.count} satış, ${formatTRY(row.amount)}`}
-                    >
-                      <span
-                        className="adm-bar__fill"
-                        style={{ width: `${(row.amount / maxTrend) * 100}%` }}
-                      />
-                    </span>
-                    <span className="adm-bar__value">
-                      {formatTRY(row.amount)} <span className="text-muted">· {row.count}</span>
-                    </span>
-                  </div>
-                ))}
-              </div>
-            )}
-            <p className="text-muted small" style={{ marginTop: 10 }}>
-              En güncel 14 dönem gösterilir.
-            </p>
+            <TrendBars
+              rows={trend}
+              max={maxTrend}
+              unit="satış"
+              emptyText="Seçilen aralıkta kesinleşen satış yok."
+            />
           </div>
         </section>
 
+        <section className="adm-panel">
+          <div className="adm-panel__head">
+            <h2>
+              <Banknote size={16} strokeWidth={1.9} aria-hidden="true" /> Tahsilat eğilimi
+            </h2>
+            <Badge tone="gray">{approvedPayments.length} ödeme</Badge>
+          </div>
+          <div className="adm-panel__body">
+            <TrendBars
+              rows={collectedTrend}
+              max={maxCollected}
+              unit="ödeme"
+              emptyText="Seçilen aralıkta onaylanmış ödeme yok."
+            />
+
+            <div className="adm-report-sub">Ödeme yöntemi</div>
+            <TrendBars
+              rows={methodRows.map((row) => ({
+                key: row.method,
+                label: row.method,
+                amount: row.amount,
+                count: row.count,
+              }))}
+              max={methodTotal}
+              unit="ödeme"
+              emptyText="Onaylanmış ödeme yok."
+            />
+          </div>
+        </section>
+
+        {/* ============ 3) PERSONEL VE KOMİSYON ============ */}
         <section className="adm-panel">
           <div className="adm-panel__head">
             <h2>
@@ -364,36 +441,77 @@ export default function AdminReports() {
         <section className="adm-panel">
           <div className="adm-panel__head">
             <h2>
-              <CreditCard size={16} strokeWidth={1.9} aria-hidden="true" /> Kart / EFT dağılımı
+              <Receipt size={16} strokeWidth={1.9} aria-hidden="true" /> Komisyon
             </h2>
+            <Badge tone="blue">{rangeCommissions.length} kayıt</Badge>
           </div>
           <div className="adm-panel__body">
-            {approvedPayments.length === 0 ? (
-              <p className="text-muted small">Seçilen aralıkta onaylanmış ödeme yok.</p>
+            <div className="adm-list">
+              <div className="adm-list__row">
+                <span className="adm-dot adm-dot--blue" aria-hidden="true" />
+                <span className="adm-list__main">
+                  <span className="adm-list__title">Dönemde kazanılan</span>
+                  <span className="adm-list__meta">Kesinleşen satışlardan</span>
+                </span>
+                <span className="adm-list__amount">{formatTRY(totalCommission)}</span>
+              </div>
+              <div className="adm-list__row">
+                <span className="adm-dot adm-dot--green" aria-hidden="true" />
+                <span className="adm-list__main">
+                  <span className="adm-list__title">Dönemde ödenen</span>
+                  <span className="adm-list__meta">Ödeme defteri</span>
+                </span>
+                <span className="adm-list__amount">{formatTRY(paidCommission)}</span>
+              </div>
+            </div>
+            <p className="text-muted small" style={{ marginTop: 12 }}>
+              Platform payı (gider öncesi): <strong>{formatTRY(totalRevenue - totalCommission)}</strong>
+            </p>
+          </div>
+        </section>
+
+        {/* ============ 4) DAĞILIMLAR ============ */}
+        <section className="adm-panel">
+          <div className="adm-panel__head">
+            <h2>
+              <Tag size={16} strokeWidth={1.9} aria-hidden="true" /> Kategori dağılımı
+            </h2>
+            <Badge tone="gray">{categories.length} kategori</Badge>
+          </div>
+          <div className="adm-panel__body">
+            {categories.length === 0 ? (
+              <p className="text-muted small">Kategori yok.</p>
             ) : (
               <div className="adm-bars">
-                {methodRows.map((row) => (
-                  <div className="adm-bar" key={row.method}>
-                    <span className="adm-bar__label">{row.method}</span>
-                    <span
-                      className="adm-bar__track"
-                      role="img"
-                      aria-label={`${row.method}: ${formatTRY(row.amount)}`}
-                    >
+                {categories.slice(0, showAllCategories ? categories.length : 6).map(({ category, count }) => (
+                  <div className="adm-bar adm-bar--wide" key={category.id}>
+                    <span className="adm-bar__label" title={category.name}>
+                      {category.name}
+                    </span>
+                    <span className="adm-bar__track">
                       <span
                         className="adm-bar__fill"
-                        style={{ width: `${(row.amount / methodTotal) * 100}%` }}
+                        style={{ width: `${(count / maxCategory) * 100}%` }}
                       />
                     </span>
-                    <span className="adm-bar__value">
-                      {formatTRY(row.amount)} <span className="text-muted">· {row.count}</span>
-                    </span>
+                    <span className="adm-bar__value">{count}</span>
                   </div>
                 ))}
               </div>
             )}
-            <p className="text-muted small" style={{ marginTop: 10 }}>
-              Yalnızca onaylanmış ödemeler; tutar bazlı dağılım.
+            {categories.length > 6 && (
+              <button
+                type="button"
+                className="btn btn--sm"
+                style={{ marginTop: 12 }}
+                aria-expanded={showAllCategories}
+                onClick={() => setShowAllCategories((current) => !current)}
+              >
+                {showAllCategories ? "Daha az göster" : `Devamını göster (${categories.length - 6})`}
+              </button>
+            )}
+            <p className="text-muted small" style={{ marginTop: 12 }}>
+              Yalnızca yayındaki firmalar; tarih aralığından bağımsız.
             </p>
           </div>
         </section>
@@ -401,59 +519,44 @@ export default function AdminReports() {
         <section className="adm-panel">
           <div className="adm-panel__head">
             <h2>
-              <CalendarRange size={16} strokeWidth={1.9} aria-hidden="true" /> Tahsilat ve komisyon
+              <Store size={16} strokeWidth={1.9} aria-hidden="true" /> Firma dağılımı
             </h2>
+            <Badge tone="gray">{companyTotal} firma</Badge>
           </div>
           <div className="adm-panel__body">
-            <div className="adm-list">
-              <div className="adm-list__row">
-                <span className="adm-dot adm-dot--green" aria-hidden="true" />
-                <span className="adm-list__main">
-                  <span className="adm-list__title">Tahsil edilen</span>
-                  <span className="adm-list__meta">{approvedPayments.length} onaylı ödeme</span>
+            <div className="adm-bars">
+              <div className="adm-bar">
+                <span className="adm-bar__label">Yayında</span>
+                <span className="adm-bar__track" role="img" aria-label={`${publishedCompanies} firma yayında`}>
+                  <span className="adm-bar__fill" style={{ width: `${publishedShare}%` }} />
                 </span>
-                <span className="adm-list__amount">{formatTRY(collected)}</span>
+                <span className="adm-bar__value">{publishedCompanies}</span>
               </div>
-              <div className="adm-list__row">
-                <span className="adm-dot adm-dot--amber" aria-hidden="true" />
-                <span className="adm-list__main">
-                  <span className="adm-list__title">Bekleyen ödemeler</span>
-                  <span className="adm-list__meta">{pendingPayments.length} kayıt</span>
+              <div className="adm-bar">
+                <span className="adm-bar__label">Yayın dışı</span>
+                <span
+                  className="adm-bar__track"
+                  role="img"
+                  aria-label={`${unpublishedCompanies} firma yayın dışı`}
+                >
+                  <span className="adm-bar__fill" style={{ width: `${100 - publishedShare}%` }} />
                 </span>
-                <span className="adm-list__amount">{formatTRY(pendingAmount)}</span>
-              </div>
-              <div className="adm-list__row">
-                <span className="adm-dot adm-dot--blue" aria-hidden="true" />
-                <span className="adm-list__main">
-                  <span className="adm-list__title">Komisyon toplamı</span>
-                  <span className="adm-list__meta">{rangeCommissions.length} kayıt</span>
-                </span>
-                <span className="adm-list__amount">{formatTRY(totalCommission)}</span>
-              </div>
-              <div className="adm-list__row">
-                <span className="adm-dot" aria-hidden="true" />
-                <span className="adm-list__main">
-                  <span className="adm-list__title">Kalan hakediş (güncel)</span>
-                  <span className="adm-list__meta">Tüm dönemler · dönem filtresinden bağımsız</span>
-                </span>
-                <span className="adm-list__amount">{formatTRY(outstandingCommission)}</span>
+                <span className="adm-bar__value">{unpublishedCompanies}</span>
               </div>
             </div>
-            <p className="text-muted small" style={{ marginTop: 10 }}>
-              Platform payı (gider öncesi): <strong>{formatTRY(totalRevenue - totalCommission)}</strong>.
-              Örnek üyelik bedeli {formatTRY(settings.membershipPrice)}.
+            <p className="text-muted small" style={{ marginTop: 12 }}>
+              Toplam {companyTotal} firma
             </p>
           </div>
         </section>
       </div>
 
-      <section className="adm-panel" style={{ marginTop: 14 }}>
-        <div className="adm-panel__head">
-          <h2>
-            <Banknote size={16} strokeWidth={1.9} aria-hidden="true" /> Bekleyen ödeme kayıtları
-          </h2>
-          <Badge tone={pendingSales.length ? "orange" : "green"}>{pendingSales.length}</Badge>
-        </div>
+      {/* ============ 5) AYRINTILAR (kapalı) ============ */}
+      <details className="adm-details">
+        <summary>
+          Bekleyen ödeme kayıtları
+          <span className="adm-details__count">{pendingSales.length}</span>
+        </summary>
         <div className="adm-panel__body adm-panel__body--flush">
           {pendingSales.length === 0 ? (
             <p className="text-muted small" style={{ padding: 18 }}>
@@ -478,11 +581,15 @@ export default function AdminReports() {
                     const payment = payments.find((row) => row.saleId === sale.id);
                     return (
                       <tr key={sale.id}>
-                        <td>{company?.name ?? "—"}</td>
-                        <td className="small text-muted">{rep?.name ?? "Doğrudan"}</td>
-                        <td>{formatTRY(sale.amount)}</td>
-                        <td className="small">{payment ? methodOf(payment) : "Kayıt yok"}</td>
-                        <td>
+                        <td data-label="Firma">{company?.name ?? "—"}</td>
+                        <td data-label="Personel" className="small text-muted">
+                          {rep?.name ?? "Doğrudan"}
+                        </td>
+                        <td data-label="Tutar">{formatTRY(sale.amount)}</td>
+                        <td data-label="Ödeme" className="small">
+                          {payment ? methodOf(payment) : "Kayıt yok"}
+                        </td>
+                        <td data-label="Durum">
                           <Badge tone={payment?.status === "beklemede" ? "orange" : "gray"}>
                             {payment ? paymentStatusLabel(payment.status) : "Ödeme bekliyor"}
                           </Badge>
@@ -495,47 +602,7 @@ export default function AdminReports() {
             </div>
           )}
         </div>
-      </section>
-
-      <section className="adm-panel" style={{ marginTop: 14 }}>
-        <div className="adm-panel__head">
-          <h2>Kategori dağılımı</h2>
-          <Badge tone="gray">{categories.length} kategori</Badge>
-        </div>
-        <div className="adm-panel__body">
-          <InfoBanner>Yalnızca yayındaki firmalar sayılır; tarih aralığından bağımsızdır.</InfoBanner>
-          {categories.slice(0, showAllCategories ? categories.length : 6).map(({ category, count }) => (
-            <div className="adm-bar" key={category.id} style={{ marginTop: 10 }}>
-              <span className="adm-bar__label" style={{ width: 120, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={category.name}>
-                {category.icon} {category.name}
-              </span>
-              <span className="adm-bar__track">
-                <span
-                  className="adm-bar__fill"
-                  style={{ width: `${(count / maxCategory) * 100}%` }}
-                />
-              </span>
-              <span className="adm-bar__value">{count} firma</span>
-            </div>
-          ))}
-          {categories.length > 6 && (
-            <button
-              type="button"
-              className="btn btn--sm"
-              style={{ marginTop: 12 }}
-              aria-expanded={showAllCategories}
-              onClick={() => setShowAllCategories((current) => !current)}
-            >
-              {showAllCategories
-                ? "Daha az göster"
-                : `Devamını göster (${categories.length - 6})`}
-            </button>
-          )}
-          <p className="text-muted small" style={{ marginTop: 12 }}>
-            Yayındaki toplam firma: {listCompanies().filter((company) => company.published).length}
-          </p>
-        </div>
-      </section>
+      </details>
     </div>
   );
 }

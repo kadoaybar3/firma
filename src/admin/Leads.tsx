@@ -1,9 +1,9 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
-import { CalendarDays, Target } from "lucide-react";
+import { Target } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
 import { CompanyForm } from "./Companies";
-import { Badge, EmptyState, ErrorBanner, Field, StatCard } from "../components/ui";
+import { Badge, EmptyState, ErrorBanner, Field } from "../components/ui";
 import { useActor } from "../lib/auth";
 import { useLiveDataRevision } from "../lib/liveData";
 import { formatDateTime } from "../lib/format";
@@ -25,13 +25,6 @@ import type { CompanyDraft } from "../lib/repo";
 import type { Lead, LeadStatus } from "../lib/types";
 
 const LEAD_STATUSES: LeadStatus[] = ["yeni", "irtibat", "görüşme", "anlaşma", "iptal"];
-const STATUS_TONE: Record<LeadStatus, "blue" | "gray" | "green" | "orange" | "red"> = {
-  yeni: "blue",
-  irtibat: "gray",
-  görüşme: "orange",
-  anlaşma: "green",
-  iptal: "red",
-};
 
 export default function AdminLeads() {
   const actor = useActor();
@@ -73,7 +66,7 @@ export function LeadBoard({ actor }: { actor: ReturnType<typeof useActor> }) {
           title="Henüz aday kaydı yok"
         />
       ) : (
-        <div className="table-wrap">
+        <div className="table-wrap table-wrap--cards">
           <table className="table">
             <thead>
               <tr>
@@ -125,7 +118,7 @@ function LeadRow({
   return (
     <>
       <tr>
-        <td>
+        <td data-label="Aday firma">
           <strong>{lead.companyName}</strong>
           {convertedCompany && (
             <div>
@@ -137,10 +130,10 @@ function LeadRow({
           <div className="text-muted small">{formatDateTime(lead.createdAt)}</div>
         </td>
         {actor.role === "admin" && (
-          <td>{lead.repId ? (getRepById(lead.repId)?.name ?? "—") : "—"}</td>
+          <td data-label="Temsilci">{lead.repId ? (getRepById(lead.repId)?.name ?? "—") : "—"}</td>
         )}
-        <td className="text-muted">{lead.district ?? "—"}</td>
-        <td>
+        <td data-label="İlçe" className="text-muted">{lead.district ?? "—"}</td>
+        <td data-label="Durum">
           <select
             className="input"
             style={{ padding: "6px 10px", width: "auto" }}
@@ -158,10 +151,10 @@ function LeadRow({
             ))}
           </select>
         </td>
-        <td>
-          <Badge tone={STATUS_TONE[lead.status]}>{lead.visitCount} ziyaret</Badge>
+        <td data-label="Ziyaret">
+          <Badge tone="gray">{lead.visitCount} ziyaret</Badge>
         </td>
-        <td>
+        <td data-label="İşlemler">
           <div className="actions-cell">
             <button className="btn btn--sm btn--ghost" onClick={onToggle}>
               {expanded ? "Kayıtları kapat" : "Ziyaret kayıtları"}
@@ -189,8 +182,8 @@ function LeadRow({
         </td>
       </tr>
       {converting && (
-        <tr>
-          <td colSpan={actor.role === "admin" ? 6 : 5} style={{ background: "#fafbfe" }}>
+        <tr className="lead-detail-row">
+          <td colSpan={actor.role === "admin" ? 6 : 5} className="lead-detail-cell">
             <ConvertLeadPanel
               lead={lead}
               run={run}
@@ -201,9 +194,9 @@ function LeadRow({
         </tr>
       )}
       {expanded && (
-        <tr>
-          <td colSpan={actor.role === "admin" ? 6 : 5} style={{ background: "#fafbfe" }}>
-            <div className="grid" style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 16 }}>
+        <tr className="lead-detail-row">
+          <td colSpan={actor.role === "admin" ? 6 : 5} className="lead-detail-cell">
+            <div className="lead-detail">
               <div>
                 <h4 style={{ marginBottom: 8 }}>Ziyaret / görüşme geçmişi</h4>
                 {listVisits(lead.id).length === 0 ? (
@@ -249,14 +242,6 @@ function LeadRow({
                     )}
                   </div>
                 )}
-                <div className="mt-14">
-                  <StatCard
-                    icon={<CalendarDays size={20} strokeWidth={1.9} />}
-                    label="Aday durumu değişikliği en son"
-                    value={formatDateTime(lead.updatedAt)}
-                    hint="Adayın güncellenme zamanı"
-                  />
-                </div>
               </div>
             </div>
           </td>

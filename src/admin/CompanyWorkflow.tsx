@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { ArrowRight, BadgeCheck, Building2, Check, CreditCard, Loader2, Target } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
 import { CompanyForm } from "./Companies";
@@ -33,6 +34,23 @@ export default function CompanyWorkflow() {
   const [, refresh] = useState(0);
 
   const leads = listLeads(actor).filter((lead) => lead.status === "anlaşma" && !lead.convertedToCompanyId);
+
+  /*
+   * İşlem Merkezi'ndeki bekleyen aday satırından gelen derin bağlantı:
+   * /yonetim/firma-akisi?lead=<id> ilgili adayın inceleme formunu açar.
+   * Parametre açılışta temizlenir; modal kapatılınca yeniden açılmaz.
+   */
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requestedLeadId = searchParams.get("lead");
+  useEffect(() => {
+    if (!requestedLeadId) return;
+    const lead = leads.find((item) => item.id === requestedLeadId);
+    if (!lead) return;
+    setSelectedLead(lead);
+    const next = new URLSearchParams(searchParams);
+    next.delete("lead");
+    setSearchParams(next, { replace: true });
+  }, [requestedLeadId, leads, searchParams, setSearchParams]);
   const sales = listSales(actor).filter((sale) => sale.channel === "temsilci");
   const payments = listPayments(actor);
   const reps = listReps(actor);
@@ -69,7 +87,7 @@ export default function CompanyWorkflow() {
   return (
     <div className="panel-content">
       <PanelHead
-        title="Firma Akışı"
+        title="Firma Hattı"
         desc="Temsilci adayını inceleyin, satış ve ödemeyi tamamlayın, firmayı aynı ekrandan yayına alın."
       />
       {error && <ErrorBanner message={error} />}

@@ -11,6 +11,7 @@ import {
   verifyPayment,
 } from "./engine";
 import type { Actor, DB, Settings } from "./types";
+import { ENGAGEMENT_DEFAULTS } from "./engagement";
 
 const admin: Actor = { userId: "u1", role: "admin" };
 const repActor: Actor = { userId: "u9", role: "temsilci", repId: "rep-1" };
@@ -21,6 +22,7 @@ const settings: Settings = {
   referralReward: 100,
   renewalCommission: 600,
   teamCapacity: 15,
+  ...ENGAGEMENT_DEFAULTS,
   updatedAt: new Date().toISOString(),
 };
 
