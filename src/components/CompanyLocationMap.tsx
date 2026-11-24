@@ -138,9 +138,9 @@ export default function CompanyLocationMap({
     let disposed = false;
     let loadTimer: number | undefined;
 
-    void (async () => {
+    const init = async (attempt: number) => {
       try {
-        const maplibregl = await import("maplibre-gl");
+        const maplibregl = moduleRef.current ?? (await import("maplibre-gl"));
         if (disposed || !containerRef.current) return;
         moduleRef.current = maplibregl;
 
@@ -153,18 +153,29 @@ export default function CompanyLocationMap({
           maxZoom: 19,
           attributionControl: false,
         });
+        let stale = false;
         mapRef.current = map;
         map.addControl(
           new maplibregl.NavigationControl({ showCompass: false }),
           "top-right",
         );
 
+        // Soğuk başlatmada 'load' olayı bazen hiç gelmez; bir kez yeniden
+        // kurulur, ikinci başarısızlıkta hata gösterilir.
         loadTimer = window.setTimeout(() => {
-          if (!disposed && !map.loaded()) setMapFailed(true);
+          if (disposed || stale || map.loaded()) return;
+          if (attempt === 0) {
+            stale = true;
+            map.remove();
+            if (mapRef.current === map) mapRef.current = null;
+            void init(1);
+          } else {
+            setMapFailed(true);
+          }
         }, 12000);
 
         map.on("load", () => {
-          if (disposed) return;
+          if (disposed || stale) return;
           if (loadTimer) window.clearTimeout(loadTimer);
           setMapFailed(false);
           setReady(true);
@@ -182,7 +193,9 @@ export default function CompanyLocationMap({
       } catch {
         if (!disposed) setMapFailed(true);
       }
-    })();
+    };
+
+    void init(0);
 
     return () => {
       disposed = true;

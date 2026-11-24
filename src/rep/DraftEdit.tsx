@@ -13,7 +13,7 @@ import {
 } from "lucide-react";
 import { AddressFields, type AddressSelection } from "../admin/AddressFields";
 import CategorySelect from "../components/CategorySelect";
-import CompanyLocationMap, { type LocationPinSource } from "../components/CompanyLocationMap";
+import CompanyLocationMap from "../components/CompanyLocationMap";
 import { useActor } from "../lib/auth";
 import { findCityByName } from "../lib/location";
 import {
@@ -25,7 +25,7 @@ import {
   listLeads,
   updateLead,
 } from "../lib/repo";
-import { checkDuplicate } from "./duplicate";
+import { checkDuplicate, type DuplicateResult } from "./duplicate";
 import { LeadStatusBadge } from "./repShared";
 
 export default function RepDraftEdit() {
@@ -56,11 +56,9 @@ export default function RepDraftEdit() {
     latitude: lead?.latitude,
     longitude: lead?.longitude,
   }));
-  const [pinSource, setPinSource] = useState<LocationPinSource | null>(() =>
-    lead?.latitude !== undefined && lead?.longitude !== undefined ? "saved" : null,
-  );
+  /** Mükerrer kontrol sonucu — yalnız bilgilendirme; kaydı engellemez. */
+  const [dupResult, setDupResult] = useState<DuplicateResult | null>(null);
   const [note, setNote] = useState(lead?.note ?? "");
-
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
   const [saved, setSaved] = useState(false);
@@ -101,13 +99,10 @@ export default function RepDraftEdit() {
     try {
       const nameChanged = companyName.trim() !== lead!.companyName.trim();
       if (nameChanged) {
-        const result = await checkDuplicate(companyName);
-        if (result === "exists") {
-          setError(
-            "Bu isimde bir firma rehberde kayıtlı görünüyor. Lütfen firma adını kontrol edin.",
-          );
-          return;
-        }
+        // Son istekte de kontrol çalışır; sonuç yalnız bilgilendirme içindir,
+        // "exists" veya kontrol hatası kaydı asla engellemez.
+        const dup = await checkDuplicate(companyName, actor);
+        setDupResult(dup);
       }
 
       updateLead(
@@ -238,9 +233,31 @@ export default function RepDraftEdit() {
               id="companyName"
               className="rep-input"
               value={companyName}
-              onChange={(e) => setCompanyName(e.target.value)}
+              onChange={(e) => {
+                setCompanyName(e.target.value);
+                setDupResult(null);
+              }}
+              onBlur={() => {
+                if (companyName.trim().length >= 3) {
+                  void checkDuplicate(companyName, actor).then(setDupResult);
+                }
+              }}
               required
             />
+            {dupResult?.status === "exists" && (
+              <small style={{ color: "var(--rep-danger)", fontWeight: 600 }}>
+                Benzer kayıt bulundu (bilgilendirme):
+                {dupResult.matches
+                  .map((m) => ` ${m.name}${m.district ? ` (${m.district})` : ""}`)
+                  .join(",")}
+                . Yine de kaydedebilirsiniz.
+              </small>
+            )}
+            {dupResult?.status === "unavailable" && (
+              <small style={{ color: "var(--rep-warning)", fontWeight: 600 }}>
+                Mükerrer kontrolü yapılamadı; kayıt işlemi yine de devam edebilir.
+              </small>
+            )}
           </div>
 
           <div className="rep-field">
@@ -302,10 +319,8 @@ export default function RepDraftEdit() {
                 next.district !== location.district ||
                 next.address !== location.address;
               setLocation(next);
-              if (addressChanged && pinSource !== "manual") {
-                setCoords({});
-                setPinSource(null);
-              }
+              // Adres değiştiyse eski koordinat artık geçerli değil; harita yeniden arar.
+              if (addressChanged) setCoords({});
             }}
           />
 
@@ -315,12 +330,11 @@ export default function RepDraftEdit() {
             province={location.province}
             latitude={coords.latitude}
             longitude={coords.longitude}
-            onChange={(next, source) => {
+            onChange={(next) => {
               setCoords({
                 latitude: next?.latitude,
                 longitude: next?.longitude,
               });
-              setPinSource(next ? (source === "manual" ? "manual" : "geocode") : null);
             }}
           />
 

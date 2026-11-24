@@ -1,6 +1,7 @@
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { ChevronDown } from "lucide-react";
 import { normalizeSearch } from "../lib/slug";
+import { MOBILE_SELECT_QUERY, useMediaQuery } from "../lib/useMediaQuery";
 import "./LocationSelect.css";
 import "./CategorySelect.css";
 
@@ -40,6 +41,9 @@ export default function CategorySelect({
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
   const id = useId();
+  // Mobil: açılır seçim işletim sisteminin doğal native menüsüyle açılır
+  // (proje standardı — "Tüm iller" davranışı); masaüstünde özel panel korunur.
+  const native = useMediaQuery(MOBILE_SELECT_QUERY);
 
   const selected = categories.find((category) => category.id === value);
   const filtered = useMemo(() => {
@@ -73,6 +77,32 @@ export default function CategorySelect({
   const triggerLabel = selected
     ? `${selected.icon ? `${selected.icon} ` : ""}${selected.name}`
     : (allLabel ?? placeholder);
+
+  if (native) {
+    return (
+      <div className={`loc-select cat-select ${className ?? ""}`.trim()}>
+        <div className="loc-field">
+          <div className="loc-select__row loc-select__row--native">
+            <select
+              className="loc-select__native"
+              aria-label={ariaLabel}
+              value={value}
+              disabled={disabled}
+              onChange={(event) => onChange(event.target.value)}
+            >
+              <option value="">{allLabel ?? placeholder}</option>
+              {categories.map((category) => (
+                <option key={category.id} value={category.id}>
+                  {category.icon ? `${category.icon} ` : ""}
+                  {category.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div ref={rootRef} className={`loc-select cat-select ${className ?? ""}`.trim()}>

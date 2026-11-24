@@ -316,3 +316,55 @@
   .loc-btn { transition: none; }
   .loc-btn:active:not(:disabled) { transform: none; }
 }
+
+/* ——— Native seçim yolu (mobil) ———
+   Mobilde (≤760px) açılır seçimler işletim sisteminin doğal <select>
+   menüsüyle açılır; büyük özel panel açılmaz. Masaüstü paneli değişmez. */
+.loc-select__row--native {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.loc-select__native {
+  width: 100%;
+  min-width: 0;
+  min-height: 42px;
+  padding: 8px 12px;
+  border: 1px solid var(--border-strong, #ccd6e6);
+  border-radius: 9px;
+  background: var(--surface, #fff);
+  color: var(--text, #0d1b2e);
+  font-size: 0.86rem;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+}
+
+.loc-select__native:disabled {
+  opacity: 0.55;
+  cursor: not-allowed;
+  background: var(--surface-2, #f5f8fd);
+}
+
+.loc-select__clear {
+  display: inline-grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  padding: 0;
+  border: none;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--text-2, #5a6678);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (max-width: 560px) {
+  .loc-select__native {
+    min-height: 44px;
+  }
+}

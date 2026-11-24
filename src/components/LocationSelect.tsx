@@ -3,6 +3,7 @@ import { ChevronDown, SearchX, X } from "lucide-react";
 import { TR_ILLER } from "../data/trCities";
 import { TR_ILCELERI } from "../data/trDistricts";
 import { normalizeSearch } from "../lib/slug";
+import { MOBILE_SELECT_QUERY, useMediaQuery } from "../lib/useMediaQuery";
 import "./LocationSelect.css";
 
 export interface LocationValue {
@@ -120,6 +121,9 @@ export default function LocationSelect({
   const [query, setQuery] = useState("");
   const rootRef = useRef<HTMLDivElement>(null);
   const id = useId();
+  // Mobil: açılır seçim işletim sisteminin doğal native menüsüyle açılır
+  // (proje standardı — "Tüm iller" davranışı); masaüstünde özel panel korunur.
+  const native = useMediaQuery(MOBILE_SELECT_QUERY);
 
   const provinces = useMemo(
     () => provinceOptions(extraProvinces, value.province, query),
@@ -189,6 +193,96 @@ export default function LocationSelect({
     onChange({ province: value.province, district: "" });
     setOpen(null);
     setQuery("");
+  }
+
+  if (native) {
+    return (
+      <div
+        className={`loc-select ${stacked ? "loc-select--stacked" : ""} ${className ?? ""}`.trim()}
+      >
+        <div className="loc-field">
+          <label className="loc-select__label" htmlFor={`${id}-province-native`}>
+            {labelProvince}
+            {required && <span aria-hidden="true"> *</span>}
+          </label>
+          <div className="loc-select__row loc-select__row--native">
+            <select
+              id={`${id}-province-native`}
+              className="loc-select__native"
+              value={value.province}
+              disabled={disabled}
+              aria-required={required || undefined}
+              onChange={(event) =>
+                onChange(nextLocationOnProvinceChange(event.target.value, value))
+              }
+            >
+              <option value="">— seçiniz —</option>
+              {provinceOptions(extraProvinces, value.province).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            {clearable && value.province && (
+              <button
+                type="button"
+                className="loc-select__clear"
+                aria-label={`${labelProvince} seçimini temizle`}
+                onClick={clearProvinceValue}
+              >
+                <X size={13} strokeWidth={2.4} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+          {errorProvince && (
+            <span className="loc-field__error" role="alert">
+              {errorProvince}
+            </span>
+          )}
+        </div>
+
+        <div className="loc-field">
+          <label className="loc-select__label" htmlFor={`${id}-district-native`}>
+            {labelDistrict}
+            {required && <span aria-hidden="true"> *</span>}
+          </label>
+          <div className="loc-select__row loc-select__row--native">
+            <select
+              id={`${id}-district-native`}
+              className="loc-select__native"
+              value={value.district}
+              disabled={disabled || !value.province}
+              aria-required={required || undefined}
+              onChange={(event) =>
+                onChange({ province: value.province, district: event.target.value })
+              }
+            >
+              <option value="">— seçiniz —</option>
+              {districtOptions(value.province, extraDistricts, value.district).map((name) => (
+                <option key={name} value={name}>
+                  {name}
+                </option>
+              ))}
+            </select>
+            {clearable && value.district && (
+              <button
+                type="button"
+                className="loc-select__clear"
+                aria-label={`${labelDistrict} seçimini temizle`}
+                onClick={clearDistrictValue}
+              >
+                <X size={13} strokeWidth={2.4} aria-hidden="true" />
+              </button>
+            )}
+          </div>
+          {errorDistrict && (
+            <span className="loc-field__error" role="alert">
+              {errorDistrict}
+            </span>
+          )}
+        </div>
+      </div>
+    );
   }
 
   return (

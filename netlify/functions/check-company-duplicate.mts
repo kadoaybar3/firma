@@ -2,9 +2,9 @@
  * MÜKERRER FİRMA KONTROLÜ (sunucu tarafı)
  *
  * Amaç: Temsilci yeni firma taslağı oluştururken rehberde aynı firmanın
- * olup olmadığını öğrenebilsin. Yanıt YALNIZCA boolean'dır; firma adı,
- * adresi, telefonu veya başka bir alanı istemciye DÖNMEZ. Böylece mükerrer
- * kontrolü mevcut firma kayıtlarını ifşa etmez.
+ * olup olmadığını öğrenebilsin. Yanıt yalnız bilgilendirme amaçlıdır:
+ * eşleşen kayıtların adı/ilçesi döner (talep edilen görünür uyarı için);
+ * telefon, adres vb. başka alanlar dönmez ve sonuç ASLA kaydı engellemez.
  *
  * GEREKLİ ORTAM DEĞİŞKENLERİ (yalnızca sunucu):
  *   SUPABASE_URL, SUPABASE_SERVICE_ROLE_KEY, VITE_SUPABASE_ANON_KEY
@@ -79,9 +79,16 @@ export default async (req: Request): Promise<Response> => {
 
   const rawName = typeof body.name === "string" ? body.name.trim() : "";
   const normalized = normalize(rawName);
-  if (normalized.length < 2) return json({ exists: false });
+  if (normalized.length < 2) return json({ exists: false, matches: [] });
 
-  const token = normalized.split(" ").sort((a, b) => b.length - a.length)[0] ?? normalized;
+  // Kök neden: filtre yalnız normalize (ASCII) token veriyordu; ham kolon Türkçe
+  // ("Katılım") olduğu için ilike satır hiç dönmüyordu. Ham + normalize token
+  // `.or()` ile tek sorguda denenir; iki yön de kapsanır.
+  const longestWord = (value: string) =>
+    value.split(/\s+/).sort((a, b) => b.length - a.length)[0] ?? value;
+  const rawToken = escapeLike(longestWord(rawName.toLocaleLowerCase("tr-TR")));
+  const normToken = escapeLike(longestWord(normalized));
+  const filter = `name.ilike.%${rawToken}%,name.ilike.%${normToken}%`;
 
   const adminClient = createClient(supabaseUrl, serviceRole, {
     auth: { persistSession: false, autoRefreshToken: false },
@@ -89,21 +96,55 @@ export default async (req: Request): Promise<Response> => {
 
   const { data, error } = await adminClient
     .from("companies")
-    .select("name")
-    .ilike("name", `%${escapeLike(token)}%`)
+    .select("name,district,published")
+    .or(filter)
     .limit(200);
 
   if (error) return json({ message: "Mükerrer kontrolü yapılamadı." }, 500);
 
-  const exists = (data ?? []).some((row) => {
-    const other = normalize(String((row as { name?: string }).name ?? ""));
+  // Aday (lead) kayıtları da aynı isim havuzunda; onlar da eşleşmeye dahil.
+  const leadsRes = await adminClient
+    .from("leads")
+    .select("company_name,district")
+    .or(`company_name.ilike.%${rawToken}%,company_name.ilike.%${normToken}%`)
+    .limit(200);
+  if (leadsRes.error) return json({ message: "Mükerrer kontrolü yapılamadı." }, 500);
+
+  interface Row {
+    name?: string;
+    company_name?: string;
+    district?: string | null;
+    published?: boolean;
+  }
+
+  const similar = (other: string) => {
     if (!other) return false;
     if (other === normalized) return true;
     // Kısa adlar için "içerir" karşılaştırması yanlış pozitif üretmesin.
     if (normalized.length < 5 || other.length < 5) return false;
     return other.includes(normalized) || normalized.includes(other);
-  });
+  };
 
-  // Yalnızca boolean — kayıt bilgisi sızdırılmaz.
-  return json({ exists });
+  const matches = [
+    ...(data ?? []).map((row) => ({ kind: "firma", ...row }) as const),
+    ...(leadsRes.data ?? []).map(
+      (row) =>
+        ({
+          kind: "aday",
+          name: (row as Row).company_name ?? "",
+          district: (row as Row).district ?? undefined,
+        }) as const,
+    ),
+  ]
+    .filter((m) => similar(normalize(m.name ?? "")))
+    .slice(0, 5)
+    .map((m) => ({
+      kind: m.kind,
+      name: m.name ?? "",
+      district: m.district ?? undefined,
+      ...(m.kind === "firma" && "published" in m ? { published: m.published } : {}),
+    }));
+
+  // Yalnız bilgilendirme: eşleşme olsa bile istemci kaydı engellemez.
+  return json({ exists: matches.length > 0, matches });
 };

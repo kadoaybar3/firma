@@ -3,13 +3,13 @@ import { Link, useNavigate } from "react-router-dom";
 import { AlertTriangle, ArrowLeft, Info, Loader2, Plus, ShieldCheck } from "lucide-react";
 import { AddressFields, type AddressSelection } from "../admin/AddressFields";
 import CategorySelect from "../components/CategorySelect";
-import CompanyLocationMap, { type LocationPinSource } from "../components/CompanyLocationMap";
+import CompanyLocationMap from "../components/CompanyLocationMap";
 import { useActor } from "../lib/auth";
 import { findCityByName } from "../lib/location";
 import { createLead, listCategories, listCities, listCompanies } from "../lib/repo";
-import { checkDuplicate } from "./duplicate";
+import { checkDuplicate, type DuplicateMatch, type DuplicateResult } from "./duplicate";
 
-type CheckState = "idle" | "checking" | "none" | "exists" | "unavailable";
+type CheckState = "idle" | "checking" | DuplicateResult["status"];
 
 export default function RepNewCompany() {
   const actor = useActor();
@@ -32,10 +32,10 @@ export default function RepNewCompany() {
     province: "",
   });
   const [coords, setCoords] = useState<{ latitude?: number; longitude?: number }>({});
-  const [pinSource, setPinSource] = useState<LocationPinSource | null>(null);
   const [note, setNote] = useState("");
 
   const [check, setCheck] = useState<CheckState>("idle");
+  const [checkMatches, setCheckMatches] = useState<DuplicateMatch[]>([]);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState("");
 
@@ -43,15 +43,17 @@ export default function RepNewCompany() {
   /** Seçilen il `cities` tablosunda yoksa taslak adres/konum yine saklanır; yönetici eşler. */
   const missingCity = Boolean(location.province && !matchedCity);
 
+  /** Kontrol sonucu yalnız bilgilendirme içindir; asla kayıt akışını durdurmaz. */
   async function runCheck(name: string) {
     if (name.trim().length < 2) {
       setCheck("idle");
-      return "none" as const;
+      setCheckMatches([]);
+      return;
     }
     setCheck("checking");
-    const result = await checkDuplicate(name);
-    setCheck(result);
-    return result;
+    const result = await checkDuplicate(name, actor);
+    setCheck(result.status);
+    setCheckMatches(result.matches);
   }
 
   async function onSubmit(e: React.FormEvent) {
@@ -64,13 +66,8 @@ export default function RepNewCompany() {
 
     setBusy(true);
     try {
-      const result = await runCheck(companyName);
-      if (result === "exists") {
-        setError(
-          "Bu firma rehberde kayıtlı görünüyor. Mükerrer kayıt oluşturulmadı; gerekirse yöneticiyle iletişime geçin.",
-        );
-        return;
-      }
+      // Mükerrer kontrol sonuç gösterir; "exists" dahil her koşulda kayıt sürer.
+      await runCheck(companyName);
       createLead(
         {
           companyName,
@@ -123,7 +120,10 @@ export default function RepNewCompany() {
             value={companyName}
             onChange={(e) => {
               setCompanyName(e.target.value);
-              if (check !== "idle") setCheck("idle");
+              if (check !== "idle") {
+                setCheck("idle");
+                setCheckMatches([]);
+              }
             }}
             onBlur={() => {
               if (companyName.trim().length >= 3) void runCheck(companyName);
@@ -139,7 +139,9 @@ export default function RepNewCompany() {
           )}
           {check === "exists" && (
             <small style={{ color: "var(--rep-danger)", fontWeight: 600 }}>
-              Bu isimde bir firma rehberde kayıtlı görünüyor.
+              Benzer kayıt bulundu (bilgilendirme):
+              {checkMatches.map((m) => ` ${m.name}${m.district ? ` (${m.district})` : ""}`).join(",")}.
+              Yine de kaydedebilirsiniz.
             </small>
           )}
           {check === "none" && (
@@ -215,10 +217,8 @@ export default function RepNewCompany() {
               next.district !== location.district ||
               next.address !== location.address;
             setLocation(next);
-            if (addressChanged && pinSource !== "manual") {
-              setCoords({});
-              setPinSource(null);
-            }
+            // Adres değiştiyse eski koordinat artık geçerli değil; harita yeniden arar.
+            if (addressChanged) setCoords({});
           }}
         />
 
@@ -228,12 +228,11 @@ export default function RepNewCompany() {
           province={location.province}
           latitude={coords.latitude}
           longitude={coords.longitude}
-          onChange={(next, source) => {
+          onChange={(next) => {
             setCoords({
               latitude: next?.latitude,
               longitude: next?.longitude,
             });
-            setPinSource(next ? (source === "manual" ? "manual" : "geocode") : null);
           }}
         />
 
@@ -297,7 +296,8 @@ export default function RepNewCompany() {
           <ShieldCheck size={16} strokeWidth={1.9} aria-hidden="true" />
           <span>
             Bu form rehberde arama yapmaz ve başka firmaların bilgilerini göstermez. Mükerrer
-            kontrolü sunucuda yalnızca “var / yok” olarak yanıtlanır.
+            kontrol yalnız bilgilendirme amaçlıdır: benzer kayıt bulunsa bile taslak
+            kaydedilebilir; karar sizindir.
           </span>
         </div>
       </form>
