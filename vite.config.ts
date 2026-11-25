@@ -58,7 +58,7 @@ function injectSeoHead(template: string, seo: PageSeo, siteUrl: string): string 
   if (canonical) {
     tags.push(`<meta property="og:url" content="${escapeHtml(canonical)}" data-seo="1" />`);
   }
-  tags.push(`<meta property="og:site_name" content="Firma Rehberi" data-seo="1" />`);
+  tags.push(`<meta property="og:site_name" content="RehberiX" data-seo="1" />`);
   tags.push(`<meta property="og:locale" content="tr_TR" data-seo="1" />`);
   tags.push(`<meta name="twitter:card" content="summary" data-seo="1" />`);
   tags.push(`<meta name="twitter:title" content="${escapeHtml(seo.title)}" data-seo="1" />`);

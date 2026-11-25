@@ -21,6 +21,11 @@ export interface CategorySelectProps {
   ariaLabel?: string;
   disabled?: boolean;
   className?: string;
+  /**
+   * Mobilde de aramalı paneli açar (proje standardı native menüdür). Yalnız
+   * kategori sayısının çok olduğu personel firma formlarında kullanılır.
+   */
+  searchOnMobile?: boolean;
 }
 
 /**
@@ -36,6 +41,7 @@ export default function CategorySelect({
   ariaLabel = "Kategori",
   disabled,
   className,
+  searchOnMobile = false,
 }: CategorySelectProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -43,7 +49,7 @@ export default function CategorySelect({
   const id = useId();
   // Mobil: açılır seçim işletim sisteminin doğal native menüsüyle açılır
   // (proje standardı — "Tüm iller" davranışı); masaüstünde özel panel korunur.
-  const native = useMediaQuery(MOBILE_SELECT_QUERY);
+  const native = useMediaQuery(MOBILE_SELECT_QUERY) && !searchOnMobile;
 
   const selected = categories.find((category) => category.id === value);
   const filtered = useMemo(() => {

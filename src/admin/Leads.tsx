@@ -283,7 +283,8 @@ function ConvertLeadPanel({
     website: "",
     socials: { ...lead.socials, whatsapp: lead.socials?.whatsapp ?? lead.phone ?? "" },
     description: lead.note,
-    // hours verilmez → createCompany varsayılanını kullanır
+    // Personelin girdiği saatler varsa aynen aktarılır; yoksa createCompany varsayılanı
+    hours: lead.hours,
     featured: false,
     published: false, // admin onayı (doğrudan yayına al) olmadan yayına girmez
     repId: lead.repId ?? null,

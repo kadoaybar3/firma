@@ -259,6 +259,7 @@ export function leadFromRow(row: Record<string, unknown>): Lead {
     latitude: parsed.latitude,
     longitude: parsed.longitude,
     packageKey: parsed.packageKey,
+    hours: parsed.hours,
     note: parsed.note,
     status:
       sv(row, "status") === "yeni" ||
@@ -292,6 +293,7 @@ export function leadToRow(l: Lead): Record<string, unknown> {
       latitude: l.latitude,
       longitude: l.longitude,
       packageKey: l.packageKey,
+      hours: l.hours,
     }),
     status: l.status,
     visit_count: l.visitCount ?? 0,

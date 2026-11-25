@@ -397,7 +397,7 @@ export function GoogleScraperPanel({
                           <td colSpan={7}>
                             <div className="small">
                               {c.category && <>Google kategorisi: {c.category} · </>}
-                              <>Firma Rehberi kategorisi (arama): {ctxMapped?.name ?? ctxCategoryName ?? "—"} · </>
+                              <>RehberiX kategorisi (arama): {ctxMapped?.name ?? ctxCategoryName ?? "—"} · </>
                               {c.email && <>E-posta: {c.email} · </>}
                               {c.rating && <>Puan: {c.rating} ({c.reviewCount ?? "—"} yorum) · </>}
                               {c.hours && <>Saat: {c.hours} · </>}

@@ -734,12 +734,22 @@ export function createLead(
   data: Pick<
     Lead,
     "companyName" | "categoryId" | "cityId" | "district" | "phone" | "email" | "socials" | "note"
-  > & { address?: string; latitude?: number; longitude?: number },
+  > & { address?: string; latitude?: number; longitude?: number; hours?: Lead["hours"] },
   actor: Actor,
 ): Lead {
   if (actor.role !== "temsilci" || !actor.repId)
     throw new Error("Aday yalnızca satış temsilcisi tarafından eklenabilir.");
   const db = getDB();
+  // Çalışma saatleri firma ile aynı üç alanlı biçimde taşınır; hiçbiri
+  // girilmediyse alan hiç yazılmaz (firma varsayılanı korunur).
+  const hours = data.hours
+    ? {
+        weekday: data.hours.weekday.trim(),
+        saturday: data.hours.saturday.trim(),
+        sunday: data.hours.sunday.trim(),
+      }
+    : undefined;
+  const hasHours = Boolean(hours && (hours.weekday || hours.saturday || hours.sunday));
   const lead: Lead = {
     id: uid(),
     repId: actor.repId,
@@ -757,6 +767,7 @@ export function createLead(
     },
     address: data.address?.trim() || undefined,
     ...(normalizedDraftCoordinates(data) ?? {}),
+    ...(hasHours && hours ? { hours } : {}),
     note: data.note.trim(),
     status: "yeni",
     visitCount: 0,

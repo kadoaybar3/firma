@@ -127,6 +127,12 @@ export interface Lead {
   longitude?: number;
   /** Seçilen üyelik paketi (note işareti içinde taşınır; şema değişmez). */
   packageKey?: "normal" | "featured";
+  /**
+   * İşletmenin çalışma saatleri. `leads` tablosunda kolon olmadığından
+   * `note` işaretiyle taşınır (bkz. lib/leadLocation.ts); firma dönüşümünde
+   * `companies.hours` alanına aynen aktarılır.
+   */
+  hours?: CompanyHours;
   note: string;
   status: LeadStatus;
   visitCount: number;

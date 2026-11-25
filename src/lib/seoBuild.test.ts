@@ -36,7 +36,7 @@ describe("buildListPageSeo", () => {
 
   it("/firmalar: lokasyonlu başlık + Ana Sayfa → Firmalar (Faz 2B)", () => {
     const seo = buildListPageSeo(SITE, { kind: "firmalar" }, 84);
-    expect(seo.title).toBe("Afyonkarahisar'daki Tüm Firmalar | Firma Rehberi");
+    expect(seo.title).toBe("Afyonkarahisar'daki Tüm Firmalar | RehberiX");
     expect(seo.description).toBe(
       "Afyonkarahisar ve ilçelerindeki 84 firmayı kategori ve ilçe filtreleriyle arayın; telefon, çalışma saatleri ve yol tarifi bilgilerine ulaşın.",
     );
@@ -50,7 +50,7 @@ describe("buildListPageSeo", () => {
 
   it("/kategori/:catSlug: kategori adı + lokasyon + Kategoriler ara öğesi URL'siz (Faz 2B)", () => {
     const seo = buildListPageSeo(SITE, { kind: "kategori", name: "Kuyumculuk", slug: "kuyumculuk" }, 5);
-    expect(seo.title).toBe("Kuyumculuk — Afyonkarahisar | Firma Rehberi");
+    expect(seo.title).toBe("Kuyumculuk — Afyonkarahisar | RehberiX");
     // Kuyumculuk harita dışı → düşen açıklama: sayı parametre olarak görünür
     expect(seo.description).toBe(
       "Kuyumculuk — Afyonkarahisar'da 5 firma: telefon, adres, çalışma saatleri ve yol tarifi bilgileriyle.",
@@ -64,7 +64,7 @@ describe("buildListPageSeo", () => {
 
   it("/sehir/:citySlug: şehir adı (Faz 2B)", () => {
     const seo = buildListPageSeo(SITE, { kind: "sehir", name: "Afyonkarahisar", slug: "afyonkarahisar" }, 84);
-    expect(seo.title).toBe("Afyonkarahisar Firmaları | Firma Rehberi");
+    expect(seo.title).toBe("Afyonkarahisar Firmaları | RehberiX");
     expect(seo.description).toBe(
       "Afyonkarahisar'da 84 firma: kategori ve ilçelere göre filtreleyin; telefon ve yol tarifi bilgilerine kolayca ulaşın.",
     );
@@ -85,7 +85,7 @@ describe("buildListPageSeo", () => {
       },
       7,
     );
-    expect(seo.title).toBe("Afyonkarahisar İhsaniye Firmaları | Firma Rehberi");
+    expect(seo.title).toBe("Afyonkarahisar İhsaniye Firmaları | RehberiX");
     expect(seo.description).toBe(
       "Afyonkarahisar İhsaniye ilçesinde 7 firma: telefon, adres ve çalışma saatleri bilgileriyle firmalara ulaşın.",
     );
@@ -129,7 +129,7 @@ describe("buildFirmDetailSeo", () => {
 
   it("başlık/açıklama/canonical FirmDetailPage kalıbıyla aynı", () => {
     const seo = buildFirmDetailSeo(SITE, { company: base, category, city });
-    expect(seo.title).toBe("Örnek Firma | Firma Rehberi");
+    expect(seo.title).toBe("Örnek Firma | RehberiX");
     expect(seo.description).toBe("Örnek Firma — Kuyumculuk, Afyonkarahisar / Merkez. Telefon: 0272 000 00 00");
     expect(seo.canonicalPath).toBe("/firma/ornek-firma/");
     expect(seo.noindex).toBeUndefined();
@@ -179,7 +179,7 @@ describe("buildFirmDetailSeo", () => {
   it("yayımlanmamış firma → noindex, canonical ve JSON-LD yok", () => {
     const seo = buildFirmDetailSeo(SITE, { company: { ...base, published: false }, category, city });
     expect(seo.noindex).toBe(true);
-    expect(seo.title).toBe("Firma bulunamadı | Firma Rehberi");
+    expect(seo.title).toBe("Firma bulunamadı | RehberiX");
     expect(seo.canonicalPath).toBeUndefined();
     expect(seo.jsonLd).toEqual([]);
   });
@@ -188,23 +188,23 @@ describe("buildFirmDetailSeo", () => {
 describe("buildStaticPageSeo", () => {
   it("statik sayfa metinleri StaticPages ile birebir aynı", () => {
     expect(buildStaticPageSeo("/iletisim")).toEqual({
-      title: "İletişim | Firma Rehberi",
+      title: "İletişim | RehberiX",
       description: "Firmanızı rehbere ekletmek veya destek için bize ulaşın.",
       canonicalPath: "/iletisim/",
       jsonLd: [],
     });
     expect(buildStaticPageSeo("/hakkimizda")).toEqual({
-      title: "Hakkımızda | Firma Rehberi",
+      title: "Hakkımızda | RehberiX",
       canonicalPath: "/hakkimizda/",
       jsonLd: [],
     });
     expect(buildStaticPageSeo("/kvkk")).toEqual({
-      title: "KVKK Aydınlatma Metni | Firma Rehberi",
+      title: "KVKK Aydınlatma Metni | RehberiX",
       canonicalPath: "/kvkk/",
       jsonLd: [],
     });
     expect(buildStaticPageSeo("/kullanim-kosullari")).toEqual({
-      title: "Kullanım Koşulları | Firma Rehberi",
+      title: "Kullanım Koşulları | RehberiX",
       canonicalPath: "/kullanim-kosullari/",
       jsonLd: [],
     });
@@ -220,7 +220,7 @@ describe("buildStaticPageSeo", () => {
 describe("buildHomeSeo", () => {
   it("ana sayfa başlığı/açıklaması HomePage ile aynı; canonical /", () => {
     const seo = buildHomeSeo(SITE);
-    expect(seo.title).toBe("Firma Rehberi — Afyonkarahisar'daki Firmaları Kolayca Bulun");
+    expect(seo.title).toBe("RehberiX — Afyonkarahisar'daki Firmaları Kolayca Bulun");
     expect(seo.description).toBe(
       "Afyonkarahisar ve ilçelerindeki güvenilir firmaları kategori, ilçe ve arama ile keşfedin.",
     );
@@ -302,9 +302,13 @@ describe("Faz 2B: 15 indekslenebilir liste sayfası metinleri", () => {
       const { title } = listSeoText(page, count);
       expect(title.length, `${title} (${title.length})`).toBeLessThanOrEqual(60);
     }
-    // tur kategorisi uzun adında konum başa alınır
+    // Marka kısaldığı için bu kategori 60 sınırının altında kalır (konum başa alınmaz).
     expect(listSeoText({ kind: "kategori", name: "Tur ve Gezi Organizasyonları", slug: "tur-ve-gezi-organizasyonlari" }, 1).title).toBe(
-      "Afyonkarahisar Tur ve Gezi Organizasyonları | Firma Rehberi",
+      "Tur ve Gezi Organizasyonları — Afyonkarahisar | RehberiX",
+    );
+    // 60 karakteri aşan uzun adda konum başa alınır (dal korunuyor).
+    expect(listSeoText({ kind: "kategori", name: "Spor ve Fitness Merkezleri ve Kursları", slug: "spor-ve-fitness" }, 1).title).toBe(
+      "Afyonkarahisar Spor ve Fitness Merkezleri ve Kursları | RehberiX",
     );
   });
 

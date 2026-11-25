@@ -5,9 +5,18 @@ import { AddressFields, type AddressSelection } from "../admin/AddressFields";
 import CategorySelect from "../components/CategorySelect";
 import CompanyLocationMap from "../components/CompanyLocationMap";
 import { useActor } from "../lib/auth";
+import type { GoogleMapsPlace } from "../lib/googleMapsLink";
+import {
+  emptyHoursDraft,
+  hoursDraftError,
+  hoursDraftToCompanyHours,
+  type HoursDraft,
+} from "../lib/hours";
 import { findCityByName } from "../lib/location";
 import { createLead, listCategories, listCities, listCompanies } from "../lib/repo";
 import { checkDuplicate, type DuplicateMatch, type DuplicateResult } from "./duplicate";
+import GoogleMapsImport from "./GoogleMapsImport";
+import HoursFields from "./HoursFields";
 
 type CheckState = "idle" | "checking" | DuplicateResult["status"];
 
@@ -32,6 +41,11 @@ export default function RepNewCompany() {
     province: "",
   });
   const [coords, setCoords] = useState<{ latitude?: number; longitude?: number }>({});
+  /** Google Maps'ten aktarılan kesin konum varken adresten otomatik arama yapılmaz. */
+  const [importedPin, setImportedPin] = useState(false);
+  /** Adres alanlarını aktarılan değerlerle yeniden kurmak için (bileşen kendi durumunu tutar). */
+  const [addressVersion, setAddressVersion] = useState(0);
+  const [hours, setHours] = useState<HoursDraft>(emptyHoursDraft);
   const [note, setNote] = useState("");
 
   const [check, setCheck] = useState<CheckState>("idle");
@@ -42,6 +56,25 @@ export default function RepNewCompany() {
   const matchedCity = findCityByName(cities, location.province);
   /** Seçilen il `cities` tablosunda yoksa taslak adres/konum yine saklanır; yönetici eşler. */
   const missingCity = Boolean(location.province && !matchedCity);
+
+  /** Google Maps bağlantısından gelen bilgileri forma uygular; elle düzeltmeye açık kalır. */
+  function applyMapsPlace(info: GoogleMapsPlace) {
+    const hasCoords = info.latitude !== undefined && info.longitude !== undefined;
+    setCoords(hasCoords ? { latitude: info.latitude, longitude: info.longitude } : {});
+    setImportedPin(hasCoords);
+    if (info.placeName && !companyName.trim()) setCompanyName(info.placeName);
+    if (info.address) {
+      // İl/ilçe bağlantı adresinden ayrıştırıldı; bulunamadıysa boş kalır.
+      const province = info.province ?? "";
+      setLocation({
+        cityId: findCityByName(cities, province)?.id ?? "",
+        district: info.district ?? "",
+        address: info.address,
+        province,
+      });
+      setAddressVersion((version) => version + 1);
+    }
+  }
 
   /** Kontrol sonucu yalnız bilgilendirme içindir; asla kayıt akışını durdurmaz. */
   async function runCheck(name: string) {
@@ -64,6 +97,14 @@ export default function RepNewCompany() {
       return;
     }
 
+    const hoursError = hoursDraftError(hours);
+    if (hoursError) {
+      setError(hoursError);
+      return;
+    }
+    // Hiç açık gün yoksa saat alanı hiç gönderilmez (firma varsayılanı korunur).
+    const savedHours = hoursDraftToCompanyHours(hours);
+
     setBusy(true);
     try {
       // Mükerrer kontrol sonuç gösterir; "exists" dahil her koşulda kayıt sürer.
@@ -81,6 +122,7 @@ export default function RepNewCompany() {
           ...(coords.latitude !== undefined && coords.longitude !== undefined
             ? { latitude: coords.latitude, longitude: coords.longitude }
             : {}),
+          ...(savedHours ? { hours: savedHours } : {}),
           note,
         },
         actor,
@@ -202,13 +244,18 @@ export default function RepNewCompany() {
             onChange={setCategoryId}
             placeholder="Seçiniz"
             ariaLabel="Kategori"
+            searchOnMobile
           />
         </div>
 
+        <GoogleMapsImport onApply={applyMapsPlace} />
+
         <AddressFields
+          key={addressVersion}
           cities={cities}
           companies={suggestionCompanies}
           initialCityId={location.cityId}
+          initialProvince={location.province}
           initialDistrict={location.district}
           initialAddress={location.address}
           onChange={(next) => {
@@ -218,7 +265,10 @@ export default function RepNewCompany() {
               next.address !== location.address;
             setLocation(next);
             // Adres değiştiyse eski koordinat artık geçerli değil; harita yeniden arar.
-            if (addressChanged) setCoords({});
+            if (addressChanged) {
+              setCoords({});
+              setImportedPin(false);
+            }
           }}
         />
 
@@ -228,13 +278,26 @@ export default function RepNewCompany() {
           province={location.province}
           latitude={coords.latitude}
           longitude={coords.longitude}
+          autoGeocode={!importedPin}
           onChange={(next) => {
+            // Pin elle taşınsa bile otomatik adres araması kapalı kalır; yalnız
+            // adres alanı değişince yeniden açılır (aktarılan konum korunur).
             setCoords({
               latitude: next?.latitude,
               longitude: next?.longitude,
             });
           }}
         />
+
+        <div className="rep-field">
+          <span className="rep-hours__legend">Çalışma saatleri</span>
+          <HoursFields value={hours} onChange={setHours} />
+          <small>
+            Kapalı bırakılan günler firma profilinde “Kapalı” olarak görünür. Hafta içi günleri
+            (Pazartesi–Cuma) tek saat aralığı olarak saklanır; birini değiştirdiğinizde hafta içi
+            günlerinin tümü aynı olur. Hiç gün açmazsanız firma kaydı yine de tamamlanır.
+          </small>
+        </div>
 
         {missingCity && (
           <div className="rep-note rep-note--warn" role="note">

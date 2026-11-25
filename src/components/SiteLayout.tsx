@@ -32,9 +32,9 @@ function SiteHeader() {
   return (
     <header className="site-header">
       <div className="container site-header__inner">
-        <Link className="brand" to="/" aria-label="Firma Rehberi ana sayfa">
+        <Link className="brand" to="/" aria-label="RehberiX ana sayfa">
           <BrandMark />
-          <span className="brand__name">Firma Rehberi</span>
+          <span className="brand__name">RehberiX</span>
         </Link>
 
         {/* Menüde yalnız iki bağlantı: kategoriler ana sayfada keşfedilir. */}
@@ -67,7 +67,7 @@ function SiteFooter() {
         <div className="site-footer__brand">
           <div className="brand brand--static">
             <BrandMark />
-            <span className="brand__name">Firma Rehberi</span>
+            <span className="brand__name">RehberiX</span>
           </div>
           <p className="site-footer__about">
             Yerel işletmelerin internette bulunabilirliğini artıran firma rehberi. Afyonkarahisar'da
@@ -93,7 +93,7 @@ function SiteFooter() {
         </nav>
       </div>
       <div className="container site-footer__note">
-        <span>© {new Date().getFullYear()} Firma Rehberi</span>
+        <span>© {new Date().getFullYear()} RehberiX</span>
         <span>Afyonkarahisar firma rehberi</span>
       </div>
     </footer>

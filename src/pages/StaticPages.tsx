@@ -28,7 +28,7 @@ export function ContactPage() {
   const [honeypot, setHoneypot] = useState("");
   return (
     <SEO
-      title="İletişim | Firma Rehberi"
+      title="İletişim | RehberiX"
       description="Firmanızı rehbere ekletmek veya destek için bize ulaşın."
     >
       <div className="section container" style={{ maxWidth: 720 }}>
@@ -82,7 +82,7 @@ export function ContactPage() {
               </div>
               <div className="package-card__price">1.000 TL</div>
               <p className="text-muted small">
-                İşletmeniz Firma Rehberi'nde listelenir; ziyaretçiler firma profilinizi ve iletişim
+                İşletmeniz RehberiX'te listelenir; ziyaretçiler firma profilinizi ve iletişim
                 bilgilerinizi görüntüleyebilir.
               </p>
             </article>
@@ -267,7 +267,7 @@ export function BasvuruPage() {
   const [honeypot, setHoneypot] = useState("");
 
   return (
-    <SEO title="Personel Başvurusu | Firma Rehberi" noindex>
+    <SEO title="Personel Başvurusu | RehberiX" noindex>
       <div className="section container" style={{ maxWidth: 720 }}>
         <div className="page-head">
           <h2>Personel Başvurusu</h2>
@@ -400,14 +400,14 @@ export function BasvuruPage() {
 
 export function HakkindaPage() {
   return (
-    <SEO title="Hakkımızda | Firma Rehberi">
+    <SEO title="Hakkımızda | RehberiX">
       <div className="section container" style={{ maxWidth: 760 }}>
         <div className="page-head">
           <h2>Hakkımızda</h2>
         </div>
         <div className="card card__pad">
           <p style={{ lineHeight: 1.7 }}>
-            <strong>Firma Rehberi</strong>; küçük ve orta ölçekli işletmelerin internette
+            <strong>RehberiX</strong>; küçük ve orta ölçekli işletmelerin internette
             bulunabilirliğini artırmak amacıyla tasarlanmış bir yerel firma rehberi platformudur.
             İlk olarak Afyonkarahisar'da faaliyete geçmiştir; kısa sürede Türkiye genelinde il, ilçe
             ve kategori bazında yaygınlaşma hedefindedir.
@@ -427,7 +427,7 @@ export function HakkindaPage() {
 
 export function KvkkPage() {
   return (
-    <SEO title="KVKK Aydınlatma Metni | Firma Rehberi">
+    <SEO title="KVKK Aydınlatma Metni | RehberiX">
       <div className="section container" style={{ maxWidth: 760 }}>
         <div className="page-head">
           <h2>KVKK Aydınlatma Metni</h2>
@@ -461,7 +461,7 @@ export function KvkkPage() {
 
 export function TermsPage() {
   return (
-    <SEO title="Kullanım Koşulları | Firma Rehberi">
+    <SEO title="Kullanım Koşulları | RehberiX">
       <div className="section container" style={{ maxWidth: 760 }}>
         <div className="page-head">
           <h2>Kullanım Koşulları</h2>
@@ -483,7 +483,7 @@ export function TermsPage() {
 
 export function NotFoundPage() {
   return (
-    <SEO title="Sayfa bulunamadı | Firma Rehberi" noindex>
+    <SEO title="Sayfa bulunamadı | RehberiX" noindex>
       <div className="section container" style={{ padding: "48px 16px" }}>
         <div className="empty-state">
           <span className="empty-state__icon" aria-hidden="true">
@@ -516,14 +516,14 @@ export function LoginPage() {
   }
 
   return (
-    <SEO title="Giriş | Firma Rehberi Paneller" noindex>
+    <SEO title="Giriş | RehberiX Paneller" noindex>
       <div className="auth-wrap">
         <div className="auth-brand">
           <span className="auth-brand__mark" aria-hidden="true">
             <MapPin size={18} strokeWidth={2.1} />
           </span>
           <span className="auth-brand__text">
-            <strong>Firma Rehberi</strong>
+            <strong>RehberiX</strong>
             <span className="text-muted small">Afyonkarahisar işletme rehberi</span>
           </span>
         </div>

@@ -301,7 +301,6 @@ export default function AdminDashboard() {
   const summary: Array<{ label: string; value: string; icon: LucideIcon; alert?: boolean }> = [
     { label: "Toplam firma", value: String(companies.length), icon: Building2 },
     { label: "Yayında firma", value: String(publishedCount), icon: BadgeCheck },
-    { label: "Bekleyen işlem", value: String(queueTotal), icon: ListChecks, alert: queueTotal > 0 },
     { label: "Personel", value: String(reps.length), icon: Users },
     { label: "Tahsil edilen", value: formatTRY(confirmedTotal), icon: Banknote },
     { label: "Bekleyen tutar", value: formatTRY(waitingTotal), icon: Clock3 },
@@ -323,10 +322,21 @@ export default function AdminDashboard() {
               : lead}
           </p>
         </div>
-        <div className="dq-hero__date" aria-label={dateLong}>
-          <span className="dq-hero__day">{dayNumber}</span>
-          <span className="dq-hero__month">{monthYear}</span>
-          <span className="dq-hero__weekday">{weekday}</span>
+        <div className="dq-hero__aside">
+          <div className={`dq-sum ${queueTotal > 0 ? "dq-sum--alert" : ""}`}>
+            <span className="dq-sum__icon">
+              <ListChecks size={16} strokeWidth={1.9} aria-hidden="true" />
+            </span>
+            <span className="dq-sum__body">
+              <span className="dq-sum__value">{queueTotal}</span>
+              <span className="dq-sum__label">Bekleyen işlem</span>
+            </span>
+          </div>
+          <div className="dq-hero__date" aria-label={dateLong}>
+            <span className="dq-hero__day">{dayNumber}</span>
+            <span className="dq-hero__month">{monthYear}</span>
+            <span className="dq-hero__weekday">{weekday}</span>
+          </div>
         </div>
       </section>
 

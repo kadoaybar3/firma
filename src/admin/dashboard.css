@@ -1099,6 +1099,22 @@
   text-transform: uppercase;
 }
 
+/* Tarih alanının hemen solundaki Bekleyen işlem kutucuğu (aynı .dq-sum tasarımı). */
+.dq-hero__aside {
+  display: flex;
+  flex: none;
+  align-items: center;
+  gap: clamp(14px, 2vw, 24px);
+}
+
+@media (max-width: 719px) {
+  .dq-hero__aside {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 14px;
+  }
+}
+
 /* =========================================================
    İŞ ÖZETİ — .dq-summary (küçük, tek satırda okunur kartlar)
    ========================================================= */

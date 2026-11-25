@@ -79,7 +79,7 @@ export function useSEO(options: SeoOptions): void {
       ["og:title", title],
       ["og:description", description ?? fallbackDescription],
       ["og:type", ogType],
-      ["og:site_name", "Firma Rehberi"],
+      ["og:site_name", "RehberiX"],
       ["og:locale", "tr_TR"],
     ];
     if (ogImage) ogEntries.push(["og:image", ogImage]);

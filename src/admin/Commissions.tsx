@@ -238,7 +238,7 @@ export default function AdminCommissions() {
         </div>
         <div className="adm-panel__body">
           <p className="text-muted small">
-            Ekip üyelerinin her yeni satışında, satış sonrası Firma Rehberi&apos;ne kalan tutarın
+            Ekip üyelerinin her yeni satışında, satış sonrası RehberiX&apos;e kalan tutarın
             %20&apos;si ekip liderine yazılır. Temsilci komisyonlarından ayrı bir defterdir;
             mevcut temsilci bakiyelerini etkilemez.
           </p>

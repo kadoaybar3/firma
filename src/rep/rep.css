@@ -242,12 +242,33 @@
   color: var(--rep-text);
 }
 
+/* RehberiX ana sayfasına dönüş — panel üstünde, mobilde de görünür. */
+.rep-side__home {
+  justify-content: flex-start;
+  gap: 9px;
+}
+
+.rep-topbar__home span {
+  white-space: nowrap;
+}
+
+@media (max-width: 380px) {
+  .rep-topbar__home span {
+    display: none;
+  }
+
+  .rep-topbar__home {
+    width: 40px;
+    padding: 0;
+  }
+}
+
 /* ---------- Ana içerik ---------- */
 .rep-main {
   width: 100%;
   max-width: 1120px;
   margin: 0 auto;
-  padding: 18px 16px 104px;
+  padding: 18px 16px calc(86px + env(safe-area-inset-bottom, 0px));
 }
 
 .rep-pagehead {
@@ -685,6 +706,194 @@
   margin-top: 4px;
 }
 
+/* ---------- Çalışma saatleri (yeni firma formu) ---------- */
+.rep-hours__legend {
+  font-size: 12.5px;
+  font-weight: 650;
+  color: var(--rep-text);
+}
+
+.rep-hours {
+  display: flex;
+  flex-direction: column;
+  padding: 2px 12px;
+  border: 1px solid var(--rep-border);
+  border-radius: var(--rep-radius-sm);
+  background: #fff;
+}
+
+.rep-hours__row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 10px;
+  padding: 9px 0;
+  border-top: 1px solid var(--rep-border);
+}
+
+.rep-hours__row:first-child {
+  border-top: none;
+}
+
+.rep-hours__day {
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.rep-hours__toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  justify-self: end;
+  font-size: 12px;
+  font-weight: 650;
+  color: var(--rep-muted);
+  cursor: pointer;
+  user-select: none;
+}
+
+.rep-hours__toggle input {
+  width: 18px;
+  height: 18px;
+  margin: 0;
+  accent-color: var(--rep-primary);
+}
+
+.rep-hours__row.is-open .rep-hours__toggle {
+  color: var(--rep-primary);
+}
+
+.rep-hours__times {
+  grid-column: 1 / -1;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.rep-hours__time {
+  flex: 1 1 auto;
+  min-height: 40px;
+  max-width: 140px;
+  padding: 6px 8px;
+  font-size: 14px;
+}
+
+.rep-hours__dash {
+  font-size: 13px;
+  color: var(--rep-muted);
+}
+
+.rep-hours__error {
+  margin: 0 0 10px;
+  font-size: 11.5px;
+  font-weight: 650;
+  color: var(--rep-danger);
+}
+
+@media (min-width: 520px) {
+  .rep-hours__row {
+    grid-template-columns: 96px minmax(0, 1fr) auto;
+  }
+
+  .rep-hours__times {
+    grid-column: auto;
+  }
+}
+
+/* ---------- Google Maps bağlantısı (yeni firma formu) ---------- */
+.rep-mapimport__inputrow {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.rep-mapimport__spin {
+  animation: rep-mapimport-spin 0.9s linear infinite;
+}
+
+@keyframes rep-mapimport-spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.rep-mapimport {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 2px;
+}
+
+.rep-mapimport__preview {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 0;
+  padding: 12px;
+  border: 1px solid var(--rep-border);
+  border-radius: var(--rep-radius-sm);
+  background: var(--rep-surface-2);
+}
+
+.rep-mapimport__row {
+  display: grid;
+  grid-template-columns: 78px minmax(0, 1fr);
+  gap: 4px 10px;
+  align-items: start;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
+
+.rep-mapimport__row dt {
+  color: var(--rep-muted);
+  font-weight: 600;
+}
+
+.rep-mapimport__row dd {
+  margin: 0;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.rep-mapimport__row dd svg {
+  vertical-align: -2px;
+  color: var(--rep-muted);
+}
+
+.rep-mapimport__actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.rep-mapimport__ok {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--rep-success);
+}
+
+.rep-mapimport__ok svg {
+  flex: 0 0 auto;
+  margin-top: 1px;
+}
+
+@media (min-width: 520px) {
+  .rep-mapimport__inputrow {
+    flex-direction: row;
+    align-items: stretch;
+  }
+
+  .rep-mapimport__inputrow .rep-btn {
+    flex: 0 0 auto;
+    white-space: nowrap;
+  }
+}
+
 /* ---------- Uyarı / bilgi ---------- */
 .rep-note {
   display: flex;
@@ -870,6 +1079,7 @@
 }
 
 /* ---------- Alt sekme çubuğu ---------- */
+/* Beş sekme de tek satırda kalır: eşit genişlikli sütunlar + taşmayan etiket */
 .rep-tabbar {
   position: fixed;
   left: 0;
@@ -877,9 +1087,9 @@
   bottom: 0;
   z-index: 30;
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   gap: 2px;
-  padding: 6px 8px calc(6px + env(safe-area-inset-bottom, 0px));
+  padding: 6px 4px calc(6px + env(safe-area-inset-bottom, 0px));
   background: rgba(255, 255, 255, 0.96);
   backdrop-filter: saturate(180%) blur(14px);
   border-top: 1px solid var(--rep-border);
@@ -891,13 +1101,25 @@
   align-items: center;
   justify-content: center;
   gap: 3px;
-  min-height: 52px;
+  min-width: 0;
+  min-height: 50px;
+  padding: 4px 1px;
   border-radius: 12px;
   text-decoration: none;
   color: #7b8798;
-  font-size: 10.5px;
+  font-size: 10px;
   font-weight: 600;
-  letter-spacing: 0.01em;
+  line-height: 1.15;
+  letter-spacing: 0;
+  text-align: center;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.rep-tab svg {
+  width: 20px;
+  height: 20px;
+  flex: none;
 }
 
 .rep-tab.is-active {
@@ -905,10 +1127,29 @@
   background: var(--rep-primary-soft);
 }
 
+/* 320–359 px: etiket ve ikon bir tık küçülür, tek satır korunur */
+@media (max-width: 359px) {
+  .rep-tabbar {
+    gap: 1px;
+    padding-left: 2px;
+    padding-right: 2px;
+  }
+
+  .rep-tab {
+    gap: 2px;
+    font-size: 9.5px;
+  }
+
+  .rep-tab svg {
+    width: 18px;
+    height: 18px;
+  }
+}
+
 /* ---------- Duyarlı kırılımlar ---------- */
 @media (min-width: 560px) {
   .rep-main {
-    padding: 22px 20px 104px;
+    padding: 22px 20px calc(86px + env(safe-area-inset-bottom, 0px));
   }
 
   .rep-stats {

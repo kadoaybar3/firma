@@ -9,6 +9,7 @@ import {
   ExternalLink,
   FolderTree,
   LayoutDashboard,
+  LayoutGrid,
   type LucideIcon,
   LogOut,
   MapPin,
@@ -45,7 +46,7 @@ interface NavSection {
 }
 
 /**
- * Yönetim bilgi mimarisi — yedi ana bölüm.
+ * Yönetim bilgi mimarisi — sekiz ana bölüm.
  * Alt sayfalar yeni rota uydurmadan, mevcut rotalar korunarak bağlanır.
  */
 const MAIN_SECTIONS: NavSection[] = [
@@ -59,19 +60,13 @@ const MAIN_SECTIONS: NavSection[] = [
   },
   {
     id: "company-line",
-    label: "Firma Hattı",
-    to: "/yonetim/firma-akisi",
+    label: "Firma Detayları",
+    to: "/yonetim/adaylar",
     icon: Workflow,
-    paths: [
-      "/yonetim/firma-akisi",
-      "/yonetim/adaylar",
-      "/yonetim/firmalar",
-      "/yonetim/ice-aktar",
-    ],
+    paths: ["/yonetim/adaylar", "/yonetim/firmalar"],
     children: [
       { to: "/yonetim/adaylar", label: "Adaylar" },
       { to: "/yonetim/firmalar", label: "Firmalar" },
-      { to: "/yonetim/ice-aktar", label: "İçe Aktarma" },
     ],
   },
   {
@@ -79,10 +74,25 @@ const MAIN_SECTIONS: NavSection[] = [
     label: "Satış ve Tahsilat",
     to: "/yonetim/satislar",
     icon: Wallet,
-    paths: ["/yonetim/satislar", "/yonetim/odemeler", "/yonetim/uyelikler"],
+    paths: ["/yonetim/satislar"],
+    children: [],
+  },
+  {
+    id: "misc",
+    label: "Çeşitli",
+    to: "/yonetim/firma-akisi",
+    icon: LayoutGrid,
+    paths: [
+      "/yonetim/firma-akisi",
+      "/yonetim/ice-aktar",
+      "/yonetim/odemeler",
+      "/yonetim/uyelikler",
+    ],
     children: [
+      { to: "/yonetim/firma-akisi", label: "Firma Hattı" },
+      { to: "/yonetim/ice-aktar", label: "İçe Aktarma" },
       { to: "/yonetim/odemeler", label: "Ödeme Kayıtları" },
-      { to: "/yonetim/uyelikler", label: "Üyelikler" },
+      { to: "/yonetim/uyelikler", label: "Üyelik Yenileme" },
     ],
   },
   {
@@ -346,7 +356,7 @@ export function AdminLayout() {
               <MapPin size={17} strokeWidth={2.1} />
             </span>
             <span className="adm-brand__text">
-              <span className="adm-brand__title">Firma Rehberi</span>
+              <span className="adm-brand__title">RehberiX</span>
               <span className="adm-brand__sub">Yönetim paneli</span>
             </span>
           </Link>

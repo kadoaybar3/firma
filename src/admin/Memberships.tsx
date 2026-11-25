@@ -29,7 +29,7 @@ export default function AdminMemberships() {
   return (
     <div className="panel-content">
       <PanelHead
-        title="Üyelikler"
+        title="Üyelik Yenileme"
         desc="Firma yıllık üyelikleri ve yenileme süreçleri. Yenileme komisyonu, üyeliği ilk kazandıran temsilciye otomatik bağlanır."
       />
       {error && <ErrorBanner message={error} />}

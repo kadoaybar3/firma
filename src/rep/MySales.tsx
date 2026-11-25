@@ -131,7 +131,7 @@ export default function RepMySales() {
             <h2>Ekip Liderliği Komisyonu</h2>
           </div>
           <p className="text-muted small">
-            Ekibinizdeki personelin her yeni satışında, satış sonrası Firma Rehberi&apos;ne kalan
+            Ekibinizdeki personelin her yeni satışında, satış sonrası RehberiX&apos;e kalan
             tutarın %20&apos;si hakedişinize yazılır. Temsilci komisyonlarınızdan ayrıdır.
           </p>
 

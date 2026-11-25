@@ -95,9 +95,19 @@ export function RepLayout() {
             <MapPin size={18} strokeWidth={2.2} />
           </span>
           <span className="rep-brand__text">
-            <strong>Firma Rehberi</strong>
+            <strong>RehberiX</strong>
             <span>Temsilci paneli</span>
           </span>
+        </Link>
+
+        {/* Panelin dışına, herkese açık RehberiX ana sayfasına dönüş */}
+        <Link
+          className="rep-btn rep-btn--ghost rep-btn--sm rep-btn--block rep-side__home"
+          to="/"
+          title="RehberiX ana sayfası"
+        >
+          <Home size={16} strokeWidth={1.9} aria-hidden="true" />
+          Ana Sayfa
         </Link>
 
         <nav className="rep-nav">
@@ -145,10 +155,19 @@ export function RepLayout() {
             </span>
             <span className="rep-topbar__title">
               <strong>{active?.label ?? "Panel"}</strong>
-              <span>Firma Rehberi · Temsilci</span>
+              <span>RehberiX · Temsilci</span>
             </span>
           </Link>
           <div className="rep-topbar__actions">
+            <Link
+              className="rep-btn rep-btn--ghost rep-btn--sm rep-topbar__home"
+              to="/"
+              aria-label="RehberiX ana sayfası"
+              title="RehberiX ana sayfası"
+            >
+              <Home size={16} strokeWidth={1.9} aria-hidden="true" />
+              <span>Ana Sayfa</span>
+            </Link>
             <button
               type="button"
               className="rep-iconbtn"

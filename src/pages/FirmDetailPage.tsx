@@ -105,7 +105,7 @@ export default function FirmDetailPage() {
 
   if (!company || !company.published) {
     return (
-      <SEO title="Firma bulunamadı | Firma Rehberi" noindex>
+      <SEO title="Firma bulunamadı | RehberiX" noindex>
         <div className="section container" style={{ padding: "48px 16px" }}>
           <EmptyState
             icon={<Building2 size={30} strokeWidth={1.5} aria-hidden="true" />}
@@ -180,7 +180,7 @@ export default function FirmDetailPage() {
 
   return (
     <SEO
-      title={`${company.name} | Firma Rehberi`}
+      title={`${company.name} | RehberiX`}
       description={`${company.name} — ${category?.name ?? ""}, ${locationText}.${
         hasHours ? (open ? " Şu an açık." : " Şu an kapalı.") : ""
       }${company.phone ? ` Telefon: ${company.phone}` : ""}`}

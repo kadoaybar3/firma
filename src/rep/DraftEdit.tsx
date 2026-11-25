@@ -304,6 +304,7 @@ export default function RepDraftEdit() {
               onChange={setCategoryId}
               placeholder="Seçiniz"
               ariaLabel="Kategori"
+              searchOnMobile
             />
           </div>
 

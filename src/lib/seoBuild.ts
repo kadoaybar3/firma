@@ -65,7 +65,7 @@ export function listSeoText(
 
 /** Liste sayfası SEO başlığı (Faz 2B) — H1/breadcrumb başlığı `title`'dan FARKLIDIR. */
 function listTitle(page: ListBreadcrumbPage): string {
-  const brand = " | Firma Rehberi";
+  const brand = " | RehberiX";
   switch (page.kind) {
     case "firmalar":
       return `Afyonkarahisar'daki Tüm Firmalar${brand}`;
@@ -185,7 +185,7 @@ export function buildFirmDetailSeo(
   const { company, category, city } = opts;
 
   if (!company.published) {
-    return { title: "Firma bulunamadı | Firma Rehberi", noindex: true, jsonLd: [] };
+    return { title: "Firma bulunamadı | RehberiX", noindex: true, jsonLd: [] };
   }
 
   const root = origin(siteUrl);
@@ -194,7 +194,7 @@ export function buildFirmDetailSeo(
   const locationText = city ? `${city.name} / ${company.district}` : company.district;
 
   return {
-    title: `${company.name} | Firma Rehberi`,
+    title: `${company.name} | RehberiX`,
     description: `${company.name} — ${category?.name ?? ""}, ${locationText}.${
       company.phone ? ` Telefon: ${company.phone}` : ""
     }`,
@@ -223,7 +223,7 @@ export function buildFirmDetailSeo(
 export function buildHomeSeo(siteUrl: string): PageSeo {
   const root = origin(siteUrl);
   return {
-    title: "Firma Rehberi — Afyonkarahisar'daki Firmaları Kolayca Bulun",
+    title: "RehberiX — Afyonkarahisar'daki Firmaları Kolayca Bulun",
     description:
       "Afyonkarahisar ve ilçelerindeki güvenilir firmaları kategori, ilçe ve arama ile keşfedin.",
     canonicalPath: "/",
@@ -231,7 +231,7 @@ export function buildHomeSeo(siteUrl: string): PageSeo {
       {
         "@context": "https://schema.org",
         "@type": "WebSite",
-        name: "Firma Rehberi",
+        name: "RehberiX",
         url: root,
         inLanguage: "tr",
         potentialAction: {
@@ -250,12 +250,12 @@ export function buildHomeSeo(siteUrl: string): PageSeo {
 /** Statik sayfa metinleri — StaticPages.tsx ile birebir aynı literal'lar. */
 const STATIC_PAGES: Record<string, { title: string; description?: string }> = {
   "/iletisim": {
-    title: "İletişim | Firma Rehberi",
+    title: "İletişim | RehberiX",
     description: "Firmanızı rehbere ekletmek veya destek için bize ulaşın.",
   },
-  "/hakkimizda": { title: "Hakkımızda | Firma Rehberi" },
-  "/kvkk": { title: "KVKK Aydınlatma Metni | Firma Rehberi" },
-  "/kullanim-kosullari": { title: "Kullanım Koşulları | Firma Rehberi" },
+  "/hakkimizda": { title: "Hakkımızda | RehberiX" },
+  "/kvkk": { title: "KVKK Aydınlatma Metni | RehberiX" },
+  "/kullanim-kosullari": { title: "Kullanım Koşulları | RehberiX" },
 };
 
 /**

@@ -42,7 +42,12 @@
   status = 200
 
 [build.environment]
-  NODE_VERSION = "20"
+  # Node 22+: Netlify Functions, bu sürümü build ile birlikte çalışma zamanı
+  # olarak da kullanır. @supabase/supabase-js createClient() içinde Realtime
+  # istemcisini hemen kurar ve WebSocket transport'unu çözer; global WebSocket
+  # yalnızca Node 22+ ile gelir. Node 20'de üyelik/hesap/personel uçları
+  # "Node.js detected but native WebSocket not found" ile 502 verir.
+  NODE_VERSION = "22"
 
 # Yerel geliştirme: Netlify Dev, Vite dev sunucusunu (5173) proxy'ler ve
 # /api/* fonksiyonlarını birlikte sunar. Tarayıcı adresi: http://localhost:8888

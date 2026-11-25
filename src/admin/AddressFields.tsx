@@ -30,6 +30,7 @@ export function AddressFields({
   cities,
   companies,
   initialCityId,
+  initialProvince,
   initialDistrict,
   initialAddress,
   fieldErrors,
@@ -38,21 +39,24 @@ export function AddressFields({
   cities: City[];
   companies: Array<Pick<Company, "cityId" | "district" | "address">>;
   initialCityId: string;
+  /** Veritabanında şehir kaydı yoksa da il seçili görünsün diye (ör. Google Maps aktarımı). */
+  initialProvince?: string;
   initialDistrict: string;
   initialAddress: string;
   fieldErrors?: { cityId?: string; district?: string };
   onChange: (next: AddressSelection) => void;
 }) {
   const initialCity = cities.find((city) => city.id === initialCityId);
+  const initialProvinceName = initialCity?.name || initialProvince || "";
   const [province, setProvince] = useState(() => {
-    const initialName = initialCity?.name ?? "";
+    const initialName = initialProvinceName;
     return TR_ILLER.find((name) => normalizeSearch(name) === normalizeSearch(initialName)) ?? initialName;
   });
   const [cityId, setCityId] = useState(initialCityId);
   const [district, setDistrict] = useState(initialDistrict);
   const [parts, setParts] = useState<AddressParts>(() =>
     initialAddress.trim()
-      ? parseAddress(initialAddress, initialDistrict, initialCity?.name ?? "")
+      ? parseAddress(initialAddress, initialDistrict, initialProvinceName)
       : EMPTY_ADDRESS_PARTS,
   );
   /** Adres alanlarına dokunulmadıysa mevcut `address` metni aynen korunur. */

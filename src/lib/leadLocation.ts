@@ -13,6 +13,7 @@
 
 import { normalizeCoordinates, toFiniteNumber } from "./coordinates";
 import type { PackageKey } from "./packages";
+import type { CompanyHours } from "./types";
 
 const MARKER = "[FR-KONUM v1]";
 const MARKER_RE = /\n*\[FR-KONUM v1\]\s*(\{[^\n]*\})\s*$/;
@@ -22,6 +23,8 @@ export interface LeadLocationPayload {
   latitude?: number;
   longitude?: number;
   packageKey?: PackageKey;
+  /** Çalışma saatleri — firma ile AYNI üç alanlı biçim (mevcut veri yapısı). */
+  hours?: CompanyHours;
 }
 
 export interface ParsedLeadNote {
@@ -30,15 +33,31 @@ export interface ParsedLeadNote {
   latitude?: number;
   longitude?: number;
   packageKey?: PackageKey;
+  hours?: CompanyHours;
+}
+
+/** Bilinmeyen/bozuk saat verisini ayıklar; üç alan da boşsa undefined döner. */
+function cleanHours(value: unknown): CompanyHours | undefined {
+  if (!value || typeof value !== "object") return undefined;
+  const record = value as Record<string, unknown>;
+  const pick = (key: keyof CompanyHours) =>
+    typeof record[key] === "string" ? (record[key] as string).trim().slice(0, 40) : "";
+  const hours: CompanyHours = {
+    weekday: pick("weekday"),
+    saturday: pick("saturday"),
+    sunday: pick("sunday"),
+  };
+  return hours.weekday || hours.saturday || hours.sunday ? hours : undefined;
 }
 
 export function encodeLeadNote(note: string, location: LeadLocationPayload): string {
   const clean = note.replace(MARKER_RE, "").trim();
   const address = (location.address ?? "").trim();
   const coords = normalizeCoordinates(location.latitude, location.longitude);
-  if (!address && !coords && !location.packageKey) return clean;
+  const hours = cleanHours(location.hours);
+  if (!address && !coords && !location.packageKey && !hours) return clean;
 
-  const payload: Record<string, string | number> = {};
+  const payload: Record<string, unknown> = {};
   if (address) payload.address = address;
   if (coords) {
     payload.latitude = coords.latitude;
@@ -47,6 +66,7 @@ export function encodeLeadNote(note: string, location: LeadLocationPayload): str
   if (location.packageKey === "normal" || location.packageKey === "featured") {
     payload.packageKey = location.packageKey;
   }
+  if (hours) payload.hours = hours;
   const marker = `${MARKER} ${JSON.stringify(payload)}`;
   return clean ? `${clean}\n\n${marker}` : marker;
 }
@@ -79,5 +99,6 @@ export function parseLeadNote(note: string): ParsedLeadNote {
     latitude: coords?.latitude,
     longitude: coords?.longitude,
     packageKey,
+    hours: cleanHours(record.hours),
   };
 }

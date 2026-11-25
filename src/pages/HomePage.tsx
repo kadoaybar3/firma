@@ -20,7 +20,7 @@ const HOMEPAGE_JSON_LD: Array<Record<string, unknown>> = [
   {
     "@context": "https://schema.org",
     "@type": "WebSite",
-    name: "Firma Rehberi",
+    name: "RehberiX",
     url: typeof location !== "undefined" ? location.origin : "",
     inLanguage: "tr",
     potentialAction: {
@@ -343,7 +343,7 @@ export default function HomePage() {
 
   return (
     <SEO
-      title="Firma Rehberi — Afyonkarahisar'daki Firmaları Kolayca Bulun"
+      title="RehberiX — Afyonkarahisar'daki Firmaları Kolayca Bulun"
       description="Afyonkarahisar ve ilçelerindeki güvenilir firmaları kategori, ilçe ve arama ile keşfedin."
       canonicalPath="/"
       jsonLd={HOMEPAGE_JSON_LD}

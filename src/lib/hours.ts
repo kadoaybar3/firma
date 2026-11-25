@@ -23,6 +23,81 @@ function parseSegmentToOpen(segment: string, now: Date): boolean {
   return minutes >= start && minutes < end;
 }
 
+/** ---------- Form durumu ↔ mevcut saat biçimi ---------- */
+
+/** Formdaki tek günün durumu (açık/kapalı + saat aralığı). */
+export interface HoursDay {
+  open: boolean;
+  opens: string;
+  closes: string;
+}
+
+/** Firma saatlerinin üç alanına karşılık gelen form durumu. */
+export interface HoursDraft {
+  weekday: HoursDay;
+  saturday: HoursDay;
+  sunday: HoursDay;
+}
+
+const HOURS_KEYS = ["weekday", "saturday", "sunday"] as const;
+
+/** Gün açıldığında kullanılan varsayılan aralık. */
+export const DEFAULT_OPENS = "09:00";
+export const DEFAULT_CLOSES = "18:00";
+
+function normalizeTime(value: string): string {
+  const m = value.match(/^(\d{1,2})[:.](\d{2})$/);
+  if (!m) return "";
+  const hh = Number(m[1]);
+  const mm = Number(m[2]);
+  if (hh > 23 || mm > 59) return "";
+  return `${String(hh).padStart(2, "0")}:${m[2]}`;
+}
+
+function minutesOf(value: string): number {
+  const [hh, mm] = value.split(":");
+  return Number(hh) * 60 + Number(mm);
+}
+
+/** Boş form durumu: tüm günler kapalı (kayıt sırasında saat gönderilmez). */
+export function emptyHoursDraft(): HoursDraft {
+  const day = (): HoursDay => ({ open: false, opens: DEFAULT_OPENS, closes: DEFAULT_CLOSES });
+  return { weekday: day(), saturday: day(), sunday: day() };
+}
+
+/** Gün durumunu mevcut metin biçimine yazar; kapalı gün "Kapalı" olur. */
+export function formatHoursDay(day: HoursDay): string {
+  const opens = day.open ? normalizeTime(day.opens) : "";
+  const closes = day.open ? normalizeTime(day.closes) : "";
+  return opens && closes ? `${opens} - ${closes}` : "Kapalı";
+}
+
+/**
+ * Kayda yazılacak saatler. Hiç açık gün yoksa `undefined` döner: alan hiç
+ * gönderilmez, firma kaydı kendi varsayılanını kullanır.
+ */
+export function hoursDraftToCompanyHours(draft: HoursDraft): CompanyHours | undefined {
+  if (!HOURS_KEYS.some((key) => draft[key].open)) return undefined;
+  return {
+    weekday: formatHoursDay(draft.weekday),
+    saturday: formatHoursDay(draft.saturday),
+    sunday: formatHoursDay(draft.sunday),
+  };
+}
+
+/** Gönderim öncesi doğrulama; hata metni yoksa null. */
+export function hoursDraftError(draft: HoursDraft): string | null {
+  for (const key of HOURS_KEYS) {
+    const day = draft[key];
+    if (!day.open) continue;
+    const opens = normalizeTime(day.opens);
+    const closes = normalizeTime(day.closes);
+    if (!opens || !closes) return "Açık günler için açılış ve kapanış saati girilmelidir.";
+    if (minutesOf(closes) <= minutesOf(opens)) return "Kapanış saati açılıştan sonra olmalıdır.";
+  }
+  return null;
+}
+
 export interface MapLinkCompany {
   name: string;
   address?: string;
