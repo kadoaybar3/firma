@@ -1,3 +1,15 @@
+/** Firma adından iki harflik monogram: "Fark Otomotiv" → "FO". */
+export function firmInitials(name: string): string {
+  const words = name.split(/[^A-Za-z0-9ÇĞİÖŞÜçğıöşü]+/).filter(Boolean);
+  const letters = words.slice(0, 2).map((word) => word[0] ?? "");
+  return (letters.join("") || name[0] || "?").toLocaleUpperCase("tr");
+}
+
+/** Yalnız gerçek http(s) görselleri kullan — emoji gibi değerler çizilmez. */
+export function firmPhoto(images?: string[] | null): string | null {
+  return images?.find((src) => /^https?:\/\//i.test(src)) ?? null;
+}
+
 const TRY = new Intl.NumberFormat("tr-TR", {
   style: "currency",
   currency: "TRY",
@@ -29,14 +41,6 @@ export function formatDateTime(iso: string): string {
   }).format(new Date(iso));
 }
 
-/** Kısa tarih: 18.10.2026 */
-export function formatShortDate(iso: string): string {
-  return new Intl.DateTimeFormat("tr-TR", {
-    day: "2-digit",
-    month: "2-digit",
-    year: "numeric",
-  }).format(new Date(iso));
-}
 
 /**
  * Telefon numarasını tıklanabilir `tel:` bağlantısına çevirir.

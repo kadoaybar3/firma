@@ -454,17 +454,6 @@ export function commissionPayoutFromRow(row: Record<string, unknown>): Commissio
   };
 }
 
-export function commissionPayoutToRow(payout: CommissionPayout): Record<string, unknown> {
-  return {
-    id: payout.id,
-    sales_rep_id: payout.repId,
-    amount: payout.amount,
-    reference_no: payout.referenceNo ?? null,
-    paid_at: payout.paidAt,
-    created_at: payout.createdAt,
-    created_by: payout.createdBy ?? null,
-  };
-}
 
 /**
  * Denetim kaydı satırı — YALNIZ OKUMA (yazım yalnız SECURITY DEFINER

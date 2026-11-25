@@ -5,10 +5,10 @@ import {
   AlertTriangle,
   ArrowLeft,
   BadgeCheck,
-  CalendarClock,
   CheckCircle2,
   CreditCard,
   FileQuestion,
+  Handshake,
   Info,
   Loader2,
   Lock,
@@ -23,7 +23,7 @@ import { isPaymentProviderConfigured } from "../lib/payments";
 import { isLocked, LeadStatusBadge } from "./repShared";
 
 /**
- * Taslak → ödeme adımı.
+ * Taslak → anlaşma adımı.
  *
  * Dürüstlük ilkesi: gerçek ödeme sağlayıcısı bağlı değilse "ödeme başarılı"
  * taklidi YAPILMAZ. Kartla ödeme düğmesi kapalıdır ve nedeni açıkça yazılır.
@@ -101,10 +101,13 @@ export default function RepPayment() {
         </Link>
         <div className="rep-pagehead">
           <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
-            <h1 style={{ margin: 0 }}>Ödeme</h1>
+            <h1 style={{ margin: 0 }}>Anlaşma</h1>
             <LeadStatusBadge status={lead.status} />
           </div>
-          <p>Yıllık üyelik paketi ile firmanızı rehbere ekleyin.</p>
+          <p>
+            Paket seçin ve anlaşmayı yöneticiye bildirin; tahsilat ile onay adımlarını yönetici
+            tamamlar.
+          </p>
         </div>
       </div>
 
@@ -194,50 +197,17 @@ export default function RepPayment() {
         <div className="rep-note" style={{ marginTop: 14 }}>
           <Info size={16} strokeWidth={1.9} aria-hidden="true" />
           <span>
-            Ödeme işleminiz sonrasında firma bilgilerinizin doğru düzenlenebilmesi için gerekli
-            bilgileri eksiksiz paylaşmayı unutmayın.
+            Anlaşmayı bildirmeden önce firma bilgilerinin eksiksiz olduğundan emin olun;
+            bildirimden sonra kayıt kilitlenir.
           </span>
         </div>
       </section>
 
-      {/* Ödeme altyapısı durumu */}
-      {!isPaymentProviderConfigured ? (
-        <section className="rep-card rep-stack">
-          <div className="rep-note rep-note--warn">
-            <AlertTriangle size={16} strokeWidth={2} aria-hidden="true" />
-            <span>
-              <strong>Kartlı ödeme altyapısı henüz yapılandırılmadı.</strong> Bu nedenle bu
-              ekranda gerçek ödeme alınmaz ve sahte bir “ödeme başarılı” durumu gösterilmez.
-            </span>
-          </div>
-
-          <button type="button" className="rep-btn rep-btn--primary rep-btn--block" disabled={!selectedPackage}>
-            <CreditCard size={17} strokeWidth={2} aria-hidden="true" />
-            Kartla öde (altyapı yok){!selectedPackage ? " — önce paket seçin" : ""}
-          </button>
-
-          <div className="rep-note">
-            <ShieldCheck size={16} strokeWidth={1.9} aria-hidden="true" />
-            <span>
-              Kart bilgileri hiçbir koşulda bu uygulamada saklanmaz. Gerçek ödeme ancak sağlayıcı
-              entegrasyonu ve sunucu tarafı doğrulama ile alınabilir.
-            </span>
-          </div>
-        </section>
-      ) : (
-        <section className="rep-card">
-          <button type="button" className="rep-btn rep-btn--primary rep-btn--block" disabled={!selectedPackage}>
-            <CreditCard size={17} strokeWidth={2} aria-hidden="true" />
-            {selectedPackage ? `Kartla öde · ${formatTRY(selectedPackage.amount)}` : "Kartla öde — önce paket seçin"}
-          </button>
-        </section>
-      )}
-
-      {/* Ödemesiz anlaşma bildirimi */}
+      {/* Anlaşma bildirimi — bu adımda çalışan birincil yol */}
       {!locked && !reported && (
         <section className="rep-card rep-stack">
           <div className="rep-card__head">
-            <h2>Ödeme alınamıyorsa</h2>
+            <h2>Anlaşmayı bildirin</h2>
           </div>
           <p style={{ margin: 0, fontSize: 13, color: "var(--rep-muted)", lineHeight: 1.5 }}>
             Anlaşmayı yöneticiye bildirebilirsiniz. Bu işlem herhangi bir ödeme tahsil etmez;
@@ -248,11 +218,11 @@ export default function RepPayment() {
           {!confirmOpen ? (
             <button
               type="button"
-              className="rep-btn rep-btn--ghost rep-btn--block"
+              className="rep-btn rep-btn--primary rep-btn--block"
               disabled={!selectedPackage}
               onClick={() => setConfirmOpen(true)}
             >
-              <CalendarClock size={17} strokeWidth={2} aria-hidden="true" />
+              <Handshake size={17} strokeWidth={2} aria-hidden="true" />
               Anlaşmayı bildir (ödemesiz){!selectedPackage ? " — önce paket seçin" : ""}
             </button>
           ) : (
@@ -311,6 +281,39 @@ export default function RepPayment() {
               </div>
             </div>
           )}
+        </section>
+      )}
+
+      {/* Ödeme altyapısı durumu — ikincil, şimdilik kapalı */}
+      {!isPaymentProviderConfigured ? (
+        <section className="rep-card rep-stack">
+          <div className="rep-note rep-note--warn">
+            <AlertTriangle size={16} strokeWidth={2} aria-hidden="true" />
+            <span>
+              <strong>Kartlı ödeme altyapısı henüz yapılandırılmadı.</strong> Bu nedenle bu
+              ekranda gerçek ödeme alınmaz ve sahte bir “ödeme başarılı” durumu gösterilmez.
+            </span>
+          </div>
+
+          <button type="button" className="rep-btn rep-btn--ghost rep-btn--block" disabled>
+            <CreditCard size={17} strokeWidth={2} aria-hidden="true" />
+            Kartla öde (altyapı yok)
+          </button>
+
+          <div className="rep-note">
+            <ShieldCheck size={16} strokeWidth={1.9} aria-hidden="true" />
+            <span>
+              Kart bilgileri hiçbir koşulda bu uygulamada saklanmaz. Gerçek ödeme ancak sağlayıcı
+              entegrasyonu ve sunucu tarafı doğrulama ile alınabilir.
+            </span>
+          </div>
+        </section>
+      ) : (
+        <section className="rep-card">
+          <button type="button" className="rep-btn rep-btn--primary rep-btn--block" disabled={!selectedPackage}>
+            <CreditCard size={17} strokeWidth={2} aria-hidden="true" />
+            {selectedPackage ? `Kartla öde · ${formatTRY(selectedPackage.amount)}` : "Kartla öde — önce paket seçin"}
+          </button>
         </section>
       )}
 

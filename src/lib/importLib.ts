@@ -237,22 +237,6 @@ export type ImportField =
 
 export const REQUIRED_FIELDS: ImportField[] = ["name", "phone", "city", "district", "category"];
 
-export const FIELD_LABELS: Record<ImportField, string> = {
-  name: "Firma adı",
-  phone: "Telefon",
-  city: "Şehir",
-  district: "İlçe",
-  category: "Kategori",
-  address: "Adres",
-  email: "E-posta",
-  website: "Web sitesi",
-  instagram: "Instagram",
-  whatsapp: "WhatsApp",
-  description: "Açıklama",
-  latitude: "Enlem",
-  longitude: "Boylam",
-  placeId: "Place ID",
-};
 
 /** Başlık metni (lower-cased) eşleyen tahmin tablosu — TR ve EN etiketler. */
 const GUESS_PATTERNS: Array<[ImportField, RegExp]> = [
@@ -535,11 +519,6 @@ function parseCoords(latText: string, lngText: string): { ok: boolean; latitude?
   return { ok: true, latitude: lat, longitude: lng };
 }
 
-/** Planlanan (henüz kapatılmamış) yeni kategoriler — onay ekranında listelenir. */
-export function plannedCategoryList(planned: Map<string, string>): Array<{ key: string; name: string }> {
-  return [...planned.entries()].map(([key, name]) => ({ key, name }));
-}
-
 export function matchCity(text: string, cities: City[]): City | undefined {
   const n = normalizeSearch(text);
   return (
@@ -579,11 +558,6 @@ function planDistrictFor(il: string, districtText: string): string | undefined {
   const n = normalizeSearch(districtText);
   if (!n || n === "merkez") return list.find((d) => normalizeSearch(d) === "merkez") ?? list[0];
   return list.find((d) => normalizeSearch(d) === n);
-}
-
-/** Planlanan (henüz açılmamış) yeni şehirler — onay ekranında listelenir. */
-export function plannedCityList(planned: Map<string, string>): Array<{ key: string; name: string }> {
-  return [...planned.entries()].map(([key, name]) => ({ key, name }));
 }
 
 export function matchDistrict(text: string, city: City): string | undefined {

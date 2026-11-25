@@ -64,19 +64,3 @@ function gridToSheet(grid: string[][]): ParsedSheet {
   const norm = headers.map((h) => String(h ?? "").trim());
   return { headers: norm, records: zipRecords(norm, rows) };
 }
-
-/** Örnek şablon dosyasını indirtir (kullanıcının sütun yapısını görmesi için). */
-export function downloadTemplate(): void {
-  const csv = [
-    "Firma Adı;Telefon;Şehir;İlçe;Kategori;Adres",
-    "Örnek Fırın;05551112233;Afyonkarahisar;Merkez;Fırınlar;Cumhuriyet Cd. No:5",
-    "Örnek Kuyum;905552223344;Afyonkarahisar;Sandıklı;Kuyumculuk;Hükümet Cad. 12/A",
-  ].join("\n");
-  const blob = new Blob(["﻿" + csv], { type: "text/csv;charset=utf-8" });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement("a");
-  a.href = url;
-  a.download = "firma-rehberi-ice-aktarma-sablonu.csv";
-  a.click();
-  URL.revokeObjectURL(url);
-}

@@ -18,7 +18,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { EmptyState, ErrorBanner, InfoBanner } from "../components/ui";
-import { useActor, useAuth } from "../lib/auth";
+import { useActor } from "../lib/auth";
 import { useLiveDataRevision } from "../lib/liveData";
 import { formatTRY } from "../lib/format";
 import { isSupabaseConfigured } from "../lib/supabase";
@@ -60,29 +60,6 @@ import "./dashboard.css";
  * confirmSale / confirmRenewal / createPendingPayment / cancelSale /
  * setCompanyPublished); sınıflandırma lib/saleState.ts'ten gelir.
  */
-
-/** Saate göre karşılama + kısa motivasyon cümlesi. */
-function greetingFor(hour: number): { hello: string; lead: string } {
-  if (hour >= 6 && hour < 12)
-    return {
-      hello: "Günaydın",
-      lead: "Yeni gün, temiz bir sayfa. Küçük bir onay bile günün akışını rahatlatır.",
-    };
-  if (hour >= 12 && hour < 18)
-    return {
-      hello: "İyi günler",
-      lead: "Günün ortasındayız; biriken işi ertelemeden kapatmak en iyisi.",
-    };
-  if (hour >= 18 && hour < 22)
-    return {
-      hello: "İyi akşamlar",
-      lead: "Günü kapatmadan önce bekleyen birkaç kaydı netleştirelim.",
-    };
-  return {
-    hello: "İyi geceler",
-    lead: "Sessiz saatlerde verilen bir onay, yarını çok daha rahat ettirir.",
-  };
-}
 
 function daysSince(iso?: string): number | undefined {
   if (!iso) return undefined;
@@ -178,7 +155,6 @@ function QueueGroup({
 export default function AdminDashboard() {
   useLiveDataRevision();
   const actor = useActor();
-  const { user } = useAuth();
 
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -283,19 +259,13 @@ export default function AdminDashboard() {
     readyCompanies.length +
     buckets.card.length;
 
-  // --- Karşılama (yerel saat) + Türkçe tarih ---
-  const now = new Date();
-  const { hello, lead } = greetingFor(now.getHours());
-  const firstName = user?.name?.trim().split(/\s+/)[0] ?? null;
+  // --- Türkçe tarih ---
   const dateLong = new Intl.DateTimeFormat("tr-TR", {
     weekday: "long",
     day: "numeric",
     month: "long",
     year: "numeric",
-  }).format(now);
-  const dayNumber = new Intl.DateTimeFormat("tr-TR", { day: "numeric" }).format(now);
-  const monthYear = new Intl.DateTimeFormat("tr-TR", { month: "long", year: "numeric" }).format(now);
-  const weekday = new Intl.DateTimeFormat("tr-TR", { weekday: "long" }).format(now);
+  }).format(new Date());
 
   const publishedCount = companies.filter((company) => company.published).length;
   const summary: Array<{ label: string; value: string; icon: LucideIcon; alert?: boolean }> = [
@@ -308,46 +278,25 @@ export default function AdminDashboard() {
 
   return (
     <div className="panel-content adm-dash">
-      {/* ============ KARŞILAMA ============ */}
-      <section className="dq-hero" aria-labelledby="dq-hero-title">
-        <div className="dq-hero__text">
-          <p className="dq-hero__eyebrow">İşlem Merkezi</p>
-          <h1 id="dq-hero-title" className="dq-hero__title">
-            {hello}
-            {firstName ? `, ${firstName}` : ""}
+      {/* ============ BAŞLIK — sayfa kimliği, tarih, bekleyen sayısı ============ */}
+      <section className="dq-head" aria-labelledby="dq-title">
+        <div className="dq-head__text">
+          <p className="dq-head__eyebrow">Yönetim paneli</p>
+          <h1 id="dq-title" className="dq-head__title">
+            İşlem Merkezi
           </h1>
-          <p className="dq-hero__lead">
-            {queueTotal === 0
-              ? "Bugün bekleyen iş yok; her şey akışında. Yeni bir gün için hazırsınız."
-              : lead}
-          </p>
         </div>
-        <div className="dq-hero__aside">
-          <div className={`dq-sum ${queueTotal > 0 ? "dq-sum--alert" : ""}`}>
-            <span className="dq-sum__icon">
-              <ListChecks size={16} strokeWidth={1.9} aria-hidden="true" />
-            </span>
-            <span className="dq-sum__body">
-              <span className="dq-sum__value">{queueTotal}</span>
-              <span className="dq-sum__label">Bekleyen işlem</span>
-            </span>
+        <div className="dq-head__meta">
+          <div
+            className={`dq-head__count ${queueTotal > 0 ? "dq-head__count--alert" : ""}`}
+          >
+            <ListChecks size={16} strokeWidth={1.9} aria-hidden="true" />
+            <span className="dq-head__count-value">{queueTotal}</span>
+            <span className="dq-head__count-label">bekleyen işlem</span>
           </div>
-          <div className="dq-hero__date" aria-label={dateLong}>
-            <span className="dq-hero__day">{dayNumber}</span>
-            <span className="dq-hero__month">{monthYear}</span>
-            <span className="dq-hero__weekday">{weekday}</span>
-          </div>
+          <p className="dq-head__date">{dateLong}</p>
         </div>
       </section>
-
-      {/* ============ DİJİTAL GÖRÜNÜRLÜK ============ */}
-      <DigitalVisibility />
-
-      {!isSupabaseConfigured && (
-        <InfoBanner>
-          <strong>Demo mod aktif:</strong> Veriler bu tarayıcıda tutuluyor.
-        </InfoBanner>
-      )}
 
       {error && <ErrorBanner message={error} />}
       {message && (
@@ -355,26 +304,6 @@ export default function AdminDashboard() {
           {message}
         </div>
       )}
-
-      {/* ============ İŞ ÖZETİ ============ */}
-      <section className="dq-summary" aria-labelledby="dq-summary-title">
-        <h2 id="dq-summary-title" className="dq-summary__title">
-          İş özeti
-        </h2>
-        <div className="dq-summary__grid">
-          {summary.map(({ label, value, icon: Icon, alert }) => (
-            <div key={label} className={`dq-sum ${alert ? "dq-sum--alert" : ""}`}>
-              <span className="dq-sum__icon">
-                <Icon size={16} strokeWidth={1.9} aria-hidden="true" />
-              </span>
-              <span className="dq-sum__body">
-                <span className="dq-sum__value">{value}</span>
-                <span className="dq-sum__label">{label}</span>
-              </span>
-            </div>
-          ))}
-        </div>
-      </section>
 
       {/* ============ TEK İŞLEM KUYRUĞU ============ */}
       <section className="dq-panel" aria-label="İşlem kuyruğu">
@@ -658,6 +587,35 @@ export default function AdminDashboard() {
           </div>
         )}
       </section>
+
+      {/* ============ İŞ ÖZETİ ============ */}
+      <section className="dq-summary" aria-labelledby="dq-summary-title">
+        <h2 id="dq-summary-title" className="dq-summary__title">
+          İş özeti
+        </h2>
+        <div className="dq-summary__grid">
+          {summary.map(({ label, value, icon: Icon, alert }) => (
+            <div key={label} className={`dq-sum ${alert ? "dq-sum--alert" : ""}`}>
+              <span className="dq-sum__icon">
+                <Icon size={16} strokeWidth={1.9} aria-hidden="true" />
+              </span>
+              <span className="dq-sum__body">
+                <span className="dq-sum__value">{value}</span>
+                <span className="dq-sum__label">{label}</span>
+              </span>
+            </div>
+          ))}
+        </div>
+      </section>
+
+      {!isSupabaseConfigured && (
+        <InfoBanner>
+          <strong>Demo mod aktif:</strong> Veriler bu tarayıcıda tutuluyor.
+        </InfoBanner>
+      )}
+
+      {/* ============ DİJİTAL GÖRÜNÜRLÜK ============ */}
+      <DigitalVisibility />
     </div>
   );
 }

@@ -2,6 +2,7 @@ import { useState } from "react";
 import { BadgeCheck, Clock } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
 import { Badge, ErrorBanner, StatCard } from "../components/ui";
+import { FirmIdentity } from "../components/FirmList";
 import { useActor } from "../lib/auth";
 import { formatTRY } from "../lib/format";
 import { createRenewalSale, getCompanyById, listMemberships } from "../lib/repo";
@@ -49,8 +50,13 @@ export default function AdminMemberships() {
         />
       </div>
 
-      <div className="table-wrap">
-        <table className="table">
+      <div className="fl-listmeta">
+        <strong>{memberships.length} üyelik kaydı</strong>
+        <span>{active.length} aktif · {memberships.length - active.length} süresi biten</span>
+      </div>
+
+      <div className="table-wrap table-wrap--cards">
+        <table className="table table--rows">
           <thead>
             <tr>
               <th>Firma</th>
@@ -66,12 +72,18 @@ export default function AdminMemberships() {
               const expired = new Date(m.endsAt) < new Date();
               return (
                 <tr key={m.id}>
-                  <td>
-                    <strong>{company?.name ?? "—"}</strong>
+                  <td data-label="Firma">
+                    <FirmIdentity
+                      name={company?.name ?? "Firma kaydı yok"}
+                      href={company ? `/firma/${company.slug}` : undefined}
+                      images={company?.images}
+                      place={company?.district}
+                      phone={company?.phone}
+                    />
                   </td>
-                  <td className="small">{new Date(m.startsAt).toLocaleDateString("tr-TR")}</td>
-                  <td className="small">{new Date(m.endsAt).toLocaleDateString("tr-TR")}</td>
-                  <td>
+                  <td data-label="Başlangıç" className="small">{new Date(m.startsAt).toLocaleDateString("tr-TR")}</td>
+                  <td data-label="Bitiş" className="small">{new Date(m.endsAt).toLocaleDateString("tr-TR")}</td>
+                  <td data-label="Durum">
                     <Badge tone={m.status === "aktif" && !expired ? "green" : "gray"}>
                       {m.status === "iptal"
                         ? "İptal"
@@ -80,7 +92,7 @@ export default function AdminMemberships() {
                           : "Aktif"}
                     </Badge>
                   </td>
-                  <td>
+                  <td data-label="İşlem">
                     <button
                       className="btn btn--sm btn--ghost"
                       disabled={m.status === "iptal"}

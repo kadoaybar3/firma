@@ -75,7 +75,6 @@
 .adm-workflow__row { display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: 13px 0; border-bottom: 1px solid var(--adm-line); }
 .adm-workflow__row:first-child { padding-top: 0; }
 .adm-workflow__row:last-child { padding-bottom: 0; border-bottom: 0; }
-.adm-workflow__meta { margin-top: 4px; color: var(--adm-ink-2); font-size: 0.8rem; }
 .adm-workflow__row .btn { flex-shrink: 0; }
 .adm-workflow__dialog { width: min(860px, calc(100vw - 32px)); max-height: calc(100vh - 40px); overflow-y: auto; }
 .adm-notification-enable { border: 0; cursor: pointer; background: transparent; font: inherit; }
@@ -1138,22 +1137,6 @@
   flex-wrap: wrap;
 }
 
-/* =========================================================
-   GENEL BAKIŞ
-   ========================================================= */
-
-.adm-dash-grid {
-  display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
-  gap: 14px;
-}
-
-.adm-dash-stack {
-  display: grid;
-  gap: 14px;
-  align-content: start;
-}
-
 .adm-panel {
   border: 1px solid var(--adm-line);
   border-radius: var(--adm-r-lg);
@@ -1223,54 +1206,6 @@
 .adm-panel__body--flush .table th:last-child,
 .adm-panel__body--flush .table td:last-child {
   padding-right: 18px;
-}
-
-.adm-kpi-band {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 170px), 1fr));
-  gap: 0;
-  border: 1px solid var(--adm-line);
-  border-radius: var(--adm-r-lg);
-  background: var(--adm-surface);
-  box-shadow: var(--adm-shadow-xs);
-  overflow: hidden;
-  margin-bottom: 14px;
-}
-
-.adm-kpi {
-  padding: 16px 18px;
-  border-right: 1px solid var(--adm-line);
-  min-width: 0;
-}
-
-.adm-kpi:last-child {
-  border-right: 0;
-}
-
-.adm-kpi__label {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--adm-ink-3);
-  font-size: 0.73rem;
-  font-weight: 600;
-}
-
-.adm-kpi__value {
-  margin-top: 6px;
-  font-size: 1.5rem;
-  font-weight: 720;
-  letter-spacing: -0.03em;
-  line-height: 1.1;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-.adm-kpi__hint {
-  margin-top: 3px;
-  color: var(--adm-ink-3);
-  font-size: 0.72rem;
-  overflow-wrap: anywhere;
 }
 
 /* Geniş masaüstü (≥1200px): 7 kutunun tamamı tek satırda, eşit genişlikte.
@@ -1363,124 +1298,6 @@
 
 .adm-dot--red {
   background: #d13c30;
-}
-
-/* Bekleyen işlem satırı */
-.adm-task {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  padding: 11px 12px;
-  border: 1px solid var(--adm-line);
-  border-radius: var(--adm-r);
-  background: var(--adm-surface);
-  color: var(--adm-ink);
-  transition: border-color 0.15s ease, background-color 0.15s ease;
-}
-
-.adm-task + .adm-task {
-  margin-top: 8px;
-}
-
-.adm-task:hover {
-  border-color: #c9d7ea;
-  background: var(--adm-surface-soft);
-  text-decoration: none;
-}
-
-.adm-task__icon {
-  display: grid;
-  place-items: center;
-  width: 32px;
-  height: 32px;
-  flex-shrink: 0;
-  border-radius: 9px;
-  background: var(--adm-surface-sunken);
-  color: var(--adm-ink-2);
-}
-
-.adm-task__text {
-  flex: 1;
-  min-width: 0;
-  display: grid;
-  gap: 1px;
-}
-
-.adm-task__text strong {
-  font-size: 0.83rem;
-  font-weight: 620;
-  line-height: 1.35;
-}
-
-.adm-task__text span {
-  color: var(--adm-ink-3);
-  font-size: 0.72rem;
-  line-height: 1.35;
-}
-
-.adm-task--warn .adm-task__icon {
-  background: var(--adm-amber-soft);
-  color: var(--adm-amber);
-}
-
-.adm-task--blue .adm-task__icon {
-  background: var(--adm-blue-soft);
-  color: var(--adm-blue-strong);
-}
-
-/* Hızlı işlemler */
-.adm-quick {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
-  gap: 8px;
-}
-
-.adm-quick__item {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  padding: 10px 11px;
-  border: 1px solid var(--adm-line);
-  border-radius: var(--adm-r);
-  background: var(--adm-surface);
-  color: var(--adm-ink);
-  min-width: 0;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
-}
-
-.adm-quick__item:hover {
-  border-color: #c9d7ea;
-  background: var(--adm-surface-soft);
-  text-decoration: none;
-}
-
-.adm-quick__icon {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-  border-radius: 8px;
-  background: var(--adm-blue-soft);
-  color: var(--adm-blue-strong);
-}
-
-.adm-quick__item span:last-child {
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-}
-
-.adm-quick__item strong {
-  font-size: 0.79rem;
-  font-weight: 620;
-  line-height: 1.3;
-}
-
-.adm-quick__item small {
-  color: var(--adm-ink-3);
-  font-size: 0.7rem;
-  line-height: 1.3;
 }
 
 /* Personel performans satırı */
@@ -1622,190 +1439,11 @@
 }
 
 /* =========================================================
-   PERSONEL KARTLARI
-   ========================================================= */
-
-.adm-reps {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 420px), 1fr));
-  gap: 12px;
-}
-
-.adm-rep {
-  border: 1px solid var(--adm-line);
-  border-radius: var(--adm-r-lg);
-  background: var(--adm-surface);
-  box-shadow: var(--adm-shadow-xs);
-  padding: 16px;
-  min-width: 0;
-}
-
-.adm-rep__head {
-  display: flex;
-  align-items: center;
-  gap: 11px;
-  min-width: 0;
-}
-
-.adm-rep__avatar {
-  display: grid;
-  place-items: center;
-  width: 38px;
-  height: 38px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: linear-gradient(160deg, #dbe9ff, #b9d3fb);
-  color: #154c9e;
-  font-size: 0.9rem;
-  font-weight: 750;
-}
-
-.adm-rep__identity {
-  min-width: 0;
-  display: grid;
-  gap: 2px;
-}
-
-.adm-rep__name {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-  font-size: 0.92rem;
-  font-weight: 680;
-  letter-spacing: -0.015em;
-  overflow-wrap: anywhere;
-}
-
-.adm-rep__meta {
-  color: var(--adm-ink-3);
-  font-size: 0.75rem;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-}
-
-.adm-rep__metrics {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-  gap: 8px;
-  margin: 14px 0;
-  padding: 10px;
-  border-radius: var(--adm-r);
-  background: var(--adm-surface-soft);
-  border: 1px solid var(--adm-line);
-}
-
-.adm-rep__metrics > div {
-  display: grid;
-  gap: 3px;
-  min-width: 0;
-}
-
-.adm-rep__metrics strong {
-  font-size: 0.83rem;
-  font-weight: 680;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-.adm-rep__metric-label {
-  color: var(--adm-ink-3);
-  font-size: 0.69rem;
-  font-weight: 600;
-}
-
-.adm-rep__section {
-  display: grid;
-  gap: 6px;
-  margin-bottom: 12px;
-}
-
-.adm-rep__tags {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 5px;
-}
-
-.adm-rep__tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-  max-width: 100%;
-  padding: 3px 8px;
-  border-radius: 999px;
-  border: 1px solid var(--adm-line);
-  background: var(--adm-surface-soft);
-  color: var(--adm-ink-2);
-  font-size: 0.72rem;
-  font-weight: 550;
-  overflow-wrap: anywhere;
-}
-
-.adm-rep__tag em {
-  font-style: normal;
-  font-size: 0.65rem;
-  color: var(--adm-amber);
-}
-
-.adm-rep__controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  padding-top: 12px;
-  border-top: 1px solid var(--adm-line);
-}
-
-.adm-rep__rate,
-.adm-rep__rate-info {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--adm-ink-3);
-  font-size: 0.74rem;
-}
-
-.adm-rep__rate label {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.adm-rep__rate input {
-  width: 68px;
-  min-height: 30px;
-  padding: 4px 7px;
-  border: 1px solid var(--adm-line-strong);
-  border-radius: 8px;
-  font-size: 0.78rem;
-}
-
-@media (max-width: 520px) {
-  .adm-rep__metrics {
-    grid-template-columns: 1fr 1fr;
-  }
-}
-
-.adm-rep__rate-info {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  color: var(--adm-ink-3);
-  font-size: 0.74rem;
-}
-
-/* =========================================================
    MOBİL
    ========================================================= */
 
 .adm-backdrop {
   display: none;
-}
-
-@media (max-width: 1120px) {
-  .adm-dash-grid {
-    grid-template-columns: minmax(0, 1fr);
-  }
 }
 
 @media (max-width: 960px) {
@@ -1992,22 +1630,8 @@
     font-size: 1.35rem;
   }
 
-  .adm-kpi {
-    border-right: 0;
-    border-bottom: 1px solid var(--adm-line);
-    padding: 13px 15px;
-  }
-
-  .adm-kpi:last-child {
-    border-bottom: 0;
-  }
-
   .adm-shell .table {
     min-width: 560px;
-  }
-
-  .adm-quick {
-    grid-template-columns: 1fr 1fr;
   }
 }
 
@@ -2018,10 +1642,6 @@
 
   .adm-crumbs {
     font-size: 0.78rem;
-  }
-
-  .adm-quick {
-    grid-template-columns: 1fr;
   }
 
   .adm-shell .stats-grid {
@@ -2270,26 +1890,7 @@
   }
 }
 
-/* =========================================================
-   PERSONEL / ADAYLAR / ŞEHİRLER — ortak küçük düzeltmeler
-   ========================================================= */
-
-/* Aday satırının açılan kayıtları: masaüstünde iki kolon, mobilde tek kolon */
-.lead-detail {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 16px;
-}
-
-.lead-detail-cell {
-  background: #fafbfe;
-}
-
 @media (max-width: 760px) {
-  .lead-detail {
-    grid-template-columns: 1fr;
-    gap: 12px;
-  }
 
   /* Ayrıntı satırı kart görünümünde etiketsiz kalır (colSpan hücresi) */
   .table-wrap--cards .table .lead-detail-cell::before {
@@ -2483,4 +2084,30 @@
 
 .adm-shell .adm-sort__idle {
   opacity: 0.5;
+}
+
+/* =========================================================
+   MOBİL DOKUNMA HEDEFLERİ — 2026-11-26 UX turu
+   Panel kabuğundaki ikon ve menü düğmeleri en az 44px.
+   Menü yapısı ve masaüstü ölçüleri değişmez.
+   ========================================================= */
+
+@media (max-width: 960px) {
+  .adm-iconbtn,
+  .adm-navgroup__toggle {
+    width: 44px;
+    height: 44px;
+  }
+
+  .adm-logout {
+    width: 44px;
+    height: 44px;
+  }
+}
+
+@media (max-width: 720px) {
+  .adm-topbar__site {
+    width: 44px;
+    height: 44px;
+  }
 }

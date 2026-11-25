@@ -134,6 +134,35 @@ export default function RepDashboard() {
         </div>
       </section>
 
+      {/* Satış süreci */}
+      <section className="rep-card">
+        <div className="rep-card__head">
+          <h2>Satış süreci nasıl işler?</h2>
+        </div>
+        <ol style={{ margin: 0, paddingLeft: 18, fontSize: 13.5, lineHeight: 1.6, color: "var(--rep-ink)" }}>
+          <li>
+            <strong>Taslak:</strong> firma bilgilerini girip kaydedersiniz. Firma henüz rehberde
+            görünmez, yalnız size bağlıdır; bilgileri anlaşma bildirilene kadar düzenleyebilirsiniz.
+          </li>
+          <li>
+            <strong>Yönetici incelemesi/onayı:</strong> anlaşmayı bildirdiğinizde bilgiler
+            kilitlenir ve yönetici firma kaydını kontrol edip onaylar.
+          </li>
+          <li>
+            <strong>Tahsilat:</strong> ödeme yönetici tarafından ayrıca alınır; bu sürümde kartlı
+            ödeme altyapısı yapılandırılmamıştır.
+          </li>
+          <li>
+            <strong>Satışın kesinleşmesi:</strong> ödeme doğrulandığında satış kesinleşir ve firma
+            rehbere eklenir.
+          </li>
+          <li>
+            <strong>Komisyon:</strong> onaylanan satıştan komisyonunuz hesaplanır ve ödeme onayından
+            sonra size ödenir.
+          </li>
+        </ol>
+      </section>
+
       {/* Özet */}
       <section className="rep-stats" aria-label="Özet">
         <div className="rep-stat">

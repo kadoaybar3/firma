@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { BadgeCheck, Banknote, Building2, Receipt, Wallet } from "lucide-react";
 import { useActor } from "../lib/auth";
+import { FirmIdentity } from "../components/FirmList";
 import { formatDateTime, formatTRY } from "../lib/format";
 import {
   getCompanyById,
@@ -232,18 +233,14 @@ export default function RepMySales() {
             return (
               <article key={sale.id} className="rep-card rep-draft">
                 <div className="rep-draft__top">
-                  <div className="rep-draft__title">
-                    <strong title={company?.name ?? "Firma"}>
-                      {company?.name ?? "Firma kaydı"}
-                    </strong>
-                    <span>{formatDateTime(sale.createdAt)}</span>
-                  </div>
+                  <FirmIdentity
+                    name={company?.name ?? "Firma kaydı"}
+                    images={company?.images}
+                    place={company?.district}
+                    phone={company?.phone}
+                    note={`${formatDateTime(sale.createdAt)} · Satış tutarı: ${formatTRY(sale.amount)}`}
+                  />
                   <span className={`rep-badge ${saleStatus.tone}`}>{saleStatus.label}</span>
-                </div>
-
-                <div className="rep-draft__meta">
-                  {company?.district && <span>{company.district}</span>}
-                  <span>Satış tutarı: {formatTRY(sale.amount)}</span>
                 </div>
 
                 <ul className="rep-list">

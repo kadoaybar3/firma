@@ -1,8 +1,8 @@
 import { useState, type FormEvent } from "react";
-import { Link } from "react-router-dom";
 import { Eye, PenLine, Ticket } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
 import { Badge, ErrorBanner, Field, StatCard } from "../components/ui";
+import { FirmIdentity } from "../components/FirmList";
 import { useActor } from "../lib/auth";
 import { formatDate } from "../lib/format";
 import { isSupabaseConfigured, supabase } from "../lib/supabase";
@@ -335,12 +335,10 @@ function RepDetail({
         <p className="text-muted small">Bu personelin getirdiği firma kaydı yok.</p>
       ) : (
         <div className="table-wrap table-wrap--cards">
-          <table className="table">
+          <table className="table table--rows">
             <thead>
               <tr>
                 <th>Firma</th>
-                <th>Kategori</th>
-                <th>İl / ilçe</th>
                 <th>Kayıt tarihi</th>
                 <th>Ödeme durumu</th>
                 <th>Yayın durumu</th>
@@ -356,14 +354,16 @@ function RepDetail({
                 return (
                   <tr key={company.id}>
                     <td data-label="Firma">
-                      <Link to={`/firma/${company.slug}`} target="_blank" rel="noreferrer">
-                        {company.name}
-                      </Link>
-                    </td>
-                    <td data-label="Kategori">{category?.name ?? "—"}</td>
-                    <td data-label="İl / ilçe">
-                      {city?.name ?? "—"}
-                      {company.district ? ` / ${company.district}` : ""}
+                      <FirmIdentity
+                        name={company.name}
+                        href={`/firma/${company.slug}`}
+                        images={company.images}
+                        category={category?.name ?? "Kategorisiz"}
+                        place={
+                          [city?.name, company.district].filter(Boolean).join(" / ") || undefined
+                        }
+                        phone={company.phone || undefined}
+                      />
                     </td>
                     <td data-label="Kayıt tarihi">{formatDate(company.createdAt)}</td>
                     <td data-label="Ödeme durumu"><PaymentBadge sale={sale} /></td>

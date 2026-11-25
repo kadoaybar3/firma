@@ -37,13 +37,6 @@ export function formatCoordinates(coords: Coordinates, digits = 6): string {
   return `${coords.latitude.toFixed(digits)}, ${coords.longitude.toFixed(digits)}`;
 }
 
-export function coordinatesEqual(
-  a: Coordinates | null | undefined,
-  b: Coordinates | null | undefined,
-): boolean {
-  if (!a || !b) return !a && !b;
-  return a.latitude === b.latitude && a.longitude === b.longitude;
-}
 
 /** PostgREST double precision değeri sayı ya da sayısal metin olabilir. */
 export function toFiniteNumber(value: unknown): number | undefined {

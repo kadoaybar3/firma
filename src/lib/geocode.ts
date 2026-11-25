@@ -222,9 +222,3 @@ export async function geocodeAddress(query: string): Promise<GeocodeOutcome> {
     pending.delete(key);
   }
 }
-
-/** Testler ve oturum sıfırlama için. */
-export function clearGeocodeCache(): void {
-  cache.clear();
-  pending.clear();
-}

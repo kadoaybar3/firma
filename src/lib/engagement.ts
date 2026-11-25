@@ -188,17 +188,3 @@ export function engagementCountsFor(db: DB, companyId: string): Record<Engagemen
   }
   return out;
 }
-
-export function engagementNotificationText(
-  notification: EngagementNotification,
-  companyName: string,
-): string {
-  const label = ENGAGEMENT_LABELS[notification.kind] ?? notification.kind;
-  const tierNote =
-    notification.tier === 2
-      ? notification.tier1Also
-        ? "katlanan eşik (sabit aralıkla aynı anda)"
-        : "katlanan eşik"
-      : "sabit aralık";
-  return `${companyName} — ${label} ${notification.count.toLocaleString("tr-TR")} oldu (${tierNote}).`;
-}

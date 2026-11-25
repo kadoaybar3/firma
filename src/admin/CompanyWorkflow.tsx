@@ -4,6 +4,7 @@ import { ArrowRight, BadgeCheck, Building2, Check, CreditCard, Loader2, Target }
 import { PanelHead } from "./AdminLayout";
 import { CompanyForm } from "./Companies";
 import { Badge, EmptyState, ErrorBanner } from "../components/ui";
+import { FirmIdentity } from "../components/FirmList";
 import { useActor } from "../lib/auth";
 import { useLiveDataRevision } from "../lib/liveData";
 import { formatTRY } from "../lib/format";
@@ -104,7 +105,12 @@ export default function CompanyWorkflow() {
         <div className="adm-panel__body">
           {leads.length === 0 ? <EmptyState icon={<Target size={25} />} title="Onay bekleyen aday yok" /> : leads.map((lead) => (
             <article className="adm-workflow__row" key={lead.id}>
-              <div><strong>{lead.companyName}</strong><div className="adm-workflow__meta">{lead.phone || "Telefon girilmemiş"} · {lead.district || "İlçe belirtilmemiş"} · {reps.find((rep) => rep.id === lead.repId)?.name ?? "Temsilci atanmamış"}</div></div>
+              <FirmIdentity
+                name={lead.companyName}
+                place={lead.district}
+                phone={lead.phone}
+                note={`${reps.find((rep) => rep.id === lead.repId)?.name ?? "Temsilci atanmamış"}`}
+              />
               <button className="btn btn--primary btn--sm" type="button" onClick={() => setSelectedLead(lead)}>İncele ve firmaya dönüştür</button>
             </article>
           ))}
@@ -119,7 +125,11 @@ export default function CompanyWorkflow() {
             const payment = paymentFor(sale);
             const key = `payment-${sale.id}`;
             return <article className="adm-workflow__row" key={sale.id}>
-              <div><strong>{company?.name ?? "Firma kaydı bulunamadı"}</strong><div className="adm-workflow__meta">{formatTRY(sale.amount || settings.membershipPrice)} · {payment ? "Ödeme kaydı açık" : "Ödeme kaydı henüz açılmadı"}</div></div>
+              <FirmIdentity
+                name={company?.name ?? "Firma kaydı bulunamadı"}
+                images={company?.images}
+                note={`${formatTRY(sale.amount || settings.membershipPrice)} · ${payment ? "Ödeme kaydı açık" : "Ödeme kaydı henüz açılmadı"}`}
+              />
               {payment ? <button className="btn btn--primary btn--sm" type="button" disabled={busy === key} onClick={() => void run(key, async () => { await approveEftPayment(sale.id, actor); setMessage("EFT onaylandı; satış kesinleşti. Firma yayın adımına geçti."); })}>{busy === key ? <Loader2 size={15} /> : <Check size={15} />} EFT alındı · onayla</button> : <button className="btn btn--sm" type="button" disabled={busy === key} onClick={() => void run(key, async () => { await createPendingPayment(sale.id, actor); setMessage("Ödeme kaydı açıldı. EFT hesaba geçtiğinde bu ekrandan onaylayabilirsiniz."); })}>{busy === key ? <Loader2 size={15} /> : <CreditCard size={15} />} Ödeme kaydı aç</button>}
             </article>;
           })}
@@ -130,7 +140,13 @@ export default function CompanyWorkflow() {
         <div className="adm-panel__head"><div><h2>3 · Yayına alınmaya hazır firmalar</h2><p>Ödemesi onaylanmış firmaları son kez kontrol edip rehberde yayınlayın.</p></div><Badge tone={publishReady.length ? "blue" : "gray"}>{publishReady.length}</Badge></div>
         <div className="adm-panel__body">
           {publishReady.length === 0 ? <EmptyState icon={<BadgeCheck size={25} />} title="Yayına hazır firma yok" /> : publishReady.map(({ sale, company }) => company && <article className="adm-workflow__row" key={sale.id}>
-            <div><strong>{company.name}</strong><div className="adm-workflow__meta">{formatTRY(sale.amount)} · Ödeme onaylandı · {company.phone}</div></div>
+            <FirmIdentity
+              name={company.name}
+              images={company.images}
+              place={company.district}
+              phone={company.phone}
+              note={`${formatTRY(sale.amount)} · Ödeme onaylandı`}
+            />
             <button className="btn btn--primary btn--sm" type="button" disabled={busy === `publish-${company.id}`} onClick={() => void run(`publish-${company.id}`, async () => { await setCompanyPublished(company.id, true, actor); setMessage(`${company.name} rehberde yayına alındı.`); })}>{busy === `publish-${company.id}` ? <Loader2 size={15} /> : <Check size={15} />} Yayına al</button>
           </article>)}
         </div>

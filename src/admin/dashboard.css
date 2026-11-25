@@ -22,142 +22,6 @@
 }
 
 /* =========================================================
-   1) CETVEL BANDI — 4 birincil figür + ikincil ölçüm şeridi
-   ========================================================= */
-
-.dq-band {
-  border: 1px solid var(--dq-rule);
-  border-radius: var(--adm-r-lg);
-  background: var(--adm-surface);
-  overflow: hidden;
-}
-
-.dq-band__primary {
-  display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
-}
-
-.dq-cell {
-  display: grid;
-  align-content: start;
-  gap: 5px;
-  min-width: 0;
-  padding: 18px 20px;
-  border-right: 1px solid var(--dq-rule);
-}
-
-.dq-cell:last-child {
-  border-right: 0;
-}
-
-.dq-cell__label {
-  color: var(--dq-meta);
-  font-size: 0.7rem;
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-}
-
-.dq-cell__value {
-  font-family: var(--dq-display);
-  font-weight: 800;
-  font-size: clamp(1.75rem, 3.2vw, 2.5rem);
-  line-height: 1.02;
-  letter-spacing: -0.03em;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-.dq-cell__sub {
-  color: var(--dq-meta);
-  font-size: 0.76rem;
-  line-height: 1.4;
-  overflow-wrap: anywhere;
-}
-
-.dq-band__secondary {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
-  gap: 10px 24px;
-  padding: 12px 20px;
-  border-top: 1px solid var(--dq-rule);
-  background: var(--adm-surface-soft);
-}
-
-.dq-measure {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.dq-measure__label {
-  color: var(--dq-meta);
-  font-size: 0.7rem;
-  font-weight: 600;
-  line-height: 1.3;
-}
-
-.dq-measure__value {
-  font-family: var(--dq-display);
-  font-weight: 700;
-  font-size: 0.98rem;
-  letter-spacing: -0.015em;
-  font-variant-numeric: tabular-nums;
-  overflow-wrap: anywhere;
-}
-
-@media (max-width: 1099px) {
-  .dq-band__primary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-  }
-
-  .dq-cell {
-    border-right: 0;
-    border-bottom: 1px solid var(--dq-rule);
-  }
-
-  .dq-cell:nth-child(odd) {
-    border-right: 1px solid var(--dq-rule);
-  }
-
-  .dq-cell:nth-last-child(-n + 2) {
-    border-bottom: 0;
-  }
-}
-
-@media (max-width: 639px) {
-  .dq-cell {
-    padding: 14px 16px;
-  }
-
-  .dq-cell__value {
-    font-size: 1.6rem;
-  }
-
-  /* İkincil ölçümler: tek sütunda bant 470px'e uzuyordu; iki sütun
-     kompakt düzen altı ölçümü üç satıra indirir. Birincil figürler
-     dokunulmaz — okunabilirlikleri aynı kalır. */
-  .dq-band__secondary {
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 10px 14px;
-    padding: 12px 16px;
-  }
-
-  .dq-measure {
-    gap: 1px;
-  }
-
-  .dq-measure__label {
-    font-size: 0.67rem;
-    line-height: 1.25;
-  }
-
-  .dq-measure__value {
-    font-size: 0.92rem;
-  }
-}
-
-/* =========================================================
    2) PANEL KABUĞU — gölge yok, hairline var
    ========================================================= */
 
@@ -236,16 +100,6 @@
 
 .dq-panel__body--flush {
   padding: 0;
-}
-
-/* Ortak boş durum — panel içinde kutu/ikon yok, tek sakin künye.
-   `EmptyState` bileşeni de panel içinde bu görünüme çekilir. */
-.dq-empty {
-  padding: 24px 20px;
-  color: var(--dq-meta);
-  font-size: 0.82rem;
-  line-height: 1.5;
-  text-align: center;
 }
 
 .adm-dash .empty-state {
@@ -453,337 +307,9 @@
   color: var(--adm-blue-strong);
 }
 
-/* =========================================================
-   4) DEFTER SATIRLARI — satış / ödeme listeleri
-   ========================================================= */
-
-.dq-ledger {
-  display: grid;
-}
-
-.dq-ledger__row {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 4px 16px;
-  padding: 11px 20px;
-  border-top: 1px solid var(--dq-rule);
-}
-
-.dq-ledger__row:first-child {
-  border-top: 0;
-}
-
-.dq-ledger__main {
-  display: grid;
-  gap: 2px;
-  min-width: 0;
-}
-
-.dq-ledger__title {
-  font-size: 0.86rem;
-  font-weight: 620;
-  line-height: 1.35;
-  overflow-wrap: anywhere;
-}
-
-.dq-ledger__meta {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  flex-wrap: wrap;
-  color: var(--dq-meta);
-  font-size: 0.74rem;
-  line-height: 1.4;
-}
-
-.dq-ledger__side {
-  display: grid;
-  justify-items: end;
-  gap: 3px;
-  text-align: right;
-}
-
-.dq-ledger__amount {
-  font-family: var(--dq-display);
-  font-size: 0.9rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.dq-dot {
-  width: 7px;
-  height: 7px;
-  flex-shrink: 0;
-  border-radius: 50%;
-  background: var(--adm-ink-3);
-}
-
-.dq-dot--green {
-  background: var(--adm-green);
-}
-
-.dq-dot--amber {
-  background: var(--adm-amber);
-}
-
-.dq-dot--blue {
-  background: var(--adm-blue);
-}
-
-.dq-dot--red {
-  background: var(--adm-red);
-}
-
-/* =========================================================
-   5) HIZLI İŞLEM — komut listesi
-   ========================================================= */
-
-.dq-quick {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 8px;
-}
-
-.dq-quick__item {
-  display: flex;
-  align-items: center;
-  gap: 9px;
-  min-height: 44px;
-  min-width: 0;
-  padding: 9px 11px;
-  border: 1px solid var(--dq-rule);
-  border-radius: var(--adm-r);
-  color: var(--adm-ink);
-  text-decoration: none;
-  transition: border-color 0.15s ease, background-color 0.15s ease;
-}
-
-.dq-quick__item:hover {
-  border-color: var(--adm-line-strong);
-  background: var(--adm-surface-soft);
-  text-decoration: none;
-}
-
-.dq-quick__icon {
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  flex-shrink: 0;
-  border-radius: 8px;
-  background: var(--adm-blue-soft);
-  color: var(--adm-blue-strong);
-}
-
-.dq-quick__text {
-  display: grid;
-  gap: 1px;
-  min-width: 0;
-}
-
-.dq-quick__text strong {
-  font-size: 0.82rem;
-  font-weight: 620;
-  line-height: 1.3;
-  overflow-wrap: anywhere;
-}
-
-.dq-quick__text small {
-  color: var(--dq-meta);
-  font-size: 0.71rem;
-  line-height: 1.3;
-}
-
-/* =========================================================
-   6) PERSONEL PERFORMANSI — ölçüm satırları
-   ========================================================= */
-
-.dq-perf + .dq-perf {
-  margin-top: 12px;
-}
-
-.dq-perf__top {
-  display: flex;
-  align-items: baseline;
-  justify-content: space-between;
-  gap: 10px;
-  min-width: 0;
-}
-
-.dq-perf__name {
-  display: flex;
-  align-items: center;
-  gap: 7px;
-  min-width: 0;
-  font-size: 0.84rem;
-  font-weight: 620;
-  overflow-wrap: anywhere;
-}
-
-.dq-perf__value {
-  font-family: var(--dq-display);
-  font-size: 0.86rem;
-  font-weight: 700;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.dq-perf__meter {
-  display: block;
-  height: 6px;
-  margin-top: 6px;
-  border-radius: 999px;
-  background: var(--adm-surface-sunken);
-  overflow: hidden;
-}
-
-.dq-perf__fill {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--adm-blue);
-}
-
-.dq-perf__meta {
-  margin-top: 5px;
-  color: var(--dq-meta);
-  font-size: 0.73rem;
-  line-height: 1.4;
-}
-
-/* =========================================================
-   7) ALTI AYLIK EĞİLİM — ince bar şeridi
-   ========================================================= */
-
-.dq-bars {
-  display: grid;
-  gap: 11px;
-}
-
-.dq-bar {
-  display: grid;
-  grid-template-columns: 52px minmax(0, 1fr) auto;
-  align-items: center;
-  gap: 10px;
-}
-
-.dq-bar__label {
-  color: var(--dq-meta);
-  font-size: 0.74rem;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.dq-bar__track {
-  height: 8px;
-  border-radius: 999px;
-  background: var(--adm-surface-sunken);
-  overflow: hidden;
-}
-
-.dq-bar__fill {
-  display: block;
-  height: 100%;
-  border-radius: 999px;
-  background: var(--adm-blue);
-}
-
-.dq-bar__value {
-  font-size: 0.74rem;
-  font-weight: 600;
-  color: var(--adm-ink);
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.dq-bar__value span {
-  color: var(--dq-meta);
-  font-weight: 500;
-}
-
-@media (max-width: 639px) {
-  .dq-bar {
-    grid-template-columns: 46px minmax(0, 1fr);
-  }
-
-  .dq-bar__value {
-    grid-column: 2;
-    font-size: 0.72rem;
-  }
-}
-
-/* =========================================================
-   8) DENETİM İZİ — log satırları
-   ========================================================= */
-
-.dq-log {
-  display: grid;
-}
-
-.dq-log__row {
-  display: grid;
-  grid-template-columns: 84px minmax(0, 1fr) auto;
-  align-items: baseline;
-  gap: 10px;
-  padding: 9px 20px;
-  border-top: 1px solid var(--dq-rule);
-  font-size: 0.79rem;
-}
-
-.dq-log__row:first-child {
-  border-top: 0;
-}
-
-.dq-log__time {
-  color: var(--dq-meta);
-  font-size: 0.72rem;
-  font-variant-numeric: tabular-nums;
-  white-space: nowrap;
-}
-
-.dq-log__body {
-  min-width: 0;
-  overflow-wrap: anywhere;
-}
-
-.dq-log__action {
-  display: block;
-  margin-bottom: 1px;
-  color: var(--dq-meta);
-  font-size: 0.69rem;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-}
-
-.dq-log__actor {
-  color: var(--dq-meta);
-  font-size: 0.72rem;
-  white-space: nowrap;
-}
-
-/* =========================================================
-   9) YERLEŞİM — bölünmüş satırlar
-   ========================================================= */
-
-.dq-split {
-  display: grid;
-  grid-template-columns: minmax(0, 1.45fr) minmax(0, 1fr);
-  align-items: start;
-  gap: 16px;
-}
-
 .dq-split > .dq-panel,
 .dq-split > div > .dq-panel + .dq-panel {
   min-width: 0;
-}
-
-.dq-split__stack {
-  display: grid;
-  gap: 16px;
-  align-content: start;
 }
 
 /* Geniş ekran: sol panel sağ yığınla aynı yüksekliğe oturur ve satırları
@@ -822,21 +348,6 @@
   }
 }
 
-@media (max-width: 1099px) {
-  .dq-split {
-    grid-template-columns: minmax(0, 1fr);
-  }
-}
-
-/* =========================================================
-   10) HAREKET — paketsiz giriş, reduced-motion'da kapalı
-   ========================================================= */
-
-.dq-reveal {
-  animation: dq-in 0.28s var(--dq-ease) both;
-  animation-delay: calc(var(--rd, 0) * 40ms);
-}
-
 @keyframes dq-in {
   from {
     opacity: 0;
@@ -849,11 +360,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .dq-reveal {
-    animation: none !important;
-    opacity: 1 !important;
-    transform: none !important;
-  }
 
   .dq-row::before,
   .dq-row__go,
@@ -1007,112 +513,12 @@
   }
 }
 
-/* =========================================================
-   KARŞILAMA — .dq-hero (ilk bakışta görülen alan)
-   Sıcak/krem ton + panelin mavi yüzeyi; dekoratif renk yok.
-   ========================================================= */
-
-.dq-hero {
-  position: relative;
-  isolation: isolate;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: clamp(18px, 3vw, 40px);
-  padding: clamp(24px, 3.2vw, 40px) clamp(22px, 3.2vw, 44px);
-  border: 1px solid var(--adm-line);
-  border-radius: calc(var(--adm-r-lg) + 6px);
-  background:
-    radial-gradient(115% 150% at 0% 0%, #fdf4ea 0%, rgba(253, 244, 234, 0) 58%),
-    radial-gradient(120% 160% at 100% 10%, #eef4ff 0%, rgba(238, 244, 255, 0) 62%),
-    var(--adm-surface);
-  box-shadow: 0 26px 50px -42px rgba(11, 23, 40, 0.55);
-  overflow: hidden;
-}
-
-.dq-hero__text {
-  min-width: 0;
-}
-
-.dq-hero__eyebrow {
-  margin: 0 0 10px;
-  color: var(--adm-ink-3);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.14em;
-  text-transform: uppercase;
-}
-
-.dq-hero__title {
-  margin: 0;
-  color: var(--adm-ink);
-  font-family: var(--dq-display);
-  font-size: clamp(1.9rem, 3.4vw, 2.8rem);
-  font-weight: 800;
-  line-height: 1.06;
-  letter-spacing: -0.035em;
-  overflow-wrap: anywhere;
-}
-
-.dq-hero__lead {
-  margin: 12px 0 0;
-  max-width: 56ch;
-  color: var(--adm-ink-2);
-  font-size: clamp(0.9rem, 1.05vw, 1rem);
-  line-height: 1.6;
-  overflow-wrap: anywhere;
-}
-
-.dq-hero__date {
-  display: flex;
-  flex: none;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  padding-left: clamp(18px, 2.4vw, 30px);
-  border-left: 1px solid var(--adm-line);
-  text-align: right;
-}
-
-.dq-hero__day {
-  color: var(--adm-ink);
-  font-family: var(--dq-display);
-  font-size: clamp(2.3rem, 4vw, 3.3rem);
-  font-weight: 800;
-  line-height: 0.95;
-  letter-spacing: -0.045em;
-  font-variant-numeric: tabular-nums;
-}
-
-.dq-hero__month {
-  color: var(--adm-ink-2);
-  font-size: 0.84rem;
-  font-weight: 600;
-}
-
-.dq-hero__weekday {
-  margin-top: 3px;
-  color: var(--adm-ink-3);
-  font-size: 0.68rem;
-  font-weight: 700;
-  letter-spacing: 0.13em;
-  text-transform: uppercase;
-}
-
 /* Tarih alanının hemen solundaki Bekleyen işlem kutucuğu (aynı .dq-sum tasarımı). */
 .dq-hero__aside {
   display: flex;
   flex: none;
   align-items: center;
   gap: clamp(14px, 2vw, 24px);
-}
-
-@media (max-width: 719px) {
-  .dq-hero__aside {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 14px;
-  }
 }
 
 /* =========================================================
@@ -1188,37 +594,6 @@
   font-size: 0.74rem;
   line-height: 1.35;
   overflow-wrap: anywhere;
-}
-
-@media (max-width: 719px) {
-  .dq-hero {
-    flex-direction: column;
-    align-items: stretch;
-    gap: 18px;
-  }
-
-  .dq-hero__date {
-    flex-direction: row;
-    align-items: baseline;
-    gap: 8px;
-    padding: 12px 0 0;
-    border-left: 0;
-    border-top: 1px solid var(--adm-line);
-    text-align: left;
-  }
-
-  .dq-hero__day {
-    font-size: 1.7rem;
-    line-height: 1;
-  }
-
-  .dq-hero__month {
-    font-size: 0.82rem;
-  }
-
-  .dq-hero__weekday {
-    margin-top: 0;
-  }
 }
 
 /* =========================================================
@@ -1466,16 +841,6 @@
   width: 26px;
   height: 26px;
   border-radius: 8px;
-}
-
-.dv__contact-icon--phone {
-  background: var(--adm-blue-soft);
-  color: var(--adm-blue-strong);
-}
-
-.dv__contact-icon--whatsapp {
-  background: var(--adm-green-soft);
-  color: var(--adm-green);
 }
 
 .dv__contact-text {
@@ -1842,5 +1207,375 @@
   .dq-sum--alert {
     border-color: #d9b384;
     box-shadow: 0 0 0 3px rgba(149, 97, 10, 0.08);
+  }
+}
+
+/* =========================================================
+   12) KOMPAKT İŞLEM MERKEZİ — 2026-11-26 UX turu
+   Amaç: sayfa kimliği + tarih + bekleyen sayısı tek başlıkta;
+   işlem kuyruğu ilk ekranda; iş özeti ve dijital görünürlük
+   operasyonun altında ve kompakt.
+   ========================================================= */
+
+.dq-head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px;
+  min-width: 0;
+}
+
+.dq-head__text {
+  min-width: 0;
+}
+
+.dq-head__eyebrow {
+  margin: 0 0 4px;
+  color: var(--adm-ink-3);
+  font-size: 0.68rem;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
+
+.dq-head__title {
+  margin: 0;
+  color: var(--adm-ink);
+  font-family: var(--dq-display);
+  font-size: clamp(1.65rem, 2.6vw, 2.15rem);
+  font-weight: 800;
+  line-height: 1.05;
+  letter-spacing: -0.035em;
+}
+
+.dq-head__meta {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 14px;
+  flex: none;
+}
+
+.dq-head__count {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-height: 38px;
+  padding: 6px 13px;
+  border: 1px solid var(--adm-line);
+  border-radius: 999px;
+  background: var(--adm-surface);
+  color: var(--adm-ink-2);
+  font-size: 0.78rem;
+  font-weight: 600;
+}
+
+.dq-head__count--alert {
+  border-color: #ecd6b8;
+  background: #fffbf4;
+  color: #8a5416;
+}
+
+.dq-head__count-value {
+  color: var(--adm-ink);
+  font-family: var(--dq-display);
+  font-size: 1rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+
+.dq-head__count--alert .dq-head__count-value {
+  color: #8a5416;
+}
+
+.dq-head__date {
+  margin: 0;
+  color: var(--adm-ink-2);
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+/* İş özeti — kuyruğun altında, daha okunur etiketler ve dengeli mobil ızgara */
+.dq-summary {
+  gap: 8px;
+}
+
+.dq-summary__title {
+  color: var(--adm-ink-2);
+  font-size: 0.78rem;
+  letter-spacing: 0.11em;
+}
+
+.dq-summary__grid {
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr));
+  gap: 8px;
+}
+
+.dq-summary__grid .dq-sum {
+  align-items: center;
+  gap: 9px;
+  padding: 11px 13px;
+}
+
+.dq-summary__grid .dq-sum__value {
+  font-size: 1.35rem;
+}
+
+.dq-summary__grid .dq-sum__label {
+  font-size: 0.77rem;
+}
+
+@media (max-width: 719px) {
+  .dq-head {
+    align-items: flex-start;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .dq-head__meta {
+    width: 100%;
+    justify-content: space-between;
+    gap: 10px;
+  }
+
+  .dq-head__date {
+    font-size: 0.73rem;
+  }
+
+  .dq-summary__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  /* Beş KPI'da son kart tek başına yarım satır kalmasın. */
+  .dq-summary__grid > .dq-sum:last-child:nth-child(odd) {
+    grid-column: 1 / -1;
+  }
+
+  .dq-summary__grid .dq-sum {
+    padding: 10px 12px;
+  }
+}
+
+/* Dijital görünürlük — dört sayaçlık şerit + koşullu ilk 5 + katlanır not */
+.dv--compact {
+  border-radius: var(--adm-r-lg);
+  box-shadow: none;
+}
+
+.dv--compact .dv__head {
+  align-items: center;
+  padding: 14px 18px;
+  border-bottom: 0;
+}
+
+.dv--compact .dv__eyebrow {
+  margin: 0 0 3px;
+  color: #8a5416;
+  font-size: 0.64rem;
+}
+
+.dv--compact .dv__title {
+  font-size: 1rem;
+  font-weight: 750;
+}
+
+.dv--compact .dv__head-actions {
+  gap: 6px;
+}
+
+.dv--compact .dv__refresh,
+.dv--compact .dv__all {
+  min-height: 38px;
+}
+
+.dv__strip {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  border-top: 1px solid var(--adm-line);
+  border-bottom: 1px solid var(--adm-line);
+  background: rgba(253, 247, 238, 0.55);
+}
+
+.dv__stat {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+  min-width: 0;
+  padding: 11px 15px;
+  border-right: 1px solid var(--adm-line);
+}
+
+.dv__stat:last-child {
+  border-right: 0;
+}
+
+.dv__stat-icon {
+  display: grid;
+  flex: none;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 9px;
+  background: #f6ece0;
+  color: #8a5416;
+}
+
+.dv__stat--accent .dv__stat-icon {
+  background: var(--adm-blue-soft);
+  color: var(--adm-blue-strong);
+}
+
+.dv__stat-icon--phone {
+  background: var(--adm-blue-soft);
+  color: var(--adm-blue-strong);
+}
+
+.dv__stat-icon--whatsapp {
+  background: var(--adm-green-soft);
+  color: var(--adm-green);
+}
+
+.dv__stat-body {
+  display: grid;
+  gap: 0;
+  min-width: 0;
+}
+
+.dv__stat-label {
+  color: var(--adm-ink-2);
+  font-size: 0.7rem;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+}
+
+.dv__stat-value {
+  color: var(--adm-ink);
+  font-family: var(--dq-display);
+  font-size: 1.25rem;
+  font-weight: 800;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  font-variant-numeric: tabular-nums;
+}
+
+.dv__stat-share {
+  margin-left: auto;
+  padding-top: 2px;
+  color: var(--adm-ink-3);
+  font-size: 0.68rem;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+
+.dv__zero {
+  margin: 0;
+  padding: 11px 18px;
+  border-bottom: 1px solid var(--adm-line);
+  color: var(--adm-ink-2);
+  font-size: 0.77rem;
+  line-height: 1.45;
+}
+
+.dv--compact .dv__top {
+  padding: 13px 18px;
+  background: transparent;
+}
+
+.dv--compact .dv__top-title {
+  font-size: 0.8rem;
+}
+
+.dv__more {
+  border-top: 1px solid var(--adm-line);
+  background: rgba(252, 247, 240, 0.55);
+}
+
+.dv__more summary {
+  display: list-item;
+  min-height: 44px;
+  padding: 11px 18px 11px 26px;
+  color: var(--adm-ink-2);
+  font-size: 0.73rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.dv__more summary::marker {
+  color: #8a5416;
+}
+
+.dv__more summary:focus-visible {
+  outline: 2px solid var(--adm-blue);
+  outline-offset: -2px;
+}
+
+.dv__more p {
+  margin: 0;
+  padding: 0 18px 12px;
+  color: var(--adm-ink-3);
+  font-size: 0.7rem;
+  line-height: 1.5;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 719px) {
+  .dv--compact .dv__head {
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: flex-start;
+    padding: 13px 16px;
+  }
+
+  .dv--compact .dv__head-actions {
+    width: auto;
+    margin-left: auto;
+  }
+
+  .dv--compact .dv__refresh,
+  .dv--compact .dv__all {
+    min-height: 44px;
+  }
+
+  .dv__strip {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .dv__stat {
+    padding: 10px 12px;
+  }
+
+  .dv__stat:nth-child(2) {
+    border-right: 0;
+  }
+
+  .dv__stat:nth-child(-n + 2) {
+    border-bottom: 1px solid var(--adm-line);
+  }
+
+  .dv__stat-value {
+    font-size: 1.15rem;
+  }
+
+  .dv__zero {
+    padding: 10px 16px;
+  }
+
+  .dv--compact .dv__top {
+    padding: 12px 16px;
+  }
+
+  .dv__more summary,
+  .dv__more p {
+    padding-inline: 16px;
+  }
+}
+
+/* Kuyruk eylemleri mobilde 44px dokunma hedefi */
+@media (max-width: 899px) {
+  .dq-row__actions .btn {
+    min-height: 44px;
   }
 }

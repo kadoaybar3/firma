@@ -30,13 +30,6 @@ export interface PaymentCheckoutResult {
   redirectUrl: string;
 }
 
-export interface WebhookPayload {
-  providerRef: string;
-  status: "basarili" | "hata" | "iade";
-  amount: number;
-  /** Sağlayıcının imzası — sunucu tarafında doğrulanır */
-  raw?: unknown;
-}
 
 export interface PaymentProvider {
   readonly name: string;

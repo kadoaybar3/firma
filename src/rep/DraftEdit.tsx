@@ -209,7 +209,7 @@ export default function RepDraftEdit() {
           <div style={{ display: "flex", flexWrap: "wrap", gap: 10 }}>
             <Link className="rep-btn rep-btn--primary" to={`/temsilci/taslak/${lead.id}/odeme`}>
               <CreditCard size={17} strokeWidth={2} aria-hidden="true" />
-              Ödeme durumunu görüntüle
+              Anlaşma durumunu görüntüle
             </Link>
             <Link className="rep-btn rep-btn--ghost" to="/temsilci/taslaklar">
               Taslaklara dön
@@ -221,7 +221,7 @@ export default function RepDraftEdit() {
           {saved && (
             <div className="rep-note rep-note--success" role="status">
               <CheckCircle2 size={16} strokeWidth={2} aria-hidden="true" />
-              <span>Taslak güncellendi. Ödeme adımına geçebilirsiniz.</span>
+              <span>Taslak güncellendi. Anlaşma adımına geçebilirsiniz.</span>
             </div>
           )}
 
@@ -364,7 +364,7 @@ export default function RepDraftEdit() {
           <div className="rep-note">
             <Info size={16} strokeWidth={1.9} aria-hidden="true" />
             <span>
-              Ödeme adımına geçtikten sonra firma bilgileri kilitlenir. Bu nedenle kaydetmeden
+              Anlaşma adımına geçtikten sonra firma bilgileri kilitlenir. Bu nedenle kaydetmeden
               önce bilgileri kontrol edin.
             </span>
           </div>
@@ -398,7 +398,7 @@ export default function RepDraftEdit() {
           <div style={{ display: "flex", justifyContent: "flex-end" }}>
             <Link className="rep-btn rep-btn--soft rep-btn--sm" to={`/temsilci/taslak/${lead.id}/odeme`}>
               <CreditCard size={15} strokeWidth={2} aria-hidden="true" />
-              Ödeme adımına geç
+              Anlaşma adımına geç
             </Link>
           </div>
         </form>

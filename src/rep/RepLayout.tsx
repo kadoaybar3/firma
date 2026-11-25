@@ -107,7 +107,7 @@ export function RepLayout() {
           title="RehberiX ana sayfası"
         >
           <Home size={16} strokeWidth={1.9} aria-hidden="true" />
-          Ana Sayfa
+          Siteyi Gör
         </Link>
 
         <nav className="rep-nav">
@@ -166,7 +166,7 @@ export function RepLayout() {
               title="RehberiX ana sayfası"
             >
               <Home size={16} strokeWidth={1.9} aria-hidden="true" />
-              <span>Ana Sayfa</span>
+              <span>Siteyi Gör</span>
             </Link>
             <button
               type="button"

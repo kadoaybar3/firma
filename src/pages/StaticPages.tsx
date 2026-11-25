@@ -60,7 +60,7 @@ export function ContactPage() {
               <MapPin size={18} strokeWidth={1.9} />
             </span>
             <h3>Adres</h3>
-            <p><strong>Afyoon Reklam</strong><br />Kurtuluş Caddesi No:45/3<br />Merkez / Afyon</p>
+            <p><strong>Afyon Reklam</strong><br />Kurtuluş Caddesi No:45/3<br />Merkez / Afyon</p>
           </div>
         </div>
 
@@ -70,7 +70,7 @@ export function ContactPage() {
           </h3>
           <p className="text-muted small" style={{ marginBottom: 12 }}>
             İşletmeniz için size uygun görünürlüğü seçin. Her iki pakette de firmanız rehberde
-            listelenir; Advance Paket, Öne Çıkanlar bölümünde ek görünürlük sağlar.
+            listelenir; Öne Çıkan Paket, Öne Çıkanlar bölümünde ek görünürlük sağlar.
           </p>
           <div className="how-grid">
             <article className="package-card" style={{ marginTop: 0, background: "var(--surface)" }}>
@@ -78,7 +78,7 @@ export function ContactPage() {
                 <span className="package-card__icon" aria-hidden="true">
                   <Compass size={18} strokeWidth={1.9} />
                 </span>
-                <h4 style={{ fontWeight: 750 }}>Standart Paket</h4>
+                <h4 style={{ fontWeight: 750 }}>Normal Paket</h4>
               </div>
               <div className="package-card__price">1.000 TL</div>
               <p className="text-muted small">
@@ -94,11 +94,11 @@ export function ContactPage() {
                 <span className="package-card__icon" aria-hidden="true">
                   <Sparkles size={18} strokeWidth={1.9} />
                 </span>
-                <h4 style={{ fontWeight: 750 }}>Advance Paket</h4>
+                <h4 style={{ fontWeight: 750 }}>Öne Çıkan Paket</h4>
               </div>
               <div className="package-card__price">2.000 TL</div>
               <p className="text-muted small">
-                Standart Paket kapsamına ek olarak işletmeniz, ana sayfadaki Öne Çıkanlar
+                Normal Paket kapsamına ek olarak işletmeniz, ana sayfadaki Öne Çıkanlar
                 bölümünde gösterilir.
               </p>
             </article>
@@ -436,7 +436,7 @@ export function KvkkPage() {
         <div className="card card__pad">
           <h3 style={{ fontWeight: 800, marginBottom: 6 }}>1. Veri Sorumlusu</h3>
           <p className="text-muted" style={{ lineHeight: 1.65 }}>
-            Afyoon Reklam, Kurtuluş Caddesi No:45/3, Merkez / Afyon. Veri sorumlusuna
+            Afyon Reklam, Kurtuluş Caddesi No:45/3, Merkez / Afyon. Veri sorumlusuna
             <a href="mailto:kadirayb@icloud.com">kadirayb@icloud.com</a> adresinden ulaşılabilir.
           </p>
           <h3 style={{ fontWeight: 800, margin: "16px 0 6px" }}>2. İşlenen Veriler</h3>

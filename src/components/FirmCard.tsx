@@ -1,21 +1,9 @@
 import { Link } from "react-router-dom";
 import { ArrowUpRight, ChevronRight, MapPin, Phone } from "lucide-react";
 import { companyIndex, getCityById, listCategories } from "../lib/repo";
-import { telHref, formatDateTime } from "../lib/format";
+import { firmInitials, firmPhoto, telHref } from "../lib/format";
 import { isOpenNow } from "../lib/hours";
 import { CategoryGlyph } from "./CategoryGlyph";
-
-/** Firma adından iki harflik monogram: "Fark Otomotiv" → "FO". */
-function initials(name: string): string {
-  const words = name.split(/[^A-Za-z0-9ÇĞİÖŞÜçğıöşü]+/).filter(Boolean);
-  const letters = words.slice(0, 2).map((w) => w[0] ?? "");
-  return (letters.join("") || name[0] || "?").toLocaleUpperCase("tr");
-}
-
-/** Yalnız gerçek http(s) görselleri kullan — emoji/demet gibi değerler çizilmez. */
-function photoOf(images: string[] | undefined): string | null {
-  return images?.find((src) => /^https?:\/\//i.test(src)) ?? null;
-}
 
 /**
  * Firma kartı.
@@ -29,7 +17,7 @@ export function FirmCard({ id, variant = "row" }: { id: string; variant?: "row" 
   const category = listCategories().find((c) => c.id === company.categoryId);
   const city = getCityById(company.cityId);
   const phoneHref = telHref(company.phone);
-  const photo = photoOf(company.images);
+  const photo = firmPhoto(company.images);
   const place = [company.district, city?.name].filter(Boolean).join(", ");
 
   // Saat verisi hiç yoksa "Kapalı" demek yanıltıcı olur — durum rozeti gösterilmez.
@@ -44,7 +32,7 @@ export function FirmCard({ id, variant = "row" }: { id: string; variant?: "row" 
       <article className="firm-card">
         <div className="firm-card__top">
           <span className="firm-card__avatar" aria-hidden="true">
-            {photo ? <img src={photo} alt="" loading="lazy" /> : initials(company.name)}
+            {photo ? <img src={photo} alt="" loading="lazy" /> : firmInitials(company.name)}
           </span>
           <div className="firm-card__ids">
             <h3 className="firm-card__name">
@@ -149,8 +137,4 @@ export function FirmGrid({
       ))}
     </div>
   );
-}
-
-export function CompanyUpdatedAt({ company }: { company: { updatedAt: string } }) {
-  return <span className="text-muted small">Son güncelleme: {formatDateTime(company.updatedAt)}</span>;
 }

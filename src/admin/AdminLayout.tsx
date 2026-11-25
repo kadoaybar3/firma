@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link, Outlet, useLocation, useNavigate } from "react-router-dom";
 import {
   Bell,
@@ -27,6 +27,7 @@ import { useAuth } from "../lib/auth";
 import { RoleError } from "../App";
 import { SyncBanner } from "../components/SyncBanner";
 import { useAdminLiveUpdates } from "./useAdminLiveUpdates";
+import { useMediaQuery } from "../lib/useMediaQuery";
 import "./admin.css";
 
 interface SectionTab {
@@ -213,6 +214,15 @@ export function AdminLayout() {
   const [drawer, setDrawer] = useState(false);
   const [openGroup, setOpenGroup] = useState<string | null>(null);
 
+  // Mobil çekmece yalnız ≤960px'de bir modal gibi davranır. Kapalıyken
+  // `inert` ile odak sırasından ve erişilebilirlik ağacından çıkarılır.
+  const isMobile = useMediaQuery("(max-width: 960px)");
+  const sidebarRef = useRef<HTMLElement>(null);
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
+  const closeButtonRef = useRef<HTMLButtonElement>(null);
+  const openerRef = useRef<HTMLElement | null>(null);
+  const drawerWasOpen = useRef(false);
+
   const section = activeSection(pathname);
   const tab = activeTab(section, pathname);
   const subPage = section && tab && tab.to !== section.to ? tab : undefined;
@@ -233,6 +243,51 @@ export function AdminLayout() {
     document.addEventListener("keydown", onKey);
     return () => {
       document.body.style.overflow = previous;
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [drawer]);
+
+  // Çekmece açılışında odak menüye taşınır, Tab menü içinde döner ve
+  // kapanışta odak çekmeceyi açan düğmeye geri döner.
+  useEffect(() => {
+    if (!drawer) {
+      if (drawerWasOpen.current) {
+        drawerWasOpen.current = false;
+        const opener = openerRef.current;
+        if (opener?.isConnected) opener.focus();
+      }
+      return;
+    }
+
+    drawerWasOpen.current = true;
+    openerRef.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+
+    const focusTimer = window.setTimeout(() => closeButtonRef.current?.focus(), 0);
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "Tab") return;
+      const sidebar = sidebarRef.current;
+      if (!sidebar) return;
+      const focusables = [
+        ...sidebar.querySelectorAll<HTMLElement>(
+          'a[href], button:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ].filter((element) => element.getClientRects().length > 0);
+      if (focusables.length === 0) return;
+      const first = focusables[0];
+      const last = focusables[focusables.length - 1];
+      const active = document.activeElement;
+      const inside = active instanceof HTMLElement && sidebar.contains(active);
+      if (event.shiftKey && (!inside || active === first)) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && (!inside || active === last)) {
+        event.preventDefault();
+        first.focus();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => {
+      window.clearTimeout(focusTimer);
       document.removeEventListener("keydown", onKey);
     };
   }, [drawer]);
@@ -345,11 +400,18 @@ export function AdminLayout() {
         type="button"
         className="adm-backdrop"
         aria-label="Menüyü kapat"
+        aria-hidden={!drawer}
         tabIndex={drawer ? 0 : -1}
         onClick={() => setDrawer(false)}
       />
 
-      <aside className="adm-sidebar" aria-label="Yönetim menüsü">
+      <aside
+        ref={sidebarRef}
+        id="adm-sidebar"
+        className="adm-sidebar"
+        aria-label="Yönetim menüsü"
+        inert={isMobile && !drawer}
+      >
         <div className="adm-brandrow">
           <Link className="adm-brand" to="/yonetim">
             <span className="adm-brand__mark" aria-hidden="true">
@@ -361,6 +423,7 @@ export function AdminLayout() {
             </span>
           </Link>
           <button
+            ref={closeButtonRef}
             type="button"
             className="adm-iconbtn adm-sidebar__close"
             aria-label="Menüyü kapat"
@@ -410,10 +473,12 @@ export function AdminLayout() {
         <header className="adm-topbar">
           <div className="adm-topbar__left">
             <button
+              ref={menuButtonRef}
               type="button"
               className="adm-iconbtn adm-topbar__menu"
               aria-label="Menüyü aç"
               aria-expanded={drawer}
+              aria-controls="adm-sidebar"
               onClick={() => setDrawer(true)}
             >
               <Menu size={19} strokeWidth={2} aria-hidden="true" />

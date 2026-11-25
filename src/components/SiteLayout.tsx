@@ -1,6 +1,6 @@
 import { NavLink, Outlet, Link } from "react-router-dom";
 import { MapPin, Search } from "lucide-react";
-import { useAuth, useActor } from "../lib/auth";
+import { useAuth } from "../lib/auth";
 
 export function SiteLayout() {
   return (
@@ -98,9 +98,4 @@ function SiteFooter() {
       </div>
     </footer>
   );
-}
-
-/** Aktör bilgisini doğru türde paylaşmak için yardımcı (panellerde kullanılır) */
-export function useSessionActor() {
-  return useActor();
 }

@@ -1,10 +1,11 @@
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
 import { Link, useParams, useSearchParams } from "react-router-dom";
 import { SearchX } from "lucide-react";
 import { SEO } from "../components/SEO";
 import CategorySelect from "../components/CategorySelect";
 import { FirmGrid } from "../components/FirmCard";
 import { EmptyState } from "../components/ui";
+import { FirmFilterField, FirmFilters } from "../components/FirmList";
 import { districtCountsByCity, getCityBySlug, listCategories, listCities, listCompanies } from "../lib/repo";
 import { slugProblem, slugProblemMessage } from "../lib/slugProblem";
 import { slugify } from "../lib/slug";
@@ -24,7 +25,6 @@ import type { Category } from "../lib/types";
 export default function FirmsPage() {
   const params = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
-  const [loading] = useState(false); // Demo verisi anlık; gerçek API bu alanı koşullu doldurur
 
   // Kategori çözümü
   let selectedCategory: Category | undefined;
@@ -201,64 +201,79 @@ export default function FirmsPage() {
               Firma adı ya da hizmet adıyla arayın; kategori, şehir ve ilçe filtreleriyle daraltın.
             </p>
           </div>
-          <span className="section__count">
-            {loading ? "Yükleniyor…" : `${results.length} firma`}
-          </span>
         </div>
 
-        {/* Filtre çubuğu */}
-        <div className="filter-bar">
-          <input
-            className="input"
-            type="search"
-            placeholder="Firma adı veya hizmet ara"
-            aria-label="Arama terimi"
-            defaultValue={queryText}
-            onChange={(e) => updateParamQ(e.target.value)}
-          />
-          <CategorySelect
-            categories={listCategories().map((c) => ({ id: c.slug, name: c.name }))}
-            value={selectedCategory?.slug ?? ""}
-            onChange={(slug) => updateParam("kategori", slug)}
-            allLabel="Tüm kategoriler"
-            ariaLabel="Kategori"
-          />
-          <select
-            className="input"
-            aria-label="Şehir"
-            value={city?.slug ?? ""}
-            onChange={(e) => {
-              updateParam("sehir", e.target.value);
-              const nextCity = listCities().find((c) => c.slug === e.target.value);
-              if (nextCity) {
-                const next = new URLSearchParams(searchParams);
-                next.delete("ilce");
-                setSearchParams(next, { replace: true });
-              }
-            }}
-          >
-            <option value="">Tüm şehirler</option>
-            {listCities().map((c) => (
-              <option key={c.id} value={c.slug}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-          <select
-            className="input"
-            aria-label="İlçe"
-            value={districtParam ?? ""}
-            onChange={(e) => updateParam("ilce", e.target.value)}
-            disabled={!city}
-          >
-            <option value="">Tüm ilçeler</option>
-            {city?.districts.map((d) => (
-              <option key={d} value={slugify(d)}>
-                {d} ({districtCounts.get(d) ?? 0})
-              </option>
-            ))}
-          </select>
-        </div>
+        {/* Filtre çubuğu — ortak firma listeleme standardı */}
+        <FirmFilters
+          total={firmCount}
+          shown={results.length}
+          unit="firma"
+          hasFilters={Boolean(
+            queryText.trim() || selectedCategory || city || districtParam,
+          )}
+          onClear={() => setSearchParams({}, { replace: true })}
+          label="Firma arama filtreleri"
+          twoUp
+        >
+          <FirmFilterField label="Firma adı veya hizmet" wide>
+            <input
+              className="input"
+              type="search"
+              placeholder="Firma adı veya hizmet ara"
+              aria-label="Arama terimi"
+              defaultValue={queryText}
+              onChange={(e) => updateParamQ(e.target.value)}
+            />
+          </FirmFilterField>
+          <FirmFilterField label="Kategori">
+            <CategorySelect
+              categories={listCategories().map((c) => ({ id: c.slug, name: c.name }))}
+              value={selectedCategory?.slug ?? ""}
+              onChange={(slug) => updateParam("kategori", slug)}
+              allLabel="Tüm kategoriler"
+              ariaLabel="Kategori"
+            />
+          </FirmFilterField>
+          <FirmFilterField label="Şehir">
+            <select
+              className="input"
+              aria-label="Şehir"
+              value={city?.slug ?? ""}
+              onChange={(e) => {
+                updateParam("sehir", e.target.value);
+                const nextCity = listCities().find((c) => c.slug === e.target.value);
+                if (nextCity) {
+                  const next = new URLSearchParams(searchParams);
+                  next.delete("ilce");
+                  setSearchParams(next, { replace: true });
+                }
+              }}
+            >
+              <option value="">Tüm şehirler</option>
+              {listCities().map((c) => (
+                <option key={c.id} value={c.slug}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </FirmFilterField>
+          <FirmFilterField label="İlçe" full>
+            <select
+              className="input"
+              aria-label="İlçe"
+              value={districtParam ?? ""}
+              onChange={(e) => updateParam("ilce", e.target.value)}
+              disabled={!city}
+            >
+              <option value="">{city ? "Tüm ilçeler" : "Önce şehir seçin"}</option>
+              {city?.districts.map((d) => (
+                <option key={d} value={slugify(d)}>
+                  {d} ({districtCounts.get(d) ?? 0})
+                </option>
+              ))}
+            </select>
+          </FirmFilterField>
+        </FirmFilters>
 
         {/* Sonuçlar */}
         {results.length > 0 ? (

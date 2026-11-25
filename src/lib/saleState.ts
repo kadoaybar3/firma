@@ -47,10 +47,6 @@ export function isCardPayment(payment: Payment): boolean {
   return payment.provider !== "eft" && payment.provider !== "hicbiri";
 }
 
-/** EFT veya manuel kayıt: yönetici onayı bu iki yöntemde mümkündür. */
-export function isAdminApprovablePayment(payment: Payment): boolean {
-  return payment.status === "beklemede" && !isCardPayment(payment);
-}
 
 export function paymentMethodLabel(payment?: Payment): string {
   if (!payment) return "Kayıt yok";
@@ -69,11 +65,6 @@ export function paymentStatusBadge(status: Payment["status"]): {
   return { tone: "gray", label: "İade" };
 }
 
-/** Yöntem + durum tek satırda (liste hücreleri için). */
-export function paymentSummary(payment?: Payment): string {
-  if (!payment) return "Kayıt yok";
-  return `${paymentMethodLabel(payment)} · ${paymentStatusBadge(payment.status).label.toLocaleLowerCase("tr")}`;
-}
 
 /**
  * Satış aşaması — SIRA ÖNEMLİ, ilk eşleşen kazanır:
@@ -87,12 +78,4 @@ export function saleStage(sale: Sale, rows: Payment[]): SaleStage {
   const pending = rows.find((payment) => payment.status === "beklemede");
   if (pending) return isCardPayment(pending) ? "card" : "eft";
   return "none";
-}
-
-/** Satışın kuyruktaki aşaması — ödemeleri kendisi indeksler. */
-export function saleStageFor(sale: Sale, payments: Payment[]): SaleStage {
-  return saleStage(
-    sale,
-    payments.filter((payment) => payment.saleId === sale.id),
-  );
 }

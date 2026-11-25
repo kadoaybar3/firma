@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
 import { Badge, EmptyState, StatCard, auditActionLabels } from "../components/ui";
+import { FirmIdentity } from "../components/FirmList";
 import { useActor } from "../lib/auth";
 import { useLiveDataRevision } from "../lib/liveData";
 import { formatDateTime, formatTRY, isPlaceholderPaymentRef } from "../lib/format";
@@ -123,7 +124,7 @@ export default function AdminPayments() {
       </div>
 
       <section>
-        <div className="panel-section-head" style={{ marginBottom: 10 }}>
+        <div style={{ marginBottom: 10 }}>
           <h2 style={{ margin: 0, fontSize: 17, fontWeight: 800 }}>Kayıtlar</h2>
 
         </div>
@@ -203,8 +204,8 @@ export default function AdminPayments() {
             description="Yöntem, durum veya arama filtresini değiştirin."
           />
         ) : (
-          <div className="table-wrap">
-            <table className="table">
+          <div className="table-wrap table-wrap--cards">
+            <table className="table table--rows">
               <thead>
                 <tr>
                   <th>Satış / firma</th>
@@ -224,8 +225,13 @@ export default function AdminPayments() {
                   return (
                     <tr key={p.id}>
                       <td data-label="Satış / firma">
-                        <strong>{company?.name ?? "—"}</strong>
-                        <div className="text-muted small">{formatDateTime(p.createdAt)}</div>
+                        <FirmIdentity
+                          name={company?.name ?? "Firma kaydı yok"}
+                          href={company ? `/firma/${company.slug}` : undefined}
+                          images={company?.images}
+                          place={company?.district}
+                          note={formatDateTime(p.createdAt)}
+                        />
                       </td>
                       <td data-label="Tutar">{formatTRY(p.amount)}</td>
                       <td data-label="Yöntem" className="small">

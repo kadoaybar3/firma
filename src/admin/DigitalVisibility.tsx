@@ -15,7 +15,7 @@ import { ENGAGEMENT_KINDS } from "../lib/engagement";
 import type { EngagementKind } from "../lib/types";
 
 /*
- * DİJİTAL GÖRÜNÜRLÜK — İşlem Merkezi karşılamasının altındaki özet şerit
+ * DİJİTAL GÖRÜNÜRLÜK — İşlem Merkezi'nin kompakt ölçüm şeridi
  *
  * Veri yalnız mevcut 0018 sayaç tablosundan (`listEngagementCounters`) ve
  * firma adları için `listCompanies` üzerinden okunur. Sayaçlar firma + tür
@@ -25,6 +25,10 @@ import type { EngagementKind } from "../lib/types";
  * Panel `useAdminLiveUpdates` + `emitLiveDataChanged` ile yenilenen repo
  * belleğini okur; "Yenile" düğmesi aynı okumayı isteğe bağlı olarak tekrar
  * çalıştırır (yeni bir veri yolu veya RPC eklenmez).
+ *
+ * Yerleşim: dört sayaç tek şeritte; ilk 5 firma yalnız gerçek ziyaret verisi
+ * varsa listelenir. Yöntem notu katlanır `details` içinde tutulur ki sıfır
+ * veride panel gereksiz yükseklik kaplamasın.
  */
 
 const numberFormat = new Intl.NumberFormat("tr-TR");
@@ -87,7 +91,7 @@ export default function DigitalVisibility() {
     interactionTotal > 0 ? Math.round((value / interactionTotal) * 100) : 0;
 
   return (
-    <section className="dv" aria-labelledby="dv-title">
+    <section className="dv dv--compact" aria-labelledby="dv-title">
       <header className="dv__head">
         <div className="dv__intro">
           <p className="dv__eyebrow">
@@ -95,12 +99,8 @@ export default function DigitalVisibility() {
             Dijital Görünürlük
           </p>
           <h2 id="dv-title" className="dv__title">
-            Firmalarınız ne kadar görünüyor?
+            Ziyaret ve etkileşim özeti
           </h2>
-          <p className="dv__lead">
-            Profil görüntülenmeleri ve iletişim tıklamaları; yayındaki firmalardan gelen gerçek
-            sayımlar.
-          </p>
         </div>
         <div className="dv__head-actions">
           <button
@@ -119,121 +119,110 @@ export default function DigitalVisibility() {
         </div>
       </header>
 
-      <div className="dv__body">
-        {/* ---------- Sol: iki ana figür + telefon/WhatsApp ---------- */}
-        <div className="dv__figures">
-          <div className="dv__figure-row">
-            <div className="dv__figure">
-              <span className="dv__figure-icon">
-                <Eye size={17} strokeWidth={1.9} aria-hidden="true" />
-              </span>
-              <span className="dv__figure-body">
-                <span className="dv__figure-label">Toplam profil ziyareti</span>
-                <span className="dv__figure-value">{numberFormat.format(visitTotal)}</span>
-                <span className="dv__figure-sub">
-                  {top.length > 0
-                    ? `${numberFormat.format(top.length)} firmada ziyaret sayımı var`
-                    : "Henüz ziyaret sayımı yok"}
-                </span>
-              </span>
-            </div>
-
-            <div className="dv__figure dv__figure--accent">
-              <span className="dv__figure-icon">
-                <MousePointerClick size={17} strokeWidth={1.9} aria-hidden="true" />
-              </span>
-              <span className="dv__figure-body">
-                <span className="dv__figure-label">Toplam etkileşim</span>
-                <span className="dv__figure-value">{numberFormat.format(interactionTotal)}</span>
-                <span className="dv__figure-sub">Ziyaret ve tüm iletişim tıklamaları</span>
-              </span>
-            </div>
-          </div>
-
-          <div className="dv__contacts" aria-label="Telefon ve WhatsApp etkileşimleri">
-            <div className="dv__contact">
-              <span className="dv__contact-icon dv__contact-icon--phone">
-                <Phone size={14} strokeWidth={2} aria-hidden="true" />
-              </span>
-              <span className="dv__contact-text">
-                <span className="dv__contact-label">Telefon</span>
-                <span className="dv__contact-value">{numberFormat.format(totals.telefon)}</span>
-              </span>
-              <span className="dv__contact-share" aria-label={`Etkileşimlerin yüzde ${share(totals.telefon)}`}>
-                %{share(totals.telefon)}
-              </span>
-            </div>
-            <div className="dv__contact">
-              <span className="dv__contact-icon dv__contact-icon--whatsapp">
-                <MessageCircle size={14} strokeWidth={2} aria-hidden="true" />
-              </span>
-              <span className="dv__contact-text">
-                <span className="dv__contact-label">WhatsApp</span>
-                <span className="dv__contact-value">{numberFormat.format(totals.whatsapp)}</span>
-              </span>
-              <span
-                className="dv__contact-share"
-                aria-label={`Etkileşimlerin yüzde ${share(totals.whatsapp)}`}
-              >
-                %{share(totals.whatsapp)}
-              </span>
-            </div>
-          </div>
+      {/* Dört sayaç — tek satırda, sıfır veride de aynı yükseklik. */}
+      <div className="dv__strip">
+        <div className="dv__stat">
+          <span className="dv__stat-icon">
+            <Eye size={16} strokeWidth={1.9} aria-hidden="true" />
+          </span>
+          <span className="dv__stat-body">
+            <span className="dv__stat-label">Profil ziyareti</span>
+            <span className="dv__stat-value">{numberFormat.format(visitTotal)}</span>
+          </span>
         </div>
 
-        {/* ---------- Sağ: en çok ziyaret edilen ilk 5 ---------- */}
+        <div className="dv__stat dv__stat--accent">
+          <span className="dv__stat-icon">
+            <MousePointerClick size={16} strokeWidth={1.9} aria-hidden="true" />
+          </span>
+          <span className="dv__stat-body">
+            <span className="dv__stat-label">Toplam etkileşim</span>
+            <span className="dv__stat-value">{numberFormat.format(interactionTotal)}</span>
+          </span>
+        </div>
+
+        <div className="dv__stat">
+          <span className="dv__stat-icon dv__stat-icon--phone">
+            <Phone size={15} strokeWidth={2} aria-hidden="true" />
+          </span>
+          <span className="dv__stat-body">
+            <span className="dv__stat-label">Telefon</span>
+            <span className="dv__stat-value">{numberFormat.format(totals.telefon)}</span>
+          </span>
+          <span
+            className="dv__stat-share"
+            aria-label={`Etkileşimlerin yüzde ${share(totals.telefon)}`}
+          >
+            %{share(totals.telefon)}
+          </span>
+        </div>
+
+        <div className="dv__stat">
+          <span className="dv__stat-icon dv__stat-icon--whatsapp">
+            <MessageCircle size={15} strokeWidth={2} aria-hidden="true" />
+          </span>
+          <span className="dv__stat-body">
+            <span className="dv__stat-label">WhatsApp</span>
+            <span className="dv__stat-value">{numberFormat.format(totals.whatsapp)}</span>
+          </span>
+          <span
+            className="dv__stat-share"
+            aria-label={`Etkileşimlerin yüzde ${share(totals.whatsapp)}`}
+          >
+            %{share(totals.whatsapp)}
+          </span>
+        </div>
+      </div>
+
+      {leaders.length === 0 ? (
+        <p className="dv__zero">
+          Henüz ziyaret sayımı yok. Yayındaki firma profilleri görüntülendikçe burada listelenir.
+        </p>
+      ) : (
         <div className="dv__top">
           <h3 className="dv__top-title">
             En çok ziyaret edilen
             <span>İlk 5 firma</span>
           </h3>
-
-          {leaders.length === 0 ? (
-            <div className="dv__empty">
-              <Eye size={22} strokeWidth={1.5} aria-hidden="true" />
-              <p>
-                <strong>Henüz sayılmış ziyaret yok.</strong> Yayındaki firma profilleri
-                görüntülendikçe burada ilk beş firma ve ziyaret çubukları oluşur.
-              </p>
-            </div>
-          ) : (
-            <ol className="dv__list">
-              {leaders.map((row, index) => {
-                const width = peak > 0 ? Math.max(6, Math.round((row.visits / peak) * 100)) : 0;
-                return (
-                  <li key={row.id} className="dv__row">
-                    <span className="dv__rank">{String(index + 1).padStart(2, "0")}</span>
-                    <span className="dv__row-body">
-                      <span className="dv__row-line">
-                        <Link className="dv__row-name" to="/yonetim/etkilesimler">
-                          {row.name}
-                        </Link>
-                        <span className="dv__row-count">
-                          {numberFormat.format(row.visits)}
-                          <em>ziyaret</em>
-                        </span>
-                      </span>
-                      <span className="dv__track" aria-hidden="true">
-                        <span className="dv__fill" style={{ width: `${width}%` }} />
-                      </span>
-                      <span className="dv__row-meta">
-                        {numberFormat.format(row.total)} etkileşim
-                        {index === 0 ? " · en yüksek" : ""}
+          <ol className="dv__list">
+            {leaders.map((row, index) => {
+              const width = peak > 0 ? Math.max(6, Math.round((row.visits / peak) * 100)) : 0;
+              return (
+                <li key={row.id} className="dv__row">
+                  <span className="dv__rank">{String(index + 1).padStart(2, "0")}</span>
+                  <span className="dv__row-body">
+                    <span className="dv__row-line">
+                      <Link className="dv__row-name" to="/yonetim/etkilesimler">
+                        {row.name}
+                      </Link>
+                      <span className="dv__row-count">
+                        {numberFormat.format(row.visits)}
+                        <em>ziyaret</em>
                       </span>
                     </span>
-                  </li>
-                );
-              })}
-            </ol>
-          )}
+                    <span className="dv__track" aria-hidden="true">
+                      <span className="dv__fill" style={{ width: `${width}%` }} />
+                    </span>
+                    <span className="dv__row-meta">
+                      {numberFormat.format(row.total)} etkileşim
+                      {index === 0 ? " · en yüksek" : ""}
+                    </span>
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
         </div>
-      </div>
+      )}
 
-      <p className="dv__note">
-        Sayaçlar firma ve tür başına birikimli toplamdır; olay geçmişi tutulmadığı için günlük ya da
-        haftalık büyüme grafiği gösterilmez.
-        {lastUpdated ? <> Son güncelleme: {formatDateTime(lastUpdated)}.</> : null}
-      </p>
+      <details className="dv__more">
+        <summary>Sayaç ayrıntıları ve yöntem</summary>
+        <p>
+          Sayaçlar firma ve tür başına birikimli toplamdır; olay geçmişi tutulmadığı için günlük ya
+          da haftalık büyüme grafiği gösterilmez.
+          {lastUpdated ? <> Son güncelleme: {formatDateTime(lastUpdated)}.</> : null}
+        </p>
+      </details>
     </section>
   );
 }

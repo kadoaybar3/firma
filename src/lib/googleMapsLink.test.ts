@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { parseGoogleMapsLink } from "./googleMapsLink";
+import { parseGoogleMapsLink, parseTurkishLocality } from "./googleMapsLink";
 
 describe("parseGoogleMapsLink — Google Maps bağlantı ayrıştırma", () => {
   it("yer bağlantısından adı, adresi ve !3d/!4d koordinatını okur", () => {
@@ -143,5 +143,90 @@ describe("parseGoogleMapsLink — Google Maps bağlantı ayrıştırma", () => {
 
   it("boş metinde istek yapmadan hata verir", () => {
     expect(parseGoogleMapsLink("   ")).toEqual({ ok: false, reason: "empty" });
+  });
+
+  it("posta kodlu 'İlçe/İl' parçasından il ve ilçeyi ayırır", () => {
+    const result = parseGoogleMapsLink(
+      "https://www.google.com/maps/place/Ada+Cafe,+03000+Merkez/Afyonkarahisar,+T%C3%BCrkiye/@38.75,30.52,17z",
+    );
+    expect(result.ok && result.info.province).toBe("Afyonkarahisar");
+    expect(result.ok && result.info.district).toBe("Merkez");
+    expect(result.ok && result.info.placeName).toBe("Ada Cafe");
+  });
+
+  it("il adı ve ilçe adı büyük/küçük harf farkıyla eşleşir", () => {
+    const result = parseGoogleMapsLink(
+      "https://www.google.com/maps/place/X/@38.75,30.52,17z/data=!3d38.75!4d30.52?q=KADIK%C3%96Y%2F%C4%B0STANBUL",
+    );
+    // q parametresi yalnızca koordinat değil; il/ilçe parametrede yok → boş
+    expect(result.ok && result.info.province).toBeUndefined();
+  });
+
+  it("yalnız il varsa ilçe boş kalır", () => {
+    const result = parseGoogleMapsLink("https://www.google.com/maps/place/Afyonkarahisar/@38.75,30.52,17z");
+    expect(result.ok && result.info.province).toBeUndefined();
+  });
+});
+
+describe("parseTurkishLocality — il/ilçe ayrıştırma", () => {
+  it("'İlçe/İl' biçimini okur", () => {
+    expect(parseTurkishLocality("03000 Merkez/Afyonkarahisar, Türkiye")).toEqual({
+      province: "Afyonkarahisar",
+      district: "Merkez",
+    });
+  });
+
+  it("ayrı parçaları okur", () => {
+    expect(parseTurkishLocality("Marulcu Mah. No:45, Merkez, Afyonkarahisar")).toEqual({
+      province: "Afyonkarahisar",
+      district: "Merkez",
+    });
+  });
+
+  it("'İl/İlçe' ters biçimini okur", () => {
+    expect(parseTurkishLocality("İstanbul/Kadıköy")).toEqual({
+      province: "İstanbul",
+      district: "Kadıköy",
+    });
+  });
+
+  it("büyük/küçük harf ve Türkçe karakter farkını tolere eder", () => {
+    expect(parseTurkishLocality("KADIKÖY/İSTANBUL")).toEqual({
+      province: "İstanbul",
+      district: "Kadıköy",
+    });
+  });
+
+  it("il resmî listede değilse boş bırakır (tahmin etmez)", () => {
+    expect(parseTurkishLocality("Merkez, Afyon")).toEqual({});
+  });
+
+  it("eşleşmeyen ilçe tahmin edilmez; il biliniyorsa ilçe boş kalır", () => {
+    expect(parseTurkishLocality("Bilinmeyenİlçe, Afyonkarahisar")).toEqual({
+      province: "Afyonkarahisar",
+    });
+  });
+
+  it("mahalle/sokak taşıyan parça ilçe olmaz", () => {
+    expect(parseTurkishLocality("Marulcu Mah. No:45, Afyonkarahisar")).toEqual({
+      province: "Afyonkarahisar",
+    });
+  });
+
+  it("il adı ilçe alanına yazılmaz", () => {
+    expect(parseTurkishLocality("Afyonkarahisar, Afyonkarahisar")).toEqual({
+      province: "Afyonkarahisar",
+    });
+  });
+
+  it("Türkiye parçasını yoksayar", () => {
+    expect(parseTurkishLocality("Merkez, Afyonkarahisar, Türkiye")).toEqual({
+      province: "Afyonkarahisar",
+      district: "Merkez",
+    });
+  });
+
+  it("boş metinde boş döner", () => {
+    expect(parseTurkishLocality("")).toEqual({});
   });
 });

@@ -2398,32 +2398,3 @@ export function listAudit(limit = 100): ReturnType<typeof getDB>["audit"] {
 }
 
 /* ============ RAPORLAR ============ */
-
-export interface MonthlyReport {
-  month: string; // 2026-10
-  saleCount: number;
-  totalAmount: number;
-  commissionTotal: number;
-}
-
-export function monthlyReport(months = 6): MonthlyReport[] {
-  const db = getDB();
-  const out: MonthlyReport[] = [];
-  const now = new Date();
-  for (let i = months - 1; i >= 0; i--) {
-    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-    const key = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`;
-    const sales = db.sales.filter(
-      (s) => s.status === "odendi" && s.confirmedAt?.startsWith(key),
-    );
-    out.push({
-      month: key,
-      saleCount: sales.length,
-      totalAmount: sales.reduce((sum, s) => sum + s.amount, 0),
-      commissionTotal: db.commissions
-        .filter((c) => sales.some((s) => s.id === c.saleId))
-        .reduce((sum, c) => sum + c.amount, 0),
-    });
-  }
-  return out;
-}

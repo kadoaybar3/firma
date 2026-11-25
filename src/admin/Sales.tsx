@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import { Clock, FilterX, Loader2, Wallet } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
 import { Badge, ErrorBanner, Field, StatCard } from "../components/ui";
+import { FirmIdentity, FirmMenu, useFirmRowMenus } from "../components/FirmList";
 import { useActor } from "../lib/auth";
 import { useLiveDataRevision } from "../lib/liveData";
 import { formatTRY, formatDateTime } from "../lib/format";
@@ -25,6 +26,7 @@ import type { Payment, SaleStatus } from "../lib/types";
 export default function AdminSales() {
   useLiveDataRevision();
   const actor = useActor();
+  useFirmRowMenus();
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
@@ -374,9 +376,18 @@ export default function AdminSales() {
               return (
                 <tr key={sale.id}>
                   <td data-label="Satış">
-                    <strong>{company?.name ?? "—"}</strong>
-                    <div className="text-muted small">{formatDateTime(sale.createdAt)}</div>
-                    {sale.renewalForMembershipId && <Badge tone="blue">Üyelik yenileme</Badge>}
+                    <FirmIdentity
+                      name={company?.name ?? "Firma kaydı yok"}
+                      href={company ? `/firma/${company.slug}` : undefined}
+                      images={company?.images}
+                      place={company?.district}
+                      note={formatDateTime(sale.createdAt)}
+                      badges={
+                        sale.renewalForMembershipId ? (
+                          <Badge tone="blue">Üyelik yenileme</Badge>
+                        ) : undefined
+                      }
+                    />
                   </td>
                   <td data-label="Kanal">
                     {sale.channel === "temsilci"
@@ -404,30 +415,39 @@ export default function AdminSales() {
                     )}
                   </td>
                   <td data-label="Adımlar">
-                    <div className="actions-cell">
-                      {pending && (
-                        <>
-                          {!payment && (
-                            <button
-                              className="btn btn--sm"
-                              disabled={rowBusy}
-                              onClick={() =>
-                                void run(rowKey, async () => {
-                                  await createPendingPayment(sale.id, actor);
-                                  return "Beklemede ödeme kaydı açıldı; onayı İşlem Merkezi'nden verin.";
-                                })
-                              }
-                            >
-                              {rowBusy ? <Loader2 size={14} className="spin" /> : null}
-                              Ödeme kaydı aç
-                            </button>
-                          )}
-                          <Link className="btn btn--sm" to="/yonetim">
-                            {payment?.status === "onaylandi"
-                              ? "Kesinleştir (İşlem Merkezi)"
-                              : "Ödeme onayı (İşlem Merkezi)"}
-                          </Link>
-                        </>
+                    <div className="fl-row__actions">
+                      {pending && !payment && (
+                        <button
+                          className="btn btn--sm btn--primary"
+                          disabled={rowBusy}
+                          onClick={() =>
+                            void run(rowKey, async () => {
+                              await createPendingPayment(sale.id, actor);
+                              return "Beklemede ödeme kaydı açıldı; onayı İşlem Merkezi'nden verin.";
+                            })
+                          }
+                        >
+                          {rowBusy ? <Loader2 size={14} className="spin" /> : null}
+                          Ödeme kaydı aç
+                        </button>
+                      )}
+                      {pending && payment && (
+                        <Link className="btn btn--sm btn--primary" to="/yonetim">
+                          {payment.status === "onaylandi"
+                            ? "Kesinleştir (İşlem Merkezi)"
+                            : "Ödeme onayı (İşlem Merkezi)"}
+                        </Link>
+                      )}
+                      {pending && !payment && (
+                        <FirmMenu
+                          label={`${company?.name ?? "Satış"} işlemleri`}
+                          items={[
+                            {
+                              label: "Ödeme onayı (İşlem Merkezi)",
+                              to: "/yonetim",
+                            },
+                          ]}
+                        />
                       )}
                       {paid && sale.renewalForMembershipId && (
                         <span className="text-muted small">Yenileme tamam</span>

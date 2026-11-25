@@ -12,6 +12,7 @@ import { CategoryGlyph } from "../components/CategoryGlyph";
 import CategorySelect from "../components/CategorySelect";
 import { districtCountsByCity, listCategories, listCities, listCompanies } from "../lib/repo";
 import { slugify } from "../lib/slug";
+import { firmInitials } from "../lib/format";
 import "./home.css";
 
 // Sitede gerçek arama hedefi (/firmalar?q=) olduğu için SearchAction güvenli.
@@ -35,13 +36,6 @@ const HOMEPAGE_JSON_LD: Array<Record<string, unknown>> = [
 ];
 
 const CATEGORY_TILES = 8;
-
-/** Firma adından iki harflik monogram (not kartı künyesi). */
-function initials(name: string): string {
-  const words = name.split(/[^A-Za-z0-9ÇĞİÖŞÜçğıöşü]+/).filter(Boolean);
-  const letters = words.slice(0, 2).map((w) => w[0] ?? "");
-  return (letters.join("") || name[0] || "?").toLocaleUpperCase("tr");
-}
 
 /** Deterministik rastgele — harita dokusu her yüklemede aynı kalsın. */
 function mulberry32(seed: number): () => number {
@@ -440,7 +434,7 @@ export default function HomePage() {
                     >
                       <span className="hm-note__top">
                         <span className="hm-note__mark" aria-hidden="true">
-                          {initials(co.name)}
+                          {firmInitials(co.name)}
                         </span>
                         <span className="hm-note__name">{co.name}</span>
                       </span>

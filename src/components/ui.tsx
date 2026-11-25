@@ -1,6 +1,5 @@
 import type { ReactNode } from "react";
 import { AlertTriangle, Info, SearchX } from "lucide-react";
-import { formatTRY } from "../lib/format";
 
 /* Paylaşılan UI parçaları — public site ve paneller ortak kullanır. */
 
@@ -98,9 +97,6 @@ export function InfoBanner({ children }: { children: ReactNode }) {
   );
 }
 
-export function MoneyLabel({ amount }: { amount: number }) {
-  return <span>{formatTRY(amount)}</span>;
-}
 
 export function Field({
   label,

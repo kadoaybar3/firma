@@ -1,0 +1,487 @@
+/* =========================================================
+   ORTAK FİRMA LİSTELEME STANDARDI
+   Yönetim, temsilci paneli ve halka açık firma listeleri.
+   Bilgi hiyerarşisi: ad → kategori · konum · telefon → rozet/not.
+   ========================================================= */
+
+/* ---------- Filtre çubuğu ---------- */
+.fl-filters {
+  display: grid;
+  gap: 10px;
+  margin-bottom: 14px;
+  padding: 12px;
+  border: 1px solid var(--border);
+  border-radius: 14px;
+  background: var(--surface);
+  box-shadow: var(--shadow-xs, 0 1px 2px rgba(11, 23, 40, 0.04));
+}
+
+.fl-filters__grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 10px;
+}
+
+@media (min-width: 720px) {
+  .fl-filters__grid {
+    grid-template-columns: repeat(4, minmax(0, 1fr));
+  }
+
+  /* Halka açık arama: tek satırda arama + kategori + şehir + ilçe */
+  .fl-filters__grid--two {
+    grid-template-columns: minmax(0, 1.6fr) repeat(3, minmax(0, 1fr));
+  }
+
+  .fl-filters__grid--two .fl-field--wide,
+  .fl-filters__grid--two .fl-field--full {
+    grid-column: auto;
+  }
+}
+
+/* Mobilde filtreler ekranı kaplamasın: kısa alanlar iki kolona sığar,
+   arama ve konum tam satır kalır. */
+@media (max-width: 719px) {
+  .fl-filters__grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+
+  .fl-field--wide,
+  .fl-field--full {
+    grid-column: 1 / -1;
+  }
+
+  .fl-field--plain .loc-select {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+.fl-field {
+  display: grid;
+  gap: 4px;
+  align-content: end;
+  min-width: 0;
+}
+
+.fl-field--wide {
+  grid-column: 1 / -1;
+}
+
+.fl-field--full {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 720px) {
+  .fl-field--wide {
+    grid-column: span 2;
+  }
+}
+
+.fl-field__label {
+  color: var(--text-2);
+  font-size: 0.71rem;
+  font-weight: 750;
+  letter-spacing: 0.03em;
+}
+
+.fl-field input:not([type="checkbox"]),
+.fl-field select {
+  width: 100%;
+  min-width: 0;
+  min-height: 38px;
+}
+
+/* İl/ilçe bileşeni kendi etiketlerini taşır: görünür etiket tek kalsın,
+   iç etiketler ekran okuyucu için korunur. */
+.fl-field--plain .loc-select__label {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  padding: 0;
+  margin: -1px;
+  overflow: hidden;
+  clip: rect(0, 0, 0, 0);
+  white-space: nowrap;
+}
+
+.fl-field .loc-select {
+  gap: 0 10px;
+}
+
+.fl-field .loc-btn {
+  min-height: 38px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+}
+
+.fl-filters__foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  flex-wrap: wrap;
+  color: var(--text-2);
+  font-size: 0.8rem;
+}
+
+.fl-filters__count strong {
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+
+.fl-filters__actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.fl-filters__clear {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  min-height: 32px;
+  padding: 2px 0;
+  border: 0;
+  background: none;
+  color: var(--primary);
+  font-size: 0.8rem;
+  font-weight: 650;
+  cursor: pointer;
+}
+
+.fl-filters__clear:hover {
+  text-decoration: underline;
+}
+
+/* ---------- Liste ---------- */
+.fl-listmeta {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px 14px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+  color: var(--text-2);
+  font-size: 0.82rem;
+}
+
+.fl-listmeta strong {
+  color: var(--text);
+  font-size: 0.92rem;
+}
+
+.fl-list {
+  display: grid;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.fl-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: center;
+  gap: 8px 16px;
+  min-width: 0;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+  transition: border-color 0.14s ease, box-shadow 0.14s ease;
+}
+
+.fl-row:hover {
+  border-color: #c6d4ea;
+  box-shadow: 0 12px 26px -26px rgba(13, 27, 46, 0.55);
+}
+
+.fl-row__main {
+  min-width: 0;
+}
+
+.fl-row__aside {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+  min-width: 0;
+}
+
+.fl-row__actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-shrink: 0;
+}
+
+.fl-row__footer {
+  grid-column: 1 / -1;
+  min-width: 0;
+  margin-top: 2px;
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+
+/* ---------- Firma kimliği ---------- */
+.fl-id {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.fl-avatar {
+  display: grid;
+  place-items: center;
+  flex-shrink: 0;
+  width: 38px;
+  height: 38px;
+  border-radius: 10px;
+  background: #eef3fd;
+  color: #35528f;
+  font-size: 0.8rem;
+  font-weight: 800;
+  letter-spacing: -0.01em;
+  overflow: hidden;
+}
+
+.fl-avatar img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.fl-id__body {
+  display: grid;
+  gap: 2px;
+  min-width: 0;
+}
+
+.fl-id__name {
+  min-width: 0;
+  color: var(--text);
+  font-size: 0.94rem;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: -0.01em;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.fl-id__name a {
+  color: inherit;
+}
+
+.fl-id__name a:hover {
+  color: var(--primary);
+  text-decoration: none;
+}
+
+.fl-id__sub {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  min-width: 0;
+  color: var(--text-2);
+  font-size: 0.79rem;
+  line-height: 1.35;
+}
+
+.fl-id__sub a {
+  color: var(--text-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.fl-id__sub a:hover {
+  color: var(--primary);
+}
+
+/* Ayraç bir önceki öğeye bağlıdır; satır kırılınca yeni satır noktayla
+   başlamaz, nokta önceki satırın sonunda kalır. */
+.fl-id__sub > *:not(:last-child)::after {
+  content: "·";
+  margin-left: 6px;
+  color: var(--border-strong, #c9d2e0);
+}
+
+.fl-id__note {
+  color: var(--text-2);
+  font-size: 0.76rem;
+  line-height: 1.4;
+}
+
+.fl-id__badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+  margin-top: 2px;
+}
+
+/* ---------- Satır menüsü ---------- */
+.fl-menu > summary {
+  width: 32px;
+  height: 32px;
+}
+
+.fl-menu .rowmenu__panel button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ---------- Durum seçici (aday durumu) ---------- */
+.fl-status {
+  display: inline-flex;
+  min-width: 0;
+}
+
+.fl-status select {
+  min-height: 32px;
+  padding: 4px 8px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* ---------- Aday satırı detayı ---------- */
+.fl-detail {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 18px;
+  padding: 4px 2px 2px;
+}
+
+@media (min-width: 760px) {
+  .fl-detail {
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 0.85fr);
+    gap: 24px;
+  }
+}
+
+.fl-detail h4 {
+  margin: 0 0 8px;
+  font-size: 0.85rem;
+  font-weight: 750;
+}
+
+.fl-visits {
+  margin: 0;
+  padding-left: 18px;
+  display: grid;
+  gap: 8px;
+}
+
+.fl-visits li {
+  font-size: 0.82rem;
+  line-height: 1.45;
+}
+
+/* Yönetim firma tablosu mobil kart görünümünde seçim kutusu sağ üste yerleşir */
+@media (max-width: 760px) {
+  .companies-table tbody tr:has(.cell-check) {
+    position: relative;
+  }
+
+  .companies-table td.cell-check {
+    position: absolute;
+    top: 4px;
+    right: 4px;
+    width: auto;
+    padding: 12px;
+  }
+
+  .companies-table td.cell-check input {
+    width: 20px;
+    height: 20px;
+  }
+
+  .companies-table td[data-label="Firma"] {
+    padding-right: 44px;
+  }
+
+  /* Kart içinde durum ve tarih yan yana; işlem ayrı satırda kalır.
+     Dar ekranda iki rozet + tarih + menü tek satıra sığmadığı için
+     işlem satırı ayrılır — aksi halde tarih kırpılıyordu. */
+  .table-wrap--cards .companies-table tbody tr {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    grid-template-areas:
+      "firma firma"
+      "durum tarih"
+      "islem islem";
+    column-gap: 10px;
+    align-items: center;
+  }
+
+  .companies-table td[data-label="Firma"] { grid-area: firma; }
+  .companies-table td[data-label="Durum"] { grid-area: durum; }
+  .companies-table td[data-label="Kayıt tarihi"] {
+    grid-area: tarih;
+    text-align: right;
+  }
+  .companies-table td[data-label="İşlem"] {
+    grid-area: islem;
+    justify-self: end;
+  }
+
+  /* Kart başlığındaki ad zaten birincil bilgi: "FİRMA" etiketi tekrar etmez. */
+  .companies-table td[data-label="Firma"]::before { display: none; }
+  .companies-table td[data-label="İşlem"]::before { display: none; }
+  .companies-table td[data-label="Kayıt tarihi"]::before,
+  .companies-table td[data-label="Durum"]::before { margin-bottom: 4px; }
+}
+
+/* ---------- Mobil ---------- */
+@media (max-width: 640px) {
+  .fl-row {
+    grid-template-columns: minmax(0, 1fr);
+    align-items: stretch;
+    gap: 10px;
+    padding: 12px;
+  }
+
+  .fl-row__aside {
+    justify-content: flex-start;
+    gap: 8px;
+  }
+
+  .fl-row__actions {
+    width: 100%;
+  }
+
+  .fl-row__actions .btn {
+    min-height: 44px;
+    flex: 1 1 auto;
+    justify-content: center;
+  }
+
+  .fl-menu > summary {
+    width: 44px;
+    height: 44px;
+  }
+
+  .fl-menu .rowmenu__panel {
+    right: auto;
+    left: 0;
+  }
+
+  .fl-status select {
+    min-height: 44px;
+  }
+
+  .fl-field input:not([type="checkbox"]),
+  .fl-field select,
+  .fl-filters__clear {
+    min-height: 44px;
+  }
+}

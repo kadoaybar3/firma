@@ -2,7 +2,6 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import {
   ArrowDownCircle,
   ArrowUpCircle,
-  MoreHorizontal,
   Pencil,
   Plus,
   Star,
@@ -12,6 +11,13 @@ import {
 } from "lucide-react";
 import { PanelHead } from "./AdminLayout";
 import { Badge, EmptyState, ErrorBanner, Field, InfoBanner } from "../components/ui";
+import {
+  FirmFilterField,
+  FirmFilters,
+  FirmIdentity,
+  FirmMenu,
+  useFirmRowMenus,
+} from "../components/FirmList";
 import LocationSelect from "../components/LocationSelect";
 import { useActor } from "../lib/auth";
 import { useLiveDataRevision } from "../lib/liveData";
@@ -53,27 +59,8 @@ export default function AdminCompanies() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [tick, setTick] = useState(0);
 
-  /**
-   * Satır işlem menüsü <details> ile JS'siz açılır; dışarı tıklama ve Esc ile
-   * kapanması için küçük bir yardımcı dinleyici ekleniyor.
-   */
-  useEffect(() => {
-    function closeOpenMenus(event: Event) {
-      const target = event.target as Node | null;
-      document.querySelectorAll<HTMLDetailsElement>("details.rowmenu[open]").forEach((el) => {
-        if (event.type === "keydown" || !target || !el.contains(target)) el.open = false;
-      });
-    }
-    function onKeydown(event: KeyboardEvent) {
-      if (event.key === "Escape") closeOpenMenus(event);
-    }
-    document.addEventListener("click", closeOpenMenus);
-    document.addEventListener("keydown", onKeydown);
-    return () => {
-      document.removeEventListener("click", closeOpenMenus);
-      document.removeEventListener("keydown", onKeydown);
-    };
-  }, []);
+  /** Satır işlem menüleri: dışarı tıklama ve Esc ile kapanır (ortak davranış). */
+  useFirmRowMenus();
 
   const categories = listCategories();
   const cities = listCities();
@@ -331,62 +318,71 @@ export default function AdminCompanies() {
         />
       ) : (
         <>
-          <div className="filter-bar companies-filter-bar">
-            <input
-              className="input"
-              type="search"
-              placeholder="Firma adı, telefon veya e-posta ara…"
-              aria-label="Firma ara"
-              value={q}
-              onChange={(e) => setQ(e.target.value)}
-            />
-            <CategorySelect
-              className="filter-category"
-              categories={categories}
-              value={catFilter}
-              onChange={setCatFilter}
-              allLabel="Tüm kategoriler"
-              ariaLabel="Kategori filtresi"
-            />
-            <LocationSelect
-              className="filter-location"
-              value={{ province: provinceFilter, district: districtFilter }}
-              onChange={(next) => {
-                setProvinceFilter(next.province);
-                setDistrictFilter(next.district);
-              }}
-              labelProvince="İl filtresi"
-              labelDistrict="İlçe filtresi"
-              placeholderProvince="İl ara…"
-              placeholderDistrict="İlçe ara…"
-              extraProvinces={cities.map((city) => city.name)}
-              extraDistricts={extraDistrictNames}
-              clearable
-            />
-            <select
-              className="input"
-              aria-label="Yayın durumu"
-              value={statusFilter}
-              onChange={(e) =>
-                setStatusFilter(e.target.value as "all" | "published" | "unpublished")
-              }
-            >
-              <option value="all">Tüm durumlar</option>
-              <option value="published">Yayında</option>
-              <option value="unpublished">Yayın dışı / onay bekleyen</option>
-            </select>
-          </div>
-          <div className="filter-bar__meta">
-            <span>
-              {companies.length} firma gösteriliyor
-              {hasFilters ? ` · ${unpublishedRows.length} yayın dışı` : ""}
-            </span>
-            {hasFilters && (
-              <button type="button" className="filter-bar__reset" onClick={clearFilters}>
-                Filtreleri temizle
-              </button>
-            )}
-          </div>
+          <FirmFilters
+            total={allCompanies.length}
+            shown={companies.length}
+            unit="firma"
+            hasFilters={hasFilters}
+            onClear={clearFilters}
+            label="Firma listesi filtreleri"
+            extra={
+              unpublishedRows.length ? (
+                <span className="text-muted small">{unpublishedRows.length} yayın dışı</span>
+              ) : undefined
+            }
+          >
+            <FirmFilterField label="Firma ara" wide>
+              <input
+                className="input"
+                type="search"
+                placeholder="Firma adı, telefon veya e-posta…"
+                aria-label="Firma ara"
+                value={q}
+                onChange={(e) => setQ(e.target.value)}
+              />
+            </FirmFilterField>
+            <FirmFilterField label="Kategori">
+              <CategorySelect
+                className="filter-category"
+                categories={categories}
+                value={catFilter}
+                onChange={setCatFilter}
+                allLabel="Tüm kategoriler"
+                ariaLabel="Kategori filtresi"
+              />
+            </FirmFilterField>
+            <FirmFilterField label="Yayın durumu">
+              <select
+                className="input"
+                aria-label="Yayın durumu"
+                value={statusFilter}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value as "all" | "published" | "unpublished")
+                }
+              >
+                <option value="all">Tüm durumlar</option>
+                <option value="published">Yayında</option>
+                <option value="unpublished">Yayın dışı / onay bekleyen</option>
+              </select>
+            </FirmFilterField>
+            <FirmFilterField label="Konum" full plain>
+              <LocationSelect
+                className="filter-location"
+                value={{ province: provinceFilter, district: districtFilter }}
+                onChange={(next) => {
+                  setProvinceFilter(next.province);
+                  setDistrictFilter(next.district);
+                }}
+                labelProvince="İl filtresi"
+                labelDistrict="İlçe filtresi"
+                placeholderProvince="İl ara…"
+                placeholderDistrict="İlçe ara…"
+                extraProvinces={cities.map((city) => city.name)}
+                extraDistricts={extraDistrictNames}
+                clearable
+              />
+            </FirmFilterField>
+          </FirmFilters>
         </>
       )}
 
@@ -434,10 +430,7 @@ export default function AdminCompanies() {
                 </th>
                 <th>Firma</th>
                 <th>Durum</th>
-                <th>Kategori</th>
-                <th>Konum</th>
-                <th>Telefon</th>
-                <th>Tarih</th>
+                <th>Kayıt tarihi</th>
                 <th style={{ width: 54 }}>İşlem</th>
               </tr>
             </thead>
@@ -455,69 +448,54 @@ export default function AdminCompanies() {
                       />
                     </td>
                     <td data-label="Firma">
-                      <span className="cell-name">
-                        <strong className="cell-title" title={co.address || undefined}>{co.name}</strong>
-                        {co.featured && (
-                          <span className="cell-flag" title="Öne çıkan firma">
-                            <Star size={13} strokeWidth={2} fill="currentColor" aria-hidden="true" />
-                            <span className="sr-only">Öne çıkan</span>
-                          </span>
-                        )}
-                      </span>
+                      <FirmIdentity
+                        name={co.name}
+                        images={co.images}
+                        category={category?.name ?? "Kategorisiz"}
+                        place={locationLabel(co, cities, singleCity)}
+                        phone={co.phone || undefined}
+                      />
                     </td>
                     <td data-label="Durum">
                       <div className="badge-stack">
                         <Badge tone={co.published ? "green" : "gray"}>
                           {co.published ? "Yayında" : "Yayın dışı"}
                         </Badge>
+                        {co.featured && <Badge tone="orange">Öne çıkan</Badge>}
                       </div>
                     </td>
-                    <td data-label="Kategori"><Badge tone="blue">{category?.name ?? "Kategorisiz"}</Badge></td>
-                    <td data-label="Konum" className="nowrap" title={locationLabel(co, cities)}>
-                      {locationLabel(co, cities, singleCity)}
-                    </td>
-                    <td data-label="Telefon" className="nowrap"><a href={`tel:${co.phone}`}>{co.phone || "—"}</a></td>
-                    <td data-label="Tarih" className="small text-muted nowrap">
+                    <td data-label="Kayıt tarihi" className="small text-muted nowrap">
                       {new Intl.DateTimeFormat("tr-TR", { dateStyle: "medium" }).format(new Date(co.createdAt))}
                     </td>
                     <td data-label="İşlem">
-                      <details className="rowmenu">
-                        <summary aria-label={`${co.name} işlemleri`}>
-                          <MoreHorizontal size={16} strokeWidth={2} aria-hidden="true" />
-                        </summary>
-                        <div className="rowmenu__panel">
-                          <button
-                            type="button"
-                            onClick={() =>
-                              handleAction(() => {
-                                updateCompany(co.id, { featured: !co.featured }, actor);
-                              })
-                            }
-                          >
-                            {co.featured ? (
+                      <FirmMenu
+                        label={`${co.name} işlemleri`}
+                        items={[
+                          {
+                            label: co.featured ? "Öne çıkarmayı bırak" : "Öne çıkar",
+                            icon: co.featured ? (
                               <StarOff size={15} strokeWidth={1.9} aria-hidden="true" />
                             ) : (
                               <Star size={15} strokeWidth={1.9} aria-hidden="true" />
-                            )}
-                            {co.featured ? "Öne çıkarmayı bırak" : "Öne çıkar"}
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => setEditingId(editingId === co.id ? null : co.id)}
-                          >
-                            <Pencil size={15} strokeWidth={1.9} aria-hidden="true" />
-                            {editingId === co.id ? "Düzenlemeyi kapat" : "Düzenle"}
-                          </button>
-                          <button
-                            type="button"
-                            className="is-danger"
-                            onClick={() => setDeleteTarget({ ids: [co.id], label: co.name })}
-                          >
-                            <Trash2 size={15} strokeWidth={1.9} aria-hidden="true" />
-                            Sil
-                          </button>
-                        </div>
-                      </details>
+                            ),
+                            onSelect: () =>
+                              handleAction(() => {
+                                updateCompany(co.id, { featured: !co.featured }, actor);
+                              }),
+                          },
+                          {
+                            label: editingId === co.id ? "Düzenlemeyi kapat" : "Düzenle",
+                            icon: <Pencil size={15} strokeWidth={1.9} aria-hidden="true" />,
+                            onSelect: () => setEditingId(editingId === co.id ? null : co.id),
+                          },
+                          {
+                            label: "Firmayı sil",
+                            icon: <Trash2 size={15} strokeWidth={1.9} aria-hidden="true" />,
+                            tone: "danger" as const,
+                            onSelect: () => setDeleteTarget({ ids: [co.id], label: co.name }),
+                          },
+                        ]}
+                      />
                     </td>
                   </tr>
                 );

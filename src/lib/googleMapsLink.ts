@@ -70,10 +70,6 @@ const FAILURE_MESSAGES: Record<GoogleMapsFailure, string> = {
     "Kısa bağlantı çözümlenemedi. Bilgileri elle girebilir veya bağlantıyı tarayıcıda açıp uzun adresini yapıştırabilirsiniz.",
 };
 
-export function googleMapsFailureMessage(reason: GoogleMapsFailure): string {
-  return FAILURE_MESSAGES[reason];
-}
-
 function decodeSegment(value: string): string {
   const spaced = value.replace(/\+/g, " ");
   try {

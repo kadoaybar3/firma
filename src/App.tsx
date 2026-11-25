@@ -234,11 +234,3 @@ export function RoleError({ expected }: { expected: string }) {
     </div>
   );
 }
-
-export function AppError({ message }: { message: string }) {
-  return (
-    <div className="panel-content">
-      <ErrorBanner message={message} />
-    </div>
-  );
-}
