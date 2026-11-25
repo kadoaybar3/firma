@@ -470,7 +470,16 @@
     height: 44px;
   }
 
+  /* Temsilci ve halka açık listelerde menü satırın sağında durur: panel sola
+     açılır, aksi halde görünüm alanının dışına taşıp kırpılıyordu. */
   .fl-menu .rowmenu__panel {
+    right: 0;
+    left: auto;
+  }
+
+  /* Yönetim kart tablosunda işlem hücresi kartın solunda: panel sağa açılır
+     (mevcut yönetim davranışı korunur). */
+  .table-wrap--cards .fl-menu .rowmenu__panel {
     right: auto;
     left: 0;
   }
