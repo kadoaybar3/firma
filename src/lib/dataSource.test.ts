@@ -261,6 +261,24 @@ describe("dataSource satır dönüşümleri", () => {
     expect(back.longitude).toBe(30.52);
   });
 
+  it("lead: paket seçimi not işaretiyle taşınır (RPC kolonu yok)", () => {
+    const row = leadToRow({
+      id: "l4",
+      companyName: "Paketli Aday",
+      note: "Telefonla görüşüldü",
+      packageKey: "featured",
+      status: "yeni",
+      visitCount: 0,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      updatedAt: "2026-01-01T00:00:00.000Z",
+      source: "web",
+    });
+    expect(row.note).toContain("[FR-KONUM v1]");
+    const back = leadFromRow(row as Record<string, unknown>);
+    expect(back.packageKey).toBe("featured");
+    expect(back.note).toBe("Telefonla görüşüldü");
+  });
+
   it("cities + city_districts → City[] birleştirme", () => {
     const cities = citiesFromRows(
       [

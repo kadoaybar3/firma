@@ -795,12 +795,20 @@ export function createPublicLead(
     district?: string;
     phone: string;
     note?: string;
+    packageKey?: "normal" | "featured";
   },
 ): Lead {
   const companyName = data.companyName.trim();
   const phone = data.phone.trim();
   if (!companyName) throw new Error("Firma adı zorunlu.");
   if (!phone) throw new Error("Telefon numarası zorunlu.");
+  if (
+    data.packageKey !== undefined &&
+    data.packageKey !== "normal" &&
+    data.packageKey !== "featured"
+  ) {
+    throw new Error("Geçersiz paket seçimi.");
+  }
   const db = getDB();
   const lead: Lead = {
     id: uid(),
@@ -810,6 +818,7 @@ export function createPublicLead(
     district: data.district?.trim() || undefined,
     phone,
     note: data.note?.trim() ?? "",
+    packageKey: data.packageKey,
     status: "yeni",
     visitCount: 0,
     source: "web",

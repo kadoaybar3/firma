@@ -1109,18 +1109,24 @@ export async function submitWebLead(input: {
   cityId?: string;
   district?: string;
   note?: string;
+  packageKey?: "normal" | "featured";
   honeypot?: string;
 }): Promise<string | null> {
   if (!isSupabaseConfigured || !supabase) {
     throw new Error("Supabase yapılandırılmadı; web başvurusu gönderilemedi.");
   }
+  // RPC imzasında paket kolonu yok; seçim mevcut note işaretiyle taşınır
+  // (leadFromRow aynı işareti okuyup Lead.packageKey'e çevirir).
+  const note = input.packageKey
+    ? encodeLeadNote(input.note ?? "", { packageKey: input.packageKey })
+    : input.note ?? null;
   const { data, error } = await supabase.rpc("submit_web_lead", {
     p_company_name: input.companyName,
     p_phone: input.phone,
     p_category_id: input.categoryId ?? null,
     p_city_id: input.cityId ?? null,
     p_district: input.district ?? null,
-    p_note: input.note ?? null,
+    p_note: note,
     p_honeypot: input.honeypot ?? "",
   });
   if (error) throw new Error(friendlyRpcError(error.message));

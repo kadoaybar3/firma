@@ -17,9 +17,7 @@ import { ErrorBanner } from "./components/ui";
 const HomePage = lazy(() => import("./pages/HomePage"));
 const FirmsPage = lazy(() => import("./pages/FirmsPage"));
 const FirmDetailPage = lazy(() => import("./pages/FirmDetailPage"));
-const ContactPage = lazy(() =>
-  import("./pages/StaticPages").then((m) => ({ default: m.ContactPage })),
-);
+const ContactPage = lazy(() => import("./pages/ContactPage").then((m) => ({ default: m.ContactPage })));
 const BasvuruPage = lazy(() =>
   import("./pages/StaticPages").then((m) => ({ default: m.BasvuruPage })),
 );

@@ -232,11 +232,18 @@ function LeadRow({
             </>
           }
           badges={
-            convertedCompany ? (
-              <Badge tone="green">Firmaya dönüştü</Badge>
-            ) : lead.status === "anlaşma" ? (
-              <Badge tone="orange">Anlaşma · yönetici incelemesinde</Badge>
-            ) : undefined
+            <>
+              {lead.packageKey && (
+                <Badge tone="blue">
+                  {lead.packageKey === "normal" ? "Normal Paket" : "Öne Çıkan Paket"}
+                </Badge>
+              )}
+              {convertedCompany ? (
+                <Badge tone="green">Firmaya dönüştü</Badge>
+              ) : lead.status === "anlaşma" ? (
+                <Badge tone="orange">Anlaşma · yönetici incelemesinde</Badge>
+              ) : null}
+            </>
           }
         />
       }

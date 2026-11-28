@@ -1,7 +1,7 @@
 import { Link } from "react-router-dom";
 import { ArrowUpRight, ChevronRight, MapPin, Phone } from "lucide-react";
 import { companyIndex, getCityById, listCategories } from "../lib/repo";
-import { firmInitials, firmPhoto, telHref } from "../lib/format";
+import { firmInitials, firmPhoto, formatPhone, telHref } from "../lib/format";
 import { isOpenNow } from "../lib/hours";
 import { CategoryGlyph } from "./CategoryGlyph";
 
@@ -17,6 +17,7 @@ export function FirmCard({ id, variant = "row" }: { id: string; variant?: "row" 
   const category = listCategories().find((c) => c.id === company.categoryId);
   const city = getCityById(company.cityId);
   const phoneHref = telHref(company.phone);
+  const phoneLabel = formatPhone(company.phone);
   const photo = firmPhoto(company.images);
   const place = [company.district, city?.name].filter(Boolean).join(", ");
 
@@ -44,6 +45,10 @@ export function FirmCard({ id, variant = "row" }: { id: string; variant?: "row" 
               </Link>
             )}
           </div>
+          {/* Profil bağlantısı: kartın sağ üstünde sade ok dairesi */}
+          <Link className="firm-card__go" to={href} aria-label={`${company.name} profili`}>
+            <ArrowUpRight size={16} strokeWidth={2} aria-hidden="true" />
+          </Link>
         </div>
         {place && (
           <p className="firm-card__loc">
@@ -55,7 +60,7 @@ export function FirmCard({ id, variant = "row" }: { id: string; variant?: "row" 
           {phoneHref ? (
             <a className="firm-card__phone" href={phoneHref}>
               <Phone size={14} strokeWidth={1.9} aria-hidden="true" />
-              {company.phone}
+              {phoneLabel}
             </a>
           ) : (
             <span className="firm-card__phone is-empty">Telefon belirtilmemiş</span>
@@ -67,10 +72,6 @@ export function FirmCard({ id, variant = "row" }: { id: string; variant?: "row" 
             </span>
           )}
         </div>
-        <Link className="firm-card__go" to={href}>
-          Profili gör
-          <ArrowUpRight size={15} strokeWidth={2} aria-hidden="true" />
-        </Link>
       </article>
     );
   }
@@ -98,7 +99,7 @@ export function FirmCard({ id, variant = "row" }: { id: string; variant?: "row" 
         {phoneHref && (
           <a className="firm-row__phone firm-row__phone--inline" href={phoneHref}>
             <Phone size={13} strokeWidth={1.9} aria-hidden="true" />
-            {company.phone}
+            {phoneLabel}
           </a>
         )}
       </div>
@@ -106,7 +107,7 @@ export function FirmCard({ id, variant = "row" }: { id: string; variant?: "row" 
         {phoneHref && (
           <a className="firm-row__phone firm-row__phone--meta" href={phoneHref}>
             <Phone size={14} strokeWidth={1.9} aria-hidden="true" />
-            {company.phone}
+            {phoneLabel}
           </a>
         )}
         {hasHours && (

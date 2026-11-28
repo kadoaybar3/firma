@@ -55,6 +55,23 @@ export function telHref(phone: string): string {
 }
 
 /**
+ * Türkiye telefon numarasını tek görüntü biçimine getirir: `0506 277 67 01`.
+ * Kayıtlar `05062776701`, `+90 552 083 51 96`, `0552 083 51 96` gibi farklı
+ * biçimlerde girilmiş olabiliyor; kartlarda hepsi aynı okunur biçimde çıkar.
+ * Tanınmayan (yurt dışı, eksik, dahili) numaralar ham hâliyle döner.
+ */
+export function formatPhone(phone: string): string {
+  const raw = phone.trim();
+  let digits = raw.replace(/\D/g, "");
+  if (!digits) return raw;
+  if (digits.startsWith("00")) digits = digits.slice(2);
+  if (digits.startsWith("90") && digits.length === 12) digits = digits.slice(2);
+  if (digits.length === 10) digits = `0${digits}`;
+  if (digits.length !== 11 || !digits.startsWith("0")) return raw;
+  return `${digits.slice(0, 4)} ${digits.slice(4, 7)} ${digits.slice(7, 9)} ${digits.slice(9, 11)}`;
+}
+
+/**
  * Web sitesi alanı protokolsüz de girilebilir (`ornek.com`, `www.ornek.com`).
  * Yalnız http(s) adresleri kabul edilir; geçersiz/tehlikeli şemalar gizlenir.
  */

@@ -47,6 +47,29 @@ describe("createPublicLead", () => {
     );
   });
 
+  it("seçilen paketi kaydeder, geçersiz paketi reddeder", () => {
+    resetDB();
+    const lead = createPublicLead({
+      companyName: "Paketli Başvuru",
+      phone: "0505 111 22 33",
+      packageKey: "featured",
+    });
+    expect(lead.packageKey).toBe("featured");
+    expect(getDB().leads.find((l) => l.id === lead.id)?.packageKey).toBe("featured");
+
+    // Paket seçimi opsiyoneldir: seçilmezse alan boş kalır.
+    const plain = createPublicLead({ companyName: "Paketsiz", phone: "0505 111 22 44" });
+    expect(plain.packageKey).toBeUndefined();
+
+    expect(() =>
+      createPublicLead({
+        companyName: "Hatalı Paket",
+        phone: "0505 111 22 55",
+        packageKey: "gold" as never,
+      }),
+    ).toThrow("Geçersiz paket seçimi.");
+  });
+
   it("temsilci panosu web başvurusunu GÖRMEZ; admin görür", () => {
     resetDB();
     createPublicLead({ companyName: "Görünmez Başvuru", phone: "0505 555 55 55" });
